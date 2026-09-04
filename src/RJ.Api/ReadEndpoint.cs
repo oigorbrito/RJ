@@ -81,7 +81,7 @@ public static class ReadEndpoint
                 q ?? string.Empty,
                 limit ?? 20,
                 cancellationToken);
-            return Results.Ok(evidence);
+            return Results.Ok(evidence.Select(ToEvidenceResult).ToArray());
         }
         catch (ArgumentException exception)
         {
@@ -105,6 +105,15 @@ public static class ReadEndpoint
         document.RawContent,
         document.Content,
         document.ContentSha256);
+
+    private static LegalEvidenceResult ToEvidenceResult(LegalEvidenceHit evidence) => new(
+        evidence.CaseId,
+        evidence.DocumentId,
+        evidence.SourceName,
+        evidence.ContentSha256,
+        evidence.Excerpt,
+        new EvidencePosition(evidence.Position.StartOffset, evidence.Position.Length),
+        evidence.Rank);
 }
 
 public sealed record LegalDocumentSummary(
@@ -132,5 +141,18 @@ public sealed record LegalDocumentSearchResult(
     string SourceName,
     string ContentSha256,
     float Rank);
+
+public sealed record LegalEvidenceResult(
+    string CaseId,
+    string DocumentId,
+    string SourceName,
+    string ContentSha256,
+    string Excerpt,
+    EvidencePosition Position,
+    float Rank);
+
+public sealed record EvidencePosition(
+    int StartOffset,
+    int Length);
 
 public sealed record ApiReadError(string Code, string Error);
