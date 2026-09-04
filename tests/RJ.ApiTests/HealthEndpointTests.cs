@@ -50,6 +50,17 @@ public sealed class HealthEndpointTests
     }
 
     [Fact]
+    public async Task ReadyAsync_internal_timeout_cancels_blocked_probe_and_returns_503()
+    {
+        var probe = new BlockingProbe();
+
+        var result = await HealthEndpoint.ReadyAsync(probe, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, ((IStatusCodeHttpResult)result).StatusCode);
+        Assert.True(probe.ObservedCancellation);
+    }
+
+    [Fact]
     public async Task ReadyAsync_propagates_request_cancellation()
     {
         using var cancellation = new CancellationTokenSource();
@@ -69,6 +80,24 @@ public sealed class HealthEndpointTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingProbe : IReadinessProbe
+    {
+        public bool ObservedCancellation { get; private set; }
+
+        public async Task CheckAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                ObservedCancellation = true;
+                throw;
+            }
         }
     }
 
