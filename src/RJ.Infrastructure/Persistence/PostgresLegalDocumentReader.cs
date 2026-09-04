@@ -31,6 +31,11 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
         return ReadSnapshot(reader);
     }
 
+    public Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
+        LegalCaseId caseId,
+        CancellationToken cancellationToken) =>
+        ListByCaseAsync(caseId, 0, 100, cancellationToken);
+
     public async Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
         LegalCaseId caseId,
         int offset,
