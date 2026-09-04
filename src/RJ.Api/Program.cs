@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using RJ.Api;
 using RJ.Application.Generation;
@@ -9,6 +9,11 @@ using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<RouteHandlerOptions>(options =>
+{
+    options.ThrowOnBadRequest = true;
+});
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? Environment.GetEnvironmentVariable("RJ_POSTGRES_CONNECTION")
@@ -29,12 +34,14 @@ builder.Services.AddSingleton<GenerationContextService>();
 
 var app = builder.Build();
 
+app.UseMiddleware<JsonInputExceptionMiddleware>();
+
 app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
 app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
-    .WithMetadata(new RequestSizeLimitAttribute(IngestionLimits.MaxRequestBodyBytes));
+    .WithMetadata(new Microsoft.AspNetCore.Http.Metadata.RequestSizeLimitAttribute(IngestionLimits.MaxRequestBodyBytes));
 
 app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
 
