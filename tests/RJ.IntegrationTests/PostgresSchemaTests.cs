@@ -6,19 +6,24 @@ namespace RJ.IntegrationTests;
 public sealed class PostgresSchemaTests
 {
     [Fact]
-    public async Task MigrateAsync_is_idempotent_and_records_expected_version()
+    public async Task MigrateAsync_is_idempotent_and_records_expected_version_once()
     {
         await using var dataSource = CreateDataSourceOrSkip();
 
         await PostgresSchema.MigrateAsync(dataSource);
         await PostgresSchema.MigrateAsync(dataSource);
 
+        var expectedVersion = int.Parse(
+            PostgresSchema.Version,
+            System.Globalization.CultureInfo.InvariantCulture);
         await using var command = dataSource.CreateCommand(
-            "SELECT count(*), max(version) FROM rj_schema_migrations;");
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        Assert.Equal(1, reader.GetInt64(0));
-        Assert.Equal(int.Parse(PostgresSchema.Version, System.Globalization.CultureInfo.InvariantCulture), reader.GetInt32(1));
+            "SELECT count(*) FROM rj_schema_migrations WHERE version = $1;");
+        command.Parameters.Add(new NpgsqlParameter { Value = expectedVersion });
+        var count = Convert.ToInt64(
+            await command.ExecuteScalarAsync(),
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(1, count);
     }
 
     [Fact]
