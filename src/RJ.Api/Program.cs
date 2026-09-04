@@ -102,3 +102,5 @@ app.MapGet("/api/cases/{caseId}/generation-context", async (
 });
 
 app.Run();
+
+public partial class Program;
