@@ -22,7 +22,24 @@ public static class ReadEndpoint
         }
         catch (ArgumentException exception)
         {
-            return Results.BadRequest(new ApiReadError("invalid_request", exception.Message));
+            return InvalidRequest(exception);
+        }
+    }
+
+    public static async Task<IResult> GetDocumentAsync(
+        string caseId,
+        string documentId,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var document = await service.GetAsync(caseId, documentId, cancellationToken);
+            return document is null ? Results.NotFound() : Results.Ok(document);
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
         }
     }
 
@@ -46,9 +63,34 @@ public static class ReadEndpoint
         }
         catch (ArgumentException exception)
         {
-            return Results.BadRequest(new ApiReadError("invalid_request", exception.Message));
+            return InvalidRequest(exception);
         }
     }
+
+    public static async Task<IResult> RetrieveEvidenceAsync(
+        string caseId,
+        string? q,
+        int? limit,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var evidence = await service.RetrieveEvidenceAsync(
+                caseId,
+                q ?? string.Empty,
+                limit ?? 20,
+                cancellationToken);
+            return Results.Ok(evidence);
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
+        }
+    }
+
+    private static IResult InvalidRequest(ArgumentException exception) =>
+        Results.BadRequest(new ApiReadError("invalid_request", exception.Message));
 
     private static LegalDocumentSummary ToSummary(LegalDocumentSnapshot document) => new(
         document.CaseId,
