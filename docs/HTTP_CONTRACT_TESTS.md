@@ -18,14 +18,17 @@ Tests use unique case identifiers to avoid cross-test evidence collisions in the
 
 The minimum HTTP contract set verifies:
 
-1. `/health/live` returns HTTP 200 with `status=live`;
-2. `/health/ready` returns HTTP 200 with `status=ready` against migrated PostgreSQL;
-3. ingestion returns 202 for valid evidence;
-4. invalid ingestion returns 400 with `code=invalid_request`;
-5. conflicting evidence returns 409 with `code=evidence_conflict`;
-6. document collection pagination is deterministic and returns compact payloads without `rawContent` or normalized `content`;
-7. search returns compact hits with rank but without full raw/normalized content;
-8. evidence retrieval returns citable excerpts whose offsets reproduce the exact raw source substring.
+1. `/health` remains a compatibility alias for liveness and returns HTTP 200 with `status=live`;
+2. `/health/live` returns HTTP 200 with `status=live`;
+3. `/health/ready` returns HTTP 200 with `status=ready` against migrated PostgreSQL;
+4. ingestion returns 202 for valid evidence;
+5. invalid ingestion returns 400 with `code=invalid_request`;
+6. conflicting evidence returns 409 with `code=evidence_conflict`;
+7. document collection pagination is deterministic and returns compact payloads without `rawContent` or normalized `content`;
+8. search returns compact hits with rank but without full raw/normalized content;
+9. evidence retrieval returns citable excerpts whose offsets reproduce the exact raw source substring.
+
+The health contract test runs through the real ASP.NET Core host and therefore protects the route mappings in `Program.cs`, not only the endpoint methods in isolation. Error and timeout branches of readiness remain covered by focused unit tests so the HTTP contract suite does not duplicate slow failure-path timing tests.
 
 ## Execution
 
