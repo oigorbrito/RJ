@@ -4,6 +4,10 @@
 
 This phase defines the application boundary for a future generation model. No external provider, model SDK, prompt framework, HTTP generation endpoint, or production model implementation is introduced.
 
+The boundary is currently internal to the Application layer and benchmark harness. The production API exposes deterministic generation context construction only; it does not register `GenerationService`, `IGenerationModel`, `GenerationModelOutput`, claims, or citations as an HTTP transport contract.
+
+The benchmark CLI may invoke an `IGenerationModel` through `GenerationBenchmarkRunner`, but it serializes the benchmark report through `GenerationBenchmarkJson`; it does not serialize `GenerationModelOutput` directly as a CLI artifact. Therefore no transport DTO for model output is introduced until an actual public generation surface exists.
+
 ## Input contract
 
 `IGenerationModel.GenerateAsync` accepts exactly one application input: `GenerationContext`.
@@ -61,6 +65,9 @@ The minimum evidence for this phase is:
 4. an uncited claim is rejected;
 5. a citation outside the supplied context is rejected;
 6. empty context prevents model execution;
-7. prior generation-context, citation, retrieval, ingestion, persistence, domain, and architecture gates remain green.
+7. the production API exposes no generation-model endpoint and does not serialize `GenerationModelOutput` as HTTP;
+8. the benchmark CLI serializes benchmark reports rather than `GenerationModelOutput` directly;
+9. no public generation transport DTO is created before a concrete transport requirement exists;
+10. prior generation-context, citation, retrieval, ingestion, persistence, domain, and architecture gates remain green.
 
 Missing runtime, runner, database, or local checkout is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
