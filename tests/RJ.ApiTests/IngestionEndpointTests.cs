@@ -38,6 +38,24 @@ public sealed class IngestionEndpointTests
     }
 
     [Fact]
+    public async Task HandleAsync_rejects_oversized_raw_content_before_writer_execution()
+    {
+        var writer = new StubWriter();
+        var handler = new IngestLegalDocumentHandler(writer);
+        var oversized = new string('x', IngestionLimits.MaxRawContentBytes + 1);
+
+        var result = await IngestionEndpoint.HandleAsync(
+            new IngestLegalDocumentRequest("case-1", "doc-large", "source.txt", oversized),
+            handler,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ApiError>(((IValueHttpResult)result).Value);
+        Assert.Equal("payload_too_large", error.Code);
+        Assert.Null(writer.StoredDocument);
+    }
+
+    [Fact]
     public async Task HandleAsync_maps_evidence_conflict_to_409()
     {
         var handler = new IngestLegalDocumentHandler(new StubWriter(
