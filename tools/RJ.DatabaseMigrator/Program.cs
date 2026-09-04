@@ -20,6 +20,6 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine($"{exception.GetType().Name}: {exception.Message}");
+    Console.Error.WriteLine($"{exception.GetType().Name}: database migration failed.");
     return configurationOrExecutionErrorExitCode;
 }
