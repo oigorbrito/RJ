@@ -67,13 +67,19 @@ dotnet run --project src/RJ.BenchmarkCli -- \
 
 Using the self-test model with an external legal catalog validates the harness path only; it is not a model-quality benchmark and may legitimately return hard-gate failure.
 
-## Exit codes
+## Exit codes and diagnostics
 
 - `0`: every benchmark case passed all non-compensable gates and the JSON report was written;
 - `1`: benchmark execution completed and at least one hard gate failed; the JSON report is still written;
 - `2`: command-line/configuration/catalog/execution failure prevented a trustworthy benchmark result.
 
 Cancellation is propagated rather than converted to an ordinary exit result.
+
+Argument-validation failures retain the exception type and current static parser message. Those messages contain option names or fixed harness text, not catalog contents, local paths, hashes, or generated evidence.
+
+Non-argument execution failures emit only the exception type plus the fixed text `Benchmark execution failed.` The originating exception message is not copied to stderr. This prevents filesystem paths, catalog paths, expected/observed hashes, parser payload fragments, and other provider/runtime details from silently becoming part of the CLI diagnostic contract.
+
+The external-catalog checksum mismatch exception itself is also fixed and no longer embeds expected or observed hash values. Exact hashes remain inputs/provenance data and are not needed for the process-level error message.
 
 ## Report persistence
 
@@ -97,10 +103,12 @@ The focal test set proves:
 2. a model output that violates hard citation gates produces exit code `1` after writing a failing report;
 3. an unavailable model identifier produces exit code `2` without creating a benchmark report;
 4. external catalog checksum mismatch produces exit code `2` before creating a report;
-5. external catalog path/checksum must be supplied together;
-6. report replacement leaves only the final target file;
-7. duplicate command-line argument names are rejected;
-8. the CLI project may reference only `RJ.Application`;
-9. prior benchmark, evaluator, generation, retrieval, ingestion, persistence, domain, and architecture gates remain unchanged.
+5. checksum-mismatch diagnostics do not expose catalog paths or expected hashes;
+6. missing-catalog filesystem diagnostics do not expose local paths or file names;
+7. external catalog path/checksum must be supplied together;
+8. report replacement leaves only the final target file;
+9. duplicate command-line argument names are rejected;
+10. the CLI project may reference only `RJ.Application`;
+11. prior benchmark, evaluator, generation, retrieval, ingestion, persistence, domain, and architecture gates remain unchanged.
 
 A missing runtime, unavailable runner, unavailable local checkout, absent legal corpus, or absent execution log is not PASS. It remains `BLOCKED` or `NOT_TESTED` based on the observed evidence.
