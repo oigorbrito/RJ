@@ -52,6 +52,28 @@ public sealed class ReadEndpointTests
     }
 
     [Fact]
+    public async Task GetDocumentAsync_returns_explicit_detail_projection()
+    {
+        var snapshot = Snapshot();
+        var service = new LegalDocumentQueryService(new StubReader([snapshot]), new StubSearch([]));
+
+        var result = await ReadEndpoint.GetDocumentAsync(
+            "case-1",
+            "doc-1",
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
+        var detail = Assert.IsType<LegalDocumentDetail>(((IValueHttpResult)result).Value);
+        Assert.Equal(snapshot.CaseId, detail.CaseId);
+        Assert.Equal(snapshot.DocumentId, detail.DocumentId);
+        Assert.Equal(snapshot.SourceName, detail.SourceName);
+        Assert.Equal(snapshot.RawContent, detail.RawContent);
+        Assert.Equal(snapshot.Content, detail.Content);
+        Assert.Equal(snapshot.ContentSha256, detail.ContentSha256);
+    }
+
+    [Fact]
     public async Task GetDocumentAsync_returns_404_for_missing_document()
     {
         var service = new LegalDocumentQueryService(new StubReader([]), new StubSearch([]));
