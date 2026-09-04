@@ -4,39 +4,55 @@
 
 All document retrieval routes are scoped by `caseId` in the URL. There is no unscoped document-list or full-text-search endpoint.
 
-- `GET /api/cases/{caseId}/documents`
+- `GET /api/cases/{caseId}/documents?page={>=1}&pageSize={1..100}`
 - `GET /api/cases/{caseId}/documents/{documentId}`
 - `GET /api/cases/{caseId}/search?q={query}&limit={1..100}`
+- `GET /api/cases/{caseId}/evidence?q={query}&limit={1..100}`
 
-Search defaults to `limit=20`. Invalid identifiers, blank queries, and limits outside `1..100` return HTTP 400. A missing document returns HTTP 404.
+Document listing defaults to `page=1&pageSize=20`. Search defaults to `limit=20`. Invalid identifiers, blank queries, invalid page values, and limits outside their documented ranges return HTTP 400. A missing document returns HTTP 404.
 
-## Provenance fields
+## Collection payload minimization
 
-Document payloads expose:
+Collection/list and search endpoints do not expose full source text.
 
-- `caseId`
-- `documentId`
-- `sourceName`
-- `rawContent`
-- `content`
-- `contentSha256`
+`GET /documents` returns a page envelope containing only:
+
+- `caseId`;
+- `documentId`;
+- `sourceName`;
+- `contentSha256`.
+
+`GET /search` returns the same evidence identity plus deterministic PostgreSQL FTS `rank`.
+
+Neither collection response contains `rawContent` or normalized `content`. This prevents large source bodies from being serialized accidentally through browse/search surfaces.
+
+Pagination is applied by PostgreSQL using mandatory case scope, `ORDER BY document_id ASC`, `OFFSET`, and `LIMIT`; it is not an in-memory slice after loading an unbounded case.
+
+## Explicit evidence/detail surfaces
+
+`GET /documents/{documentId}` remains the explicit full-document detail surface and may expose the stored raw and normalized representations.
+
+`GET /evidence` remains the explicit citable retrieval surface. It returns bounded excerpts tied to `documentId`, `contentSha256`, and exact source offsets. Search itself is not an evidence-text API.
 
 `rawContent` is the preserved ingested evidence representation. `content` is the normalized operational representation. `contentSha256` is derived from UTF-8 bytes of `rawContent` during ingestion.
 
-Search hits additionally expose deterministic PostgreSQL FTS `rank`. Search remains PostgreSQL FTS only and is not semantic/vector retrieval.
+Search remains PostgreSQL FTS only and is not semantic/vector retrieval.
 
-## Isolation rule
+## Isolation and ordering
 
-`caseId` is converted to the domain `LegalCaseId` in the application layer before the repository/search port is invoked. PostgreSQL reader and search SQL both include mandatory `case_id` predicates. Cross-case results are therefore outside the retrieval contract and covered by integration tests.
+`caseId` is converted to the domain `LegalCaseId` in the application layer before repository/search access. PostgreSQL reader and search SQL include mandatory `case_id` predicates.
+
+List ordering is deterministic by `document_id ASC`. Search ordering remains rank descending with `document_id ASC` as tie-break.
 
 ## Minimum acceptance evidence
 
-1. transport identifiers are converted before repository access;
-2. invalid case identifiers fail before repository execution;
-3. list and get are case-scoped;
-4. search is case-scoped and respects the requested limit;
-5. read/search payloads contain evidence identity and raw/normalized provenance;
-6. missing documents return 404 and invalid inputs return 400;
-7. prior architecture, ingestion, persistence, and retrieval gates remain green.
+1. list pagination is validated before repository execution;
+2. page/page-size are converted to deterministic offset/limit;
+3. PostgreSQL applies case scope, deterministic ordering, offset, and limit;
+4. list payload omits raw and normalized content;
+5. search payload omits raw and normalized content while retaining evidence identity and rank;
+6. `/evidence` remains the explicit bounded excerpt surface;
+7. missing documents return 404 and invalid inputs return 400;
+8. prior architecture, ingestion, persistence, retrieval, citation, and generation gates remain unchanged.
 
-Unavailable runner, runtime, or PostgreSQL is not PASS.
+Unavailable runner, runtime, or PostgreSQL is not PASS. It remains `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
