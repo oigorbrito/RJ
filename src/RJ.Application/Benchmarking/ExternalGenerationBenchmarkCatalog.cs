@@ -62,8 +62,6 @@ public sealed record ExternalGenerationBenchmarkCatalog(
         ValidateRequired(source.Id, "case.id");
         ValidateRequired(source.ContextCaseId, "case.contextCaseId");
         ValidateRequired(source.Query, "case.query");
-        ValidateRequired(source.SourceReference, "case.sourceReference");
-        ValidateSha256(source.SourceSha256, "case.sourceSha256");
         ValidateRequired(source.OracleReference, "case.oracleReference");
         ValidateSha256(source.OracleSha256, "case.oracleSha256");
         ArgumentNullException.ThrowIfNull(source.Items);
@@ -79,8 +77,18 @@ public sealed record ExternalGenerationBenchmarkCatalog(
             ArgumentNullException.ThrowIfNull(item);
             ValidateRequired(item.DocumentId, "item.documentId");
             ValidateRequired(item.SourceName, "item.sourceName");
+            ValidateRequired(item.SourceReference, "item.sourceReference");
+            ValidateSha256(item.SourceSha256, "item.sourceSha256");
             ValidateSha256(item.ContentSha256, "item.contentSha256");
             ValidateRequired(item.Excerpt, "item.excerpt");
+
+            var sourceSha256 = item.SourceSha256.Trim().ToLowerInvariant();
+            var contentSha256 = item.ContentSha256.Trim().ToLowerInvariant();
+            if (!StringComparer.Ordinal.Equals(sourceSha256, contentSha256))
+            {
+                throw new InvalidOperationException($"Benchmark case '{source.Id}' evidence provenance hash must equal its content hash.");
+            }
+
             var position = SourcePosition.Create(item.StartOffset, item.Length, item.SourceLength);
             if (item.Excerpt.Length != position.Length)
             {
@@ -91,7 +99,7 @@ public sealed record ExternalGenerationBenchmarkCatalog(
                 source.ContextCaseId.Trim(),
                 item.DocumentId.Trim(),
                 item.SourceName.Trim(),
-                item.ContentSha256.Trim().ToLowerInvariant(),
+                contentSha256,
                 item.Excerpt,
                 position,
                 item.Rank);
@@ -121,9 +129,11 @@ public sealed record ExternalGenerationBenchmarkCatalog(
                 ArgumentNullException.ThrowIfNull(citation);
                 ValidateRequired(citation.DocumentId, "citation.documentId");
                 ValidateSha256(citation.ContentSha256, "citation.contentSha256");
+                var normalizedDocumentId = citation.DocumentId.Trim();
+                var normalizedHash = citation.ContentSha256.Trim().ToLowerInvariant();
                 var matches = items.Any(item =>
-                    StringComparer.Ordinal.Equals(item.DocumentId, citation.DocumentId.Trim())
-                    && StringComparer.Ordinal.Equals(item.ContentSha256, citation.ContentSha256.Trim().ToLowerInvariant())
+                    StringComparer.Ordinal.Equals(item.DocumentId, normalizedDocumentId)
+                    && StringComparer.Ordinal.Equals(item.ContentSha256, normalizedHash)
                     && item.Position.StartOffset == citation.StartOffset
                     && item.Position.Length == citation.Length);
 
@@ -133,8 +143,8 @@ public sealed record ExternalGenerationBenchmarkCatalog(
                 }
 
                 return new GenerationCitation(
-                    citation.DocumentId.Trim(),
-                    citation.ContentSha256.Trim().ToLowerInvariant(),
+                    normalizedDocumentId,
+                    normalizedHash,
                     citation.StartOffset,
                     citation.Length);
             }).ToArray();
@@ -145,6 +155,11 @@ public sealed record ExternalGenerationBenchmarkCatalog(
         if (source.ExpectAbstention && expectedClaims.Length != 0)
         {
             throw new InvalidOperationException($"Benchmark case '{source.Id}' cannot expect abstention and expected claims simultaneously.");
+        }
+
+        if (!source.ExpectAbstention && expectedClaims.Length == 0)
+        {
+            throw new InvalidOperationException($"Benchmark case '{source.Id}' must define expected claims when abstention is not expected.");
         }
 
         return new GenerationEvaluationCase(source.Id.Trim(), context, expectedClaims, source.ExpectAbstention);
@@ -177,8 +192,6 @@ public sealed record ExternalGenerationBenchmarkCase(
     string Id,
     string ContextCaseId,
     string Query,
-    string SourceReference,
-    string SourceSha256,
     string OracleReference,
     string OracleSha256,
     bool ExpectAbstention,
@@ -188,6 +201,8 @@ public sealed record ExternalGenerationBenchmarkCase(
 public sealed record ExternalGenerationContextItem(
     string DocumentId,
     string SourceName,
+    string SourceReference,
+    string SourceSha256,
     string ContentSha256,
     string Excerpt,
     int StartOffset,
