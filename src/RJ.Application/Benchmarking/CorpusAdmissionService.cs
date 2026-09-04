@@ -63,12 +63,12 @@ public sealed class CorpusAdmissionService(IBenchmarkArtifactReader artifactRead
                     {
                         sourceText = StrictUtf8.GetString(bytes.Span);
                     }
-                    catch (DecoderFallbackException exception)
+                    catch (DecoderFallbackException)
                     {
                         failures.Add(new CorpusAdmissionFailure(
                             item.SourceReference,
                             "source-utf8",
-                            exception.Message));
+                            "Resolved source artifact is not valid strict UTF-8."));
                         continue;
                     }
 
@@ -114,7 +114,7 @@ public sealed class CorpusAdmissionService(IBenchmarkArtifactReader artifactRead
                     failures.Add(new CorpusAdmissionFailure(
                         item.SourceReference,
                         "source-read",
-                        $"{exception.GetType().Name}: {exception.Message}"));
+                        $"{exception.GetType().Name}: Source artifact could not be read."));
                 }
             }
 
@@ -175,7 +175,7 @@ public sealed class CorpusAdmissionService(IBenchmarkArtifactReader artifactRead
             failures.Add(new CorpusAdmissionFailure(
                 artifactReference,
                 "artifact-read",
-                $"{exception.GetType().Name}: {exception.Message}"));
+                $"{exception.GetType().Name}: Artifact could not be read."));
             return false;
         }
     }
