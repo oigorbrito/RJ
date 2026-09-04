@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
@@ -59,6 +60,55 @@ public sealed class ApiContractTests
         Assert.Equal("invalid_request", (await ReadJsonAsync(invalid)).RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
         Assert.Equal("evidence_conflict", (await ReadJsonAsync(conflict)).RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Ingestion_returns_stable_400_for_malformed_json()
+    {
+        await using var fixture = await HttpFixture.CreateAsync();
+        using var content = new StringContent(
+            "{\"caseId\":\"case-1\",\"documentId\":",
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await fixture.Client.PostAsync("/api/legal-documents", content);
+        var json = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_json", json.RootElement.GetProperty("code").GetString());
+        Assert.Equal("Request body is not valid for the ingestion contract.", json.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Ingestion_returns_stable_400_for_incompatible_json_type()
+    {
+        await using var fixture = await HttpFixture.CreateAsync();
+        using var content = new StringContent(
+            "{\"caseId\":123,\"documentId\":\"doc-1\",\"sourceName\":\"source.txt\",\"rawContent\":\"conteudo\"}",
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await fixture.Client.PostAsync("/api/legal-documents", content);
+        var json = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_json", json.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Ingestion_returns_stable_400_for_missing_required_field()
+    {
+        await using var fixture = await HttpFixture.CreateAsync();
+        using var content = new StringContent(
+            "{\"caseId\":\"case-1\",\"documentId\":\"doc-1\",\"sourceName\":\"source.txt\"}",
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await fixture.Client.PostAsync("/api/legal-documents", content);
+        var json = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_request", json.RootElement.GetProperty("code").GetString());
     }
 
     [Fact]
