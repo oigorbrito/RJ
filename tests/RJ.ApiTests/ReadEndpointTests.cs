@@ -127,6 +127,41 @@ public sealed class ReadEndpointTests
     }
 
     [Fact]
+    public async Task RetrieveEvidenceAsync_returns_explicit_citation_projection()
+    {
+        const string raw = "cabecalho tutela provisoria rodape";
+        var snapshot = new LegalDocumentSnapshot(
+            "case-1",
+            "doc-1",
+            "source.txt",
+            raw,
+            raw,
+            new string('a', 64));
+        var service = new LegalDocumentQueryService(
+            new StubReader([]),
+            new StubSearch([new LegalDocumentSearchHit(snapshot, 0.75f)]));
+
+        var result = await ReadEndpoint.RetrieveEvidenceAsync(
+            "case-1",
+            "tutela provisoria",
+            20,
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
+        var evidence = Assert.IsType<LegalEvidenceResult[]>(((IValueHttpResult)result).Value);
+        var hit = Assert.Single(evidence);
+        Assert.Equal(snapshot.CaseId, hit.CaseId);
+        Assert.Equal(snapshot.DocumentId, hit.DocumentId);
+        Assert.Equal(snapshot.SourceName, hit.SourceName);
+        Assert.Equal(snapshot.ContentSha256, hit.ContentSha256);
+        Assert.Equal(raw, hit.Excerpt);
+        Assert.Equal(0, hit.Position.StartOffset);
+        Assert.Equal(raw.Length, hit.Position.Length);
+        Assert.Equal(0.75f, hit.Rank);
+    }
+
+    [Fact]
     public async Task RetrieveEvidenceAsync_returns_stable_invalid_request_error()
     {
         var service = new LegalDocumentQueryService(new StubReader([]), new StubSearch([]));
