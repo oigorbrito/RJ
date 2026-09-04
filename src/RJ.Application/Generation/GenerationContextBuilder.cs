@@ -50,9 +50,7 @@ public sealed class GenerationContextBuilder
 
         foreach (var item in ordered)
         {
-            var key = string.Create(
-                System.Globalization.CultureInfo.InvariantCulture,
-                $"{item.DocumentId}\u001f{item.ContentSha256}\u001f{item.Position.StartOffset}\u001f{item.Position.Length}");
+            var key = $"{item.DocumentId}\u001f{item.ContentSha256}\u001f{item.Position.StartOffset}\u001f{item.Position.Length}";
 
             if (!seen.Add(key))
             {
