@@ -28,14 +28,14 @@ public static class ReadEndpoint
 
     public static async Task<IResult> SearchAsync(
         string caseId,
-        string? query,
+        string? q,
         int? limit,
         LegalDocumentQueryService service,
         CancellationToken cancellationToken)
     {
         try
         {
-            var hits = await service.SearchAsync(caseId, query ?? string.Empty, limit ?? 20, cancellationToken);
+            var hits = await service.SearchAsync(caseId, q ?? string.Empty, limit ?? 20, cancellationToken);
             var items = hits.Select(hit => new LegalDocumentSearchResult(
                 hit.Document.CaseId,
                 hit.Document.DocumentId,
