@@ -20,6 +20,31 @@ public sealed class GenerationService(IGenerationModel model)
 
         ArgumentNullException.ThrowIfNull(output.Claims);
 
+        if (output.Abstained)
+        {
+            if (string.IsNullOrWhiteSpace(output.AbstentionReason))
+            {
+                throw new InvalidOperationException("Abstention must include a reason.");
+            }
+
+            if (output.Claims.Count != 0)
+            {
+                throw new InvalidOperationException("Abstention cannot include generated claims.");
+            }
+
+            return output;
+        }
+
+        if (!string.IsNullOrWhiteSpace(output.AbstentionReason))
+        {
+            throw new InvalidOperationException("Non-abstaining output cannot include an abstention reason.");
+        }
+
+        if (output.Claims.Count == 0)
+        {
+            throw new InvalidOperationException("Non-abstaining output must include at least one generated claim.");
+        }
+
         foreach (var claim in output.Claims)
         {
             ArgumentNullException.ThrowIfNull(claim);
