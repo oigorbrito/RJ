@@ -67,15 +67,15 @@ public static class BenchmarkCli
         BenchmarkCliOptions options,
         CancellationToken cancellationToken)
     {
-        var json = await File.ReadAllTextAsync(options.CatalogPath!, cancellationToken);
-        var actualSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(json);
+        var bytes = await File.ReadAllBytesAsync(options.CatalogPath!, cancellationToken);
+        var actualSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(bytes);
         if (!StringComparer.Ordinal.Equals(actualSha256, options.CatalogSha256))
         {
             throw new InvalidOperationException(
                 $"External benchmark catalog checksum mismatch. Expected {options.CatalogSha256}, observed {actualSha256}.");
         }
 
-        var external = ExternalGenerationBenchmarkCatalog.Parse(json);
+        var external = ExternalGenerationBenchmarkCatalog.Parse(bytes);
         return external.ToBenchmarkCatalog();
     }
 }
