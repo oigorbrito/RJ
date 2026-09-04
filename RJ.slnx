@@ -10,6 +10,7 @@
     <Project Path="tests/RJ.ApiTests/RJ.ApiTests.csproj" />
     <Project Path="tests/RJ.ArchitectureTests/RJ.ArchitectureTests.csproj" />
     <Project Path="tests/RJ.DomainTests/RJ.DomainTests.csproj" />
+    <Project Path="tests/RJ.HttpContractTests/RJ.HttpContractTests.csproj" />
     <Project Path="tests/RJ.IntegrationTests/RJ.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
