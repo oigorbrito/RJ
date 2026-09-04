@@ -1,4 +1,5 @@
 using Npgsql;
+using RJ.Api;
 using RJ.Application.Generation;
 using RJ.Application.Ingestion;
 using RJ.Application.Retrieval;
@@ -26,20 +27,7 @@ var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.MapPost("/api/legal-documents", async (
-    IngestLegalDocumentRequest request,
-    IngestLegalDocumentHandler handler,
-    CancellationToken cancellationToken) =>
-{
-    var command = new IngestLegalDocumentCommand(
-        request.CaseId,
-        request.DocumentId,
-        request.SourceName,
-        request.RawContent);
-
-    await handler.HandleAsync(command, cancellationToken);
-    return Results.Accepted();
-});
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
 
 app.MapGet("/api/cases/{caseId}/documents", async (
     string caseId,
@@ -139,9 +127,3 @@ app.MapGet("/api/cases/{caseId}/generation-context", async (
 });
 
 app.Run();
-
-public sealed record IngestLegalDocumentRequest(
-    string CaseId,
-    string DocumentId,
-    string SourceName,
-    string RawContent);
