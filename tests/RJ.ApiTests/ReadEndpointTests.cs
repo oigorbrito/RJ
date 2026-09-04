@@ -46,7 +46,39 @@ public sealed class ReadEndpointTests
             CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ApiReadError>(((IValueHttpResult)result).Value);
+        Assert.Equal("invalid_request", error.Code);
         Assert.Null(reader.ObservedOffset);
+    }
+
+    [Fact]
+    public async Task GetDocumentAsync_returns_404_for_missing_document()
+    {
+        var service = new LegalDocumentQueryService(new StubReader([]), new StubSearch([]));
+
+        var result = await ReadEndpoint.GetDocumentAsync(
+            "case-1",
+            "doc-missing",
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status404NotFound, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetDocumentAsync_returns_stable_invalid_request_error()
+    {
+        var service = new LegalDocumentQueryService(new StubReader([]), new StubSearch([]));
+
+        var result = await ReadEndpoint.GetDocumentAsync(
+            "case-1",
+            "",
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ApiReadError>(((IValueHttpResult)result).Value);
+        Assert.Equal("invalid_request", error.Code);
     }
 
     [Fact]
@@ -70,6 +102,23 @@ public sealed class ReadEndpointTests
         Assert.Equal("doc-1", hit.DocumentId);
         Assert.Equal(snapshot.ContentSha256, hit.ContentSha256);
         Assert.Equal(0.75f, hit.Rank);
+    }
+
+    [Fact]
+    public async Task RetrieveEvidenceAsync_returns_stable_invalid_request_error()
+    {
+        var service = new LegalDocumentQueryService(new StubReader([]), new StubSearch([]));
+
+        var result = await ReadEndpoint.RetrieveEvidenceAsync(
+            "",
+            "tutela",
+            20,
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ApiReadError>(((IValueHttpResult)result).Value);
+        Assert.Equal("invalid_request", error.Code);
     }
 
     private static LegalDocumentSnapshot Snapshot() => new(
