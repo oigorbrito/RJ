@@ -20,12 +20,14 @@ public sealed class PostgresLegalDocumentWriter(NpgsqlDataSource dataSource) : I
                 case_id,
                 document_id,
                 source_name,
+                raw_content,
                 content,
                 content_sha256)
             VALUES (
                 @case_id,
                 @document_id,
                 @source_name,
+                @raw_content,
                 @content,
                 @content_sha256)
             ON CONFLICT DO NOTHING;
@@ -36,6 +38,7 @@ public sealed class PostgresLegalDocumentWriter(NpgsqlDataSource dataSource) : I
             insert.Parameters.AddWithValue("case_id", document.CaseId.Value);
             insert.Parameters.AddWithValue("document_id", document.Id.Value);
             insert.Parameters.AddWithValue("source_name", document.SourceName);
+            insert.Parameters.AddWithValue("raw_content", document.RawContent);
             insert.Parameters.AddWithValue("content", document.Content);
             insert.Parameters.AddWithValue("content_sha256", document.ContentSha256);
 
