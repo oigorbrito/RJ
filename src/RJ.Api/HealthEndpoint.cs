@@ -24,7 +24,11 @@ public static class HealthEndpoint
             await probe.CheckAsync(timeout.Token);
             return Results.Ok(new HealthStatus("ready"));
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
         {
             return Results.Json(
                 new HealthStatus("not_ready"),
