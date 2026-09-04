@@ -58,13 +58,14 @@ public sealed class GenerationBenchmarkRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_records_case_exception_and_continues_batch()
+    public async Task RunAsync_records_sanitized_case_exception_and_continues_batch()
     {
+        const string secret = "provider payload /sensitive/path token=secret";
         var failing = CreateCase("case-a", "claim-a");
         var passing = CreateCase("case-b", "claim-b");
         var model = new ContextAwareModel(context =>
             context.CaseId == "case-a"
-                ? throw new InvalidOperationException("candidate failure")
+                ? throw new InvalidOperationException(secret)
                 : ValidOutputFor(context));
         var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
 
@@ -76,8 +77,16 @@ public sealed class GenerationBenchmarkRunnerTests
         Assert.False(report.Passed);
         Assert.Equal(2, report.TotalCases);
         Assert.Equal("System.InvalidOperationException", report.Cases[0].ErrorType);
-        Assert.Equal("candidate failure", report.Cases[0].ErrorMessage);
+        Assert.Equal("Candidate execution failed.", report.Cases[0].ErrorMessage);
+        Assert.DoesNotContain(secret, report.Cases[0].ErrorMessage, StringComparison.Ordinal);
         Assert.True(report.Cases[1].Passed);
+
+        var json = GenerationBenchmarkJson.Serialize(report);
+        Assert.Contains("\"errorType\": \"System.InvalidOperationException\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"errorMessage\": \"Candidate execution failed.\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(secret, json, StringComparison.Ordinal);
+        Assert.DoesNotContain("/sensitive/path", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("token=secret", json, StringComparison.Ordinal);
     }
 
     [Fact]
