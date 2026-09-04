@@ -131,6 +131,17 @@ public static class PostgresSchema
                   AND c.relname = 'legal_documents'
                   AND c.relkind = 'r'
             ),
+            attributes AS (
+                SELECT
+                    t.table_oid,
+                    max(a.attnum) FILTER (WHERE a.attname = 'case_id' AND NOT a.attisdropped) AS case_id_attnum,
+                    max(a.attnum) FILTER (WHERE a.attname = 'document_id' AND NOT a.attisdropped) AS document_id_attnum,
+                    max(a.attnum) FILTER (WHERE a.attname = 'content_sha256' AND NOT a.attisdropped) AS content_sha256_attnum,
+                    max(a.attnum) FILTER (WHERE a.attname = 'search_vector' AND NOT a.attisdropped) AS search_vector_attnum
+                FROM target t
+                JOIN pg_attribute a ON a.attrelid = t.table_oid
+                GROUP BY t.table_oid
+            ),
             required_columns AS (
                 SELECT count(*) = 7 AS ok
                 FROM information_schema.columns
@@ -150,32 +161,53 @@ public static class PostgresSchema
                     count(*) FILTER (
                         WHERE con.conname = 'pk_legal_documents'
                           AND con.contype = 'p'
-                          AND pg_get_constraintdef(con.oid) = 'PRIMARY KEY (case_id, document_id)') = 1
+                          AND con.convalidated
+                          AND con.conenforced
+                          AND con.conkey = ARRAY[a.case_id_attnum, a.document_id_attnum]::smallint[]) = 1
                     AND count(*) FILTER (
                         WHERE con.conname = 'uq_legal_documents_case_hash'
                           AND con.contype = 'u'
-                          AND pg_get_constraintdef(con.oid) = 'UNIQUE (case_id, content_sha256)') = 1
+                          AND con.convalidated
+                          AND con.conenforced
+                          AND con.conkey = ARRAY[a.case_id_attnum, a.content_sha256_attnum]::smallint[]) = 1
                     AND count(*) FILTER (
                         WHERE con.conname = 'ck_legal_documents_sha256'
                           AND con.contype = 'c'
-                          AND pg_get_constraintdef(con.oid) LIKE 'CHECK ((content_sha256 ~%^[0-9a-f]{64}%') = 1 AS ok
+                          AND con.convalidated
+                          AND con.conenforced
+                          AND con.conkey = ARRAY[a.content_sha256_attnum]::smallint[]
+                          AND pg_get_expr(con.conbin, con.conrelid) LIKE '%content_sha256%^[0-9a-f]{64}$%') = 1 AS ok
                 FROM pg_constraint con
-                JOIN target t ON t.table_oid = con.conrelid
+                JOIN attributes a ON a.table_oid = con.conrelid
             ),
             required_index AS (
                 SELECT count(*) = 1 AS ok
                 FROM pg_class idx
                 JOIN pg_namespace n ON n.oid = idx.relnamespace
                 JOIN pg_index i ON i.indexrelid = idx.oid
-                JOIN target t ON t.table_oid = i.indrelid
+                JOIN attributes a ON a.table_oid = i.indrelid
                 JOIN pg_am am ON am.oid = idx.relam
                 WHERE n.nspname = 'public'
                   AND idx.relname = 'ix_legal_documents_search_vector'
                   AND am.amname = 'gin'
-                  AND pg_get_indexdef(idx.oid) LIKE '%USING gin (search_vector)%'
+                  AND i.indisvalid
+                  AND i.indisready
+                  AND i.indislive
+                  AND i.indnkeyatts = 1
+                  AND i.indnatts = 1
+                  AND i.indkey::smallint[] = ARRAY[a.search_vector_attnum]::smallint[]
+                  AND i.indexprs IS NULL
+                  AND i.indpred IS NULL
             )
             SELECT
                 EXISTS (SELECT 1 FROM target)
+                AND EXISTS (
+                    SELECT 1
+                    FROM attributes
+                    WHERE case_id_attnum IS NOT NULL
+                      AND document_id_attnum IS NOT NULL
+                      AND content_sha256_attnum IS NOT NULL
+                      AND search_vector_attnum IS NOT NULL)
                 AND (SELECT ok FROM required_columns)
                 AND (SELECT ok FROM required_constraints)
                 AND (SELECT ok FROM required_index);
