@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RJ.Api\RJ.Api.csproj" />
+    <ProjectReference Include="..\..\src\RJ.Application\RJ.Application.csproj" />
+    <ProjectReference Include="..\..\src\RJ.Domain\RJ.Domain.csproj" />
+  </ItemGroup>
+</Project>
