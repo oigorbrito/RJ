@@ -20,6 +20,19 @@ public sealed class LegalDocumentQueryServiceTests
     }
 
     [Fact]
+    public async Task ListAsync_converts_page_to_offset_and_limit()
+    {
+        var reader = new CapturingReader();
+        var service = new LegalDocumentQueryService(reader, new CapturingSearch());
+
+        await service.ListAsync("case-1", 3, 25, CancellationToken.None);
+
+        Assert.Equal("case-1", reader.CaseId?.Value);
+        Assert.Equal(50, reader.Offset);
+        Assert.Equal(25, reader.Limit);
+    }
+
+    [Fact]
     public async Task SearchAsync_forwards_requested_case_query_and_limit()
     {
         var reader = new CapturingReader();
@@ -87,7 +100,19 @@ public sealed class LegalDocumentQueryServiceTests
         var reader = new CapturingReader();
         var service = new LegalDocumentQueryService(reader, new CapturingSearch());
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ListAsync(" ", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ListAsync(" ", 1, 20, CancellationToken.None));
+
+        Assert.False(reader.WasCalled);
+    }
+
+    [Fact]
+    public async Task Invalid_pagination_is_rejected_before_reader_execution()
+    {
+        var reader = new CapturingReader();
+        var service = new LegalDocumentQueryService(reader, new CapturingSearch());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.ListAsync("case-1", 0, 20, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.ListAsync("case-1", 1, 101, CancellationToken.None));
 
         Assert.False(reader.WasCalled);
     }
@@ -96,6 +121,8 @@ public sealed class LegalDocumentQueryServiceTests
     {
         public LegalCaseId? CaseId { get; private set; }
         public LegalDocumentId? DocumentId { get; private set; }
+        public int? Offset { get; private set; }
+        public int? Limit { get; private set; }
         public bool WasCalled { get; private set; }
 
         public Task<LegalDocumentSnapshot?> GetAsync(LegalCaseId caseId, LegalDocumentId documentId, CancellationToken cancellationToken)
@@ -106,10 +133,16 @@ public sealed class LegalDocumentQueryServiceTests
             return Task.FromResult<LegalDocumentSnapshot?>(null);
         }
 
-        public Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(LegalCaseId caseId, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
+            LegalCaseId caseId,
+            int offset,
+            int limit,
+            CancellationToken cancellationToken)
         {
             WasCalled = true;
             CaseId = caseId;
+            Offset = offset;
+            Limit = limit;
             return Task.FromResult<IReadOnlyList<LegalDocumentSnapshot>>([]);
         }
     }
