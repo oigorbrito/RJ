@@ -36,6 +36,14 @@ public sealed class DependencyRulesTests
             allowedProjectReferences: ["RJ.Application", "RJ.Infrastructure"]);
     }
 
+    [Fact]
+    public void BenchmarkCli_may_reference_only_Application()
+    {
+        AssertNoUnexpectedProjectReferences(
+            typeof(global::RJ.BenchmarkCli.AssemblyMarker).Assembly,
+            allowedProjectReferences: ["RJ.Application"]);
+    }
+
     private static void AssertNoUnexpectedProjectReferences(
         Assembly assembly,
         IReadOnlyCollection<string> allowedProjectReferences)
