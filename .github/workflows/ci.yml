@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runner-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Runner diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner.os=${RUNNER_OS}"
+          echo "runner.arch=${RUNNER_ARCH}"
+          uname -a
+          docker --version
+
   build-test:
+    needs: runner-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -37,6 +52,12 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+      - name: Environment diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --info
+          docker --version
       - name: Restore
         run: dotnet restore RJ.slnx
       - name: Build
