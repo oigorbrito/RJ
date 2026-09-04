@@ -21,8 +21,12 @@ public sealed class HarnessSelfTestGenerationModel : IGenerationModel
                 []));
         }
 
-        var item = context.Items.FirstOrDefault()
-            ?? throw new InvalidOperationException("Self-test model requires at least one context item.");
+        if (context.Items.Count == 0)
+        {
+            throw new InvalidOperationException("Self-test model requires at least one context item.");
+        }
+
+        var item = context.Items[0];
 
         return Task.FromResult(new GenerationModelOutput(
             false,

@@ -4,6 +4,7 @@ namespace RJ.Application.Evaluation;
 
 public sealed class GenerationEvaluator
 {
+    #pragma warning disable CA1822
     public GenerationEvaluationResult Evaluate(
         GenerationEvaluationCase evaluationCase,
         GenerationModelOutput output)
@@ -86,7 +87,7 @@ public sealed class GenerationEvaluator
         var citationValidity = totalCitations == 0 ? 0.0 : (double)validCitations / totalCitations;
         var groundedness = output.Claims.Count == 0 ? 0.0 : (double)groundedClaims / output.Claims.Count;
 
-        var passed = claimRecall == 1.0
+        var evaluationPassed = claimRecall == 1.0
             && citationValidity == 1.0
             && groundedness == 1.0;
 
@@ -98,8 +99,9 @@ public sealed class GenerationEvaluator
             claimRecall,
             citationValidity,
             groundedness,
-            passed);
+            evaluationPassed);
     }
+    #pragma warning restore CA1822
 
     private static bool CitationExistsInContext(GenerationContext context, GenerationCitation citation) =>
         context.Items.Any(item =>

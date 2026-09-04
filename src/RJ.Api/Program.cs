@@ -35,13 +35,27 @@ builder.Services.AddSingleton<GenerationContextService>();
 var app = builder.Build();
 
 app.UseMiddleware<JsonInputExceptionMiddleware>();
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsPost(context.Request.Method)
+        && context.Request.Path.Equals("/api/legal-documents", StringComparison.Ordinal)
+        && context.Request.ContentLength is long contentLength
+        && contentLength > IngestionLimits.MaxRequestBodyBytes)
+    {
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync("""{"code":"payload_too_large","error":"Request body exceeds the ingestion size limit."}""");
+        return;
+    }
+
+    await next();
+});
 
 app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
-app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
-    .WithMetadata(new Microsoft.AspNetCore.Http.Metadata.RequestSizeLimitAttribute(IngestionLimits.MaxRequestBodyBytes));
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
 
 app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
 app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync);

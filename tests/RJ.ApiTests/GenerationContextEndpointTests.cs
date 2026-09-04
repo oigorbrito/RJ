@@ -43,9 +43,9 @@ public sealed class GenerationContextEndpointTests
         Assert.Equal("doc-1", item.DocumentId);
         Assert.Equal("source.txt", item.SourceName);
         Assert.Equal(snapshot.ContentSha256, item.ContentSha256);
-        Assert.Equal("tutela", item.Excerpt);
+        Assert.Equal(content, item.Excerpt);
         Assert.Equal(0, item.Position.StartOffset);
-        Assert.Equal("tutela".Length, item.Position.Length);
+        Assert.Equal(content.Length, item.Position.Length);
         Assert.Equal(item.Excerpt.Length, response.UsedCharacters);
         Assert.Equal(0.75f, item.Rank);
     }

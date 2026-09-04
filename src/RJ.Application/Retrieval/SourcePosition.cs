@@ -16,15 +16,8 @@ public sealed record SourcePosition
 
     public static SourcePosition Create(int startOffset, int length, int sourceLength)
     {
-        if (startOffset < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(startOffset));
-        }
-
-        if (length <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(length));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(startOffset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(length);
 
         if (sourceLength < 0 || startOffset > sourceLength - length)
         {

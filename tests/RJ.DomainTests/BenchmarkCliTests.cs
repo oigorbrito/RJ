@@ -1,6 +1,10 @@
 using RJ.Application.Benchmarking;
 using RJ.Application.Generation;
-using RJ.BenchmarkCli;
+using ApprovedGenerationBenchmarkCatalogType = global::RJ.BenchmarkCli.ApprovedGenerationBenchmarkCatalog;
+using AtomicTextFileWriterType = global::RJ.BenchmarkCli.AtomicTextFileWriter;
+using BenchmarkCliApp = global::RJ.BenchmarkCli.BenchmarkCli;
+using BenchmarkCliOptionsType = global::RJ.BenchmarkCli.BenchmarkCliOptions;
+using HarnessSelfTestGenerationModelType = global::RJ.BenchmarkCli.HarnessSelfTestGenerationModel;
 
 namespace RJ.DomainTests;
 
@@ -13,11 +17,11 @@ public sealed class BenchmarkCliTests
         try
         {
             var outputPath = Path.Combine(directory, "benchmark.json");
-            var exitCode = await BenchmarkCli.RunAsync(
-                Args(outputPath, HarnessSelfTestGenerationModel.ModelId),
+            var exitCode = await BenchmarkCliApp.RunAsync(
+                Args(outputPath, HarnessSelfTestGenerationModelType.ModelId),
                 CancellationToken.None);
 
-            Assert.Equal(BenchmarkCli.SuccessExitCode, exitCode);
+            Assert.Equal(BenchmarkCliApp.SuccessExitCode, exitCode);
             var json = await File.ReadAllTextAsync(outputPath);
             Assert.Contains("\"passed\": true", json, StringComparison.Ordinal);
             Assert.Contains("\"catalogVersion\": \"generation-benchmark-v1\"", json, StringComparison.Ordinal);
@@ -36,15 +40,15 @@ public sealed class BenchmarkCliTests
         try
         {
             var outputPath = Path.Combine(directory, "failed.json");
-            var options = BenchmarkCliOptions.Parse(Args(outputPath, HarnessSelfTestGenerationModel.ModelId));
+            var options = BenchmarkCliOptionsType.Parse(Args(outputPath, HarnessSelfTestGenerationModelType.ModelId));
 
-            var exitCode = await BenchmarkCli.ExecuteAsync(
+            var exitCode = await BenchmarkCliApp.ExecuteAsync(
                 options,
-                ApprovedGenerationBenchmarkCatalog.Create(),
+                ApprovedGenerationBenchmarkCatalogType.Create(),
                 new InvalidCitationModel(),
                 CancellationToken.None);
 
-            Assert.Equal(BenchmarkCli.GateFailureExitCode, exitCode);
+            Assert.Equal(BenchmarkCliApp.GateFailureExitCode, exitCode);
             var json = await File.ReadAllTextAsync(outputPath);
             Assert.Contains("\"passed\": false", json, StringComparison.Ordinal);
             Assert.Contains("\"failedCases\":", json, StringComparison.Ordinal);
@@ -62,11 +66,11 @@ public sealed class BenchmarkCliTests
         try
         {
             var outputPath = Path.Combine(directory, "benchmark.json");
-            var exitCode = await BenchmarkCli.RunAsync(
+            var exitCode = await BenchmarkCliApp.RunAsync(
                 Args(outputPath, "not-available"),
                 CancellationToken.None);
 
-            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.Equal(BenchmarkCliApp.UsageOrExecutionErrorExitCode, exitCode);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -84,17 +88,17 @@ public sealed class BenchmarkCliTests
             var catalogPath = Path.Combine(directory, "catalog.json");
             var outputPath = Path.Combine(directory, "benchmark.json");
             await File.WriteAllTextAsync(catalogPath, "{}");
-            var args = Args(outputPath, HarnessSelfTestGenerationModel.ModelId).ToList();
+            var args = Args(outputPath, HarnessSelfTestGenerationModelType.ModelId).ToList();
             args.Add("--catalog");
             args.Add(catalogPath);
             args.Add("--catalog-sha256");
             args.Add(new string('a', 64));
             using var errorWriter = new StringWriter();
 
-            var exitCode = await BenchmarkCli.RunAsync(args, errorWriter, CancellationToken.None);
+            var exitCode = await BenchmarkCliApp.RunAsync(args, errorWriter, CancellationToken.None);
             var diagnostic = errorWriter.ToString();
 
-            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.Equal(BenchmarkCliApp.UsageOrExecutionErrorExitCode, exitCode);
             Assert.False(File.Exists(outputPath));
             Assert.Contains("InvalidOperationException: Benchmark execution failed.", diagnostic, StringComparison.Ordinal);
             Assert.DoesNotContain(catalogPath, diagnostic, StringComparison.Ordinal);
@@ -114,17 +118,17 @@ public sealed class BenchmarkCliTests
         {
             var catalogPath = Path.Combine(directory, "secret-catalog-name.json");
             var outputPath = Path.Combine(directory, "benchmark.json");
-            var args = Args(outputPath, HarnessSelfTestGenerationModel.ModelId).ToList();
+            var args = Args(outputPath, HarnessSelfTestGenerationModelType.ModelId).ToList();
             args.Add("--catalog");
             args.Add(catalogPath);
             args.Add("--catalog-sha256");
             args.Add(new string('b', 64));
             using var errorWriter = new StringWriter();
 
-            var exitCode = await BenchmarkCli.RunAsync(args, errorWriter, CancellationToken.None);
+            var exitCode = await BenchmarkCliApp.RunAsync(args, errorWriter, CancellationToken.None);
             var diagnostic = errorWriter.ToString();
 
-            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.Equal(BenchmarkCliApp.UsageOrExecutionErrorExitCode, exitCode);
             Assert.Contains("FileNotFoundException: Benchmark execution failed.", diagnostic, StringComparison.Ordinal);
             Assert.DoesNotContain(catalogPath, diagnostic, StringComparison.Ordinal);
             Assert.DoesNotContain("secret-catalog-name.json", diagnostic, StringComparison.Ordinal);
@@ -142,8 +146,8 @@ public sealed class BenchmarkCliTests
         try
         {
             var outputPath = Path.Combine(directory, "report.json");
-            await AtomicTextFileWriter.WriteAsync(outputPath, "first", CancellationToken.None);
-            await AtomicTextFileWriter.WriteAsync(outputPath, "second", CancellationToken.None);
+            await AtomicTextFileWriterType.WriteAsync(outputPath, "first", CancellationToken.None);
+            await AtomicTextFileWriterType.WriteAsync(outputPath, "second", CancellationToken.None);
 
             Assert.Equal("second", await File.ReadAllTextAsync(outputPath));
             Assert.Equal(new[] { outputPath }, Directory.GetFiles(directory));
@@ -157,21 +161,21 @@ public sealed class BenchmarkCliTests
     [Fact]
     public void Options_parser_rejects_duplicate_argument_names()
     {
-        var args = Args("report.json", HarnessSelfTestGenerationModel.ModelId).ToList();
+        var args = Args("report.json", HarnessSelfTestGenerationModelType.ModelId).ToList();
         args.Add("--seed");
         args.Add("duplicate");
 
-        Assert.Throws<ArgumentException>(() => BenchmarkCliOptions.Parse(args));
+        Assert.Throws<ArgumentException>(() => BenchmarkCliOptionsType.Parse(args));
     }
 
     [Fact]
     public void Options_parser_requires_external_catalog_path_and_checksum_together()
     {
-        var args = Args("report.json", HarnessSelfTestGenerationModel.ModelId).ToList();
+        var args = Args("report.json", HarnessSelfTestGenerationModelType.ModelId).ToList();
         args.Add("--catalog");
         args.Add("catalog.json");
 
-        Assert.Throws<ArgumentException>(() => BenchmarkCliOptions.Parse(args));
+        Assert.Throws<ArgumentException>(() => BenchmarkCliOptionsType.Parse(args));
     }
 
     private static string[] Args(string outputPath, string modelId) =>

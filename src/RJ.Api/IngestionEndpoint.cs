@@ -25,11 +25,14 @@ public static class IngestionEndpoint
 
         try
         {
+            var rawContent = request.RawContent
+                ?? throw new ArgumentException("Raw content is required.");
+
             var command = new IngestLegalDocumentCommand(
                 request.CaseId,
                 request.DocumentId,
                 request.SourceName,
-                request.RawContent);
+                rawContent);
 
             await handler.HandleAsync(command, cancellationToken);
             return Results.Accepted();

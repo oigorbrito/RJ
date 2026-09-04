@@ -195,7 +195,7 @@ public sealed class ReadEndpointTests
             LegalCaseId caseId,
             LegalDocumentId documentId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<LegalDocumentSnapshot?>(documents.FirstOrDefault());
+            Task.FromResult<LegalDocumentSnapshot?>(documents.Count > 0 ? documents[0] : null);
 
         public Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
             LegalCaseId caseId,

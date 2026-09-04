@@ -4,6 +4,7 @@ namespace RJ.Application.Generation;
 
 public sealed class GenerationContextBuilder
 {
+    #pragma warning disable CA1822
     public GenerationContext Build(
         string caseId,
         string query,
@@ -85,4 +86,5 @@ public sealed class GenerationContextBuilder
             usedCharacters,
             items);
     }
+    #pragma warning restore CA1822
 }

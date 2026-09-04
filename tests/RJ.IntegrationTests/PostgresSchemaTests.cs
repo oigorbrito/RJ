@@ -118,7 +118,7 @@ public sealed class PostgresSchemaTests
         await using var connection = await dataSource.OpenConnectionAsync();
         try
         {
-            await using (var setup = new NpgsqlCommand($"""
+            await using (var setup = new NpgsqlCommand($$"""
                 CREATE SCHEMA "{schemaName}";
                 CREATE TABLE "{schemaName}".hash_probe (
                     content_sha256 char(64) NOT NULL,

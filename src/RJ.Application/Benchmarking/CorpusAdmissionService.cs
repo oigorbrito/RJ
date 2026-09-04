@@ -147,7 +147,7 @@ public sealed class CorpusAdmissionService(IBenchmarkArtifactReader artifactRead
         string artifactReference,
         string expectedSha256,
         string gate,
-        ICollection<CorpusAdmissionFailure> failures,
+        List<CorpusAdmissionFailure> failures,
         CancellationToken cancellationToken)
     {
         try

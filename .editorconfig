@@ -11,3 +11,7 @@ indent_style = space
 indent_size = 4
 dotnet_sort_system_directives_first = true
 csharp_new_line_before_open_brace = all
+
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.xUnit1051.severity = none
