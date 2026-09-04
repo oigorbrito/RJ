@@ -77,7 +77,7 @@ The SHA-256 check constraint is also required to be enforced, validated, and bou
 
 The startup check does not recreate, rename, repair, or otherwise mutate missing/degraded objects. A ledger that reports v3 while any required invariant is absent or structurally inconsistent is a startup failure.
 
-Tests verify that explicit migration installs these named invariants without destructively dropping or altering shared test-database objects. Destructive schema-degradation tests are intentionally avoided in the shared integration database because they could invalidate concurrently running tests; the production check itself is fail-closed against degraded catalog state.
+Tests verify that explicit migration installs these named invariants without destructively dropping or altering shared test-database objects. The SHA-256 predicate is additionally tested behaviorally in a uniquely named temporary schema: a 64-character lowercase hexadecimal value is accepted, while short, overlength, uppercase, and non-hexadecimal values must fail with PostgreSQL `check_violation`. The temporary schema is dropped in `finally`, so this negative proof does not alter `public.legal_documents` or depend on test ordering.
 
 ## Idempotency, transaction, and concurrency contract
 
@@ -123,17 +123,18 @@ GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the
 3. startup verification accepts a migrated current schema;
 4. startup verification requires the primary key, case/hash uniqueness, SHA-256 check, and GIN search index in addition to columns/version;
 5. PK/unique/GIN verification uses structural PostgreSQL catalog metadata rather than formatted DDL text;
-6. the API contains no schema mutation call in its startup path;
-7. persistence conflict behavior remains unchanged at the Application contract;
-8. retrieval/persistence integration setup uses the explicit migrator path;
-9. writer/read/search commands have an explicit `15` second command timeout;
-10. caller cancellation propagates through read/search operations without returning partial results;
-11. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
-12. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
-13. same-hash/different-identity conflict does not persist a second identity;
-14. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
-15. two concurrent identical writes converge to one complete row without conflict;
-16. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
-17. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
+6. SHA-256 check behavior is proven in an isolated schema with positive and negative database cases;
+7. the API contains no schema mutation call in its startup path;
+8. persistence conflict behavior remains unchanged at the Application contract;
+9. retrieval/persistence integration setup uses the explicit migrator path;
+10. writer/read/search commands have an explicit `15` second command timeout;
+11. caller cancellation propagates through read/search operations without returning partial results;
+12. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
+13. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
+14. same-hash/different-identity conflict does not persist a second identity;
+15. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
+16. two concurrent identical writes converge to one complete row without conflict;
+17. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
+18. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
 A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
