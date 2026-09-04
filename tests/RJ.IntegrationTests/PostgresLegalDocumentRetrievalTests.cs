@@ -69,6 +69,30 @@ public sealed class PostgresLegalDocumentRetrievalTests
     }
 
     [Fact]
+    public async Task Cancelled_token_aborts_reader_without_returning_partial_results()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var reader = new PostgresLegalDocumentReader(dataSource);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            reader.ListByCaseAsync(NewCaseId(), 0, 100, cancellation.Token));
+    }
+
+    [Fact]
+    public async Task Cancelled_token_aborts_search_without_returning_partial_results()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var search = new PostgresLegalDocumentSearch(dataSource);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            search.SearchAsync(NewCaseId(), "tutela", 10, cancellation.Token));
+    }
+
+    [Fact]
     public async Task Evidence_is_case_scoped_and_offsets_reproduce_exact_raw_excerpt()
     {
         await using var dataSource = await CreateDataSourceAsync();
