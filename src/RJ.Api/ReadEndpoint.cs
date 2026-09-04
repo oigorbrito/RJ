@@ -35,7 +35,7 @@ public static class ReadEndpoint
         try
         {
             var document = await service.GetAsync(caseId, documentId, cancellationToken);
-            return document is null ? Results.NotFound() : Results.Ok(document);
+            return document is null ? Results.NotFound() : Results.Ok(ToDetail(document));
         }
         catch (ArgumentException exception)
         {
@@ -97,12 +97,28 @@ public static class ReadEndpoint
         document.DocumentId,
         document.SourceName,
         document.ContentSha256);
+
+    private static LegalDocumentDetail ToDetail(LegalDocumentSnapshot document) => new(
+        document.CaseId,
+        document.DocumentId,
+        document.SourceName,
+        document.RawContent,
+        document.Content,
+        document.ContentSha256);
 }
 
 public sealed record LegalDocumentSummary(
     string CaseId,
     string DocumentId,
     string SourceName,
+    string ContentSha256);
+
+public sealed record LegalDocumentDetail(
+    string CaseId,
+    string DocumentId,
+    string SourceName,
+    string RawContent,
+    string Content,
     string ContentSha256);
 
 public sealed record LegalDocumentPage(
