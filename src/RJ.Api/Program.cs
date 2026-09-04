@@ -44,44 +44,9 @@ app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
     .WithMetadata(new Microsoft.AspNetCore.Http.Metadata.RequestSizeLimitAttribute(IngestionLimits.MaxRequestBodyBytes));
 
 app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
-
-app.MapGet("/api/cases/{caseId}/documents/{documentId}", async (
-    string caseId,
-    string documentId,
-    LegalDocumentQueryService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var document = await service.GetAsync(caseId, documentId, cancellationToken);
-        return document is null ? Results.NotFound() : Results.Ok(document);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.BadRequest(new { error = exception.Message });
-    }
-});
-
+app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync);
 app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync);
-
-app.MapGet("/api/cases/{caseId}/evidence", async (
-    string caseId,
-    string? q,
-    int? limit,
-    LegalDocumentQueryService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var evidence = await service.RetrieveEvidenceAsync(caseId, q ?? string.Empty, limit ?? 20, cancellationToken);
-        return Results.Ok(evidence);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.BadRequest(new { error = exception.Message });
-    }
-});
-
+app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAsync);
 app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync);
 
 app.Run();
