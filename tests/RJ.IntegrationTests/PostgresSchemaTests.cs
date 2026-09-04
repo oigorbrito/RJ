@@ -110,6 +110,60 @@ public sealed class PostgresSchemaTests
     }
 
     [Fact]
+    public async Task Sha256_check_accepts_only_lowercase_hexadecimal_length_64_in_isolated_schema()
+    {
+        await using var dataSource = CreateDataSourceOrSkip();
+        var schemaName = $"rj_sha_check_{Guid.NewGuid():N}";
+
+        await using var connection = await dataSource.OpenConnectionAsync();
+        try
+        {
+            await using (var setup = new NpgsqlCommand($"""
+                CREATE SCHEMA "{schemaName}";
+                CREATE TABLE "{schemaName}".hash_probe (
+                    content_sha256 char(64) NOT NULL,
+                    CONSTRAINT ck_hash_probe_sha256 CHECK (content_sha256 ~ '^[0-9a-f]{{64}}$')
+                );
+                """, connection))
+            {
+                await setup.ExecuteNonQueryAsync();
+            }
+
+            await using (var valid = new NpgsqlCommand(
+                $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
+                connection))
+            {
+                valid.Parameters.AddWithValue(new string('a', 64));
+                Assert.Equal(1, await valid.ExecuteNonQueryAsync());
+            }
+
+            foreach (var invalidHash in new[]
+                     {
+                         new string('a', 63),
+                         new string('a', 65),
+                         new string('A', 64),
+                         new string('g', 64)
+                     })
+            {
+                await using var invalid = new NpgsqlCommand(
+                    $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
+                    connection);
+                invalid.Parameters.AddWithValue(invalidHash);
+                var exception = await Assert.ThrowsAsync<PostgresException>(
+                    () => invalid.ExecuteNonQueryAsync());
+                Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
+            }
+        }
+        finally
+        {
+            await using var cleanup = new NpgsqlCommand(
+                $"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE;",
+                connection);
+            await cleanup.ExecuteNonQueryAsync();
+        }
+    }
+
+    [Fact]
     public async Task PostgresReadinessProbe_passes_after_explicit_migration()
     {
         await using var dataSource = CreateDataSourceOrSkip();
