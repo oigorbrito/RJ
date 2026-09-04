@@ -5,6 +5,8 @@ namespace RJ.Api;
 
 public static class IngestionEndpoint
 {
+    private const string EvidenceConflictMessage = "Evidence conflicts with an existing legal document.";
+
     public static async Task<IResult> HandleAsync(
         IngestLegalDocumentRequest request,
         IngestLegalDocumentHandler handler,
@@ -36,9 +38,9 @@ public static class IngestionEndpoint
         {
             return Results.BadRequest(new ApiError("invalid_request", exception.Message));
         }
-        catch (LegalDocumentConflictException exception)
+        catch (LegalDocumentConflictException)
         {
-            return Results.Conflict(new ApiError("evidence_conflict", exception.Message));
+            return Results.Conflict(new ApiError("evidence_conflict", EvidenceConflictMessage));
         }
     }
 }
