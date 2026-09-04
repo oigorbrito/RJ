@@ -22,9 +22,22 @@ public sealed class LegalDocumentQueryService(
 
     public Task<IReadOnlyList<LegalDocumentSnapshot>> ListAsync(
         string caseId,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken)
     {
-        return reader.ListByCaseAsync(new LegalCaseId(caseId), cancellationToken);
+        if (page < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), page, "Page must be at least 1.");
+        }
+
+        if (pageSize is < 1 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pageSize), pageSize, "Page size must be between 1 and 100.");
+        }
+
+        var offset = checked((page - 1) * pageSize);
+        return reader.ListByCaseAsync(new LegalCaseId(caseId), offset, pageSize, cancellationToken);
     }
 
     public Task<IReadOnlyList<LegalDocumentSearchHit>> SearchAsync(
