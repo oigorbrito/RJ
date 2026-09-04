@@ -50,7 +50,7 @@ Exit codes:
 - `0`: migration completed successfully;
 - `2`: missing configuration or migration/execution error.
 
-The command does not print the connection string or raw exception message.
+The command does not print the connection string or raw exception message. On execution failure it emits only the exception type plus a fixed migration-failure message, keeping configuration values and provider exception details out of the CLI contract.
 
 Deployment ordering is therefore:
 
@@ -58,6 +58,10 @@ Deployment ordering is therefore:
 2. run `RJ.DatabaseMigrator` and require exit code `0`;
 3. start the API;
 4. API startup executes only `EnsureCurrentAsync` and fails fast when the ledger/schema is not current.
+
+Migration authority is intentionally outside the API startup path. An architecture test inspects the compiled `RJ.Api` metadata and fails if the API assembly acquires a reference to `RJ.Infrastructure.Persistence.PostgresSchema.MigrateAsync`. Test fixtures may invoke the migrator path explicitly to prepare isolated test state, but production API startup must remain read-only with respect to schema.
+
+The migrator CLI exit-code and sanitization behavior above are source-reviewed contracts in the current environment. They remain `NOT_TESTED` until the executable can be launched in an available .NET runtime with controlled environment variables and an intentionally failing PostgreSQL target.
 
 ## Startup verification
 
@@ -125,17 +129,18 @@ GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the
 5. PK/unique/GIN verification uses structural PostgreSQL catalog metadata rather than formatted DDL text;
 6. SHA-256 behavior is proven in an isolated schema with positive and negative database cases, with overlength rejection attributed to the column type rather than the CHECK;
 7. the installed `public.legal_documents` SHA-256 CHECK is exercised non-destructively with invalid values;
-8. the API contains no schema mutation call in its startup path;
-9. persistence conflict behavior remains unchanged at the Application contract;
-10. retrieval/persistence integration setup uses the explicit migrator path;
-11. writer/read/search commands have an explicit `15` second command timeout;
-12. caller cancellation propagates through read/search operations without returning partial results;
-13. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
-14. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
-15. same-hash/different-identity conflict does not persist a second identity;
-16. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
-17. two concurrent identical writes converge to one complete row without conflict;
-18. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
-19. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
+8. compiled `RJ.Api` contains no reference to `PostgresSchema.MigrateAsync`;
+9. the API contains no schema mutation call in its startup path;
+10. persistence conflict behavior remains unchanged at the Application contract;
+11. retrieval/persistence integration setup uses the explicit migrator path;
+12. writer/read/search commands have an explicit `15` second command timeout;
+13. caller cancellation propagates through read/search operations without returning partial results;
+14. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
+15. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
+16. same-hash/different-identity conflict does not persist a second identity;
+17. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
+18. two concurrent identical writes converge to one complete row without conflict;
+19. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
+20. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
 A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
