@@ -34,40 +34,70 @@ public sealed class PostgresSchemaTests
     }
 
     [Fact]
-    public async Task Migrated_schema_contains_required_constraints_and_gin_index()
+    public async Task Migrated_schema_contains_required_structural_constraints_and_gin_index()
     {
         await using var dataSource = CreateDataSourceOrSkip();
         await PostgresSchema.MigrateAsync(dataSource);
 
         const string sql = """
+            WITH attrs AS (
+                SELECT
+                    max(attnum) FILTER (WHERE attname = 'case_id' AND NOT attisdropped) AS case_id_attnum,
+                    max(attnum) FILTER (WHERE attname = 'document_id' AND NOT attisdropped) AS document_id_attnum,
+                    max(attnum) FILTER (WHERE attname = 'content_sha256' AND NOT attisdropped) AS content_sha256_attnum,
+                    max(attnum) FILTER (WHERE attname = 'search_vector' AND NOT attisdropped) AS search_vector_attnum
+                FROM pg_attribute
+                WHERE attrelid = 'public.legal_documents'::regclass
+            )
             SELECT
                 EXISTS (
                     SELECT 1
-                    FROM pg_constraint
-                    WHERE conrelid = 'public.legal_documents'::regclass
-                      AND conname = 'pk_legal_documents'
-                      AND contype = 'p') AS has_primary_key,
+                    FROM pg_constraint con
+                    CROSS JOIN attrs a
+                    WHERE con.conrelid = 'public.legal_documents'::regclass
+                      AND con.conname = 'pk_legal_documents'
+                      AND con.contype = 'p'
+                      AND con.convalidated
+                      AND con.conenforced
+                      AND con.conkey = ARRAY[a.case_id_attnum, a.document_id_attnum]::smallint[]) AS has_primary_key,
                 EXISTS (
                     SELECT 1
-                    FROM pg_constraint
-                    WHERE conrelid = 'public.legal_documents'::regclass
-                      AND conname = 'uq_legal_documents_case_hash'
-                      AND contype = 'u') AS has_case_hash_unique,
+                    FROM pg_constraint con
+                    CROSS JOIN attrs a
+                    WHERE con.conrelid = 'public.legal_documents'::regclass
+                      AND con.conname = 'uq_legal_documents_case_hash'
+                      AND con.contype = 'u'
+                      AND con.convalidated
+                      AND con.conenforced
+                      AND con.conkey = ARRAY[a.case_id_attnum, a.content_sha256_attnum]::smallint[]) AS has_case_hash_unique,
                 EXISTS (
                     SELECT 1
-                    FROM pg_constraint
-                    WHERE conrelid = 'public.legal_documents'::regclass
-                      AND conname = 'ck_legal_documents_sha256'
-                      AND contype = 'c') AS has_sha_check,
+                    FROM pg_constraint con
+                    CROSS JOIN attrs a
+                    WHERE con.conrelid = 'public.legal_documents'::regclass
+                      AND con.conname = 'ck_legal_documents_sha256'
+                      AND con.contype = 'c'
+                      AND con.convalidated
+                      AND con.conenforced
+                      AND con.conkey = ARRAY[a.content_sha256_attnum]::smallint[]
+                      AND pg_get_expr(con.conbin, con.conrelid) LIKE '%content_sha256%^[0-9a-f]{64}$%') AS has_sha_check,
                 EXISTS (
                     SELECT 1
                     FROM pg_class idx
                     JOIN pg_index i ON i.indexrelid = idx.oid
                     JOIN pg_am am ON am.oid = idx.relam
+                    CROSS JOIN attrs a
                     WHERE i.indrelid = 'public.legal_documents'::regclass
                       AND idx.relname = 'ix_legal_documents_search_vector'
                       AND am.amname = 'gin'
-                      AND pg_get_indexdef(idx.oid) LIKE '%USING gin (search_vector)%') AS has_search_gin;
+                      AND i.indisvalid
+                      AND i.indisready
+                      AND i.indislive
+                      AND i.indnkeyatts = 1
+                      AND i.indnatts = 1
+                      AND i.indkey::smallint[] = ARRAY[a.search_vector_attnum]::smallint[]
+                      AND i.indexprs IS NULL
+                      AND i.indpred IS NULL) AS has_search_gin;
             """;
 
         await using var command = dataSource.CreateCommand(sql);
