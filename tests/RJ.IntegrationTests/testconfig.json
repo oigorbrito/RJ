@@ -1,0 +1,6 @@
+{
+  "xUnit": {
+    "parallelMode": "none",
+    "parallelizeTestCollections": false
+  }
+}
