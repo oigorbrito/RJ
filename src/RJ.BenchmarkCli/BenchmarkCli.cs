@@ -24,9 +24,13 @@ public static class BenchmarkCli
                     nameof(args));
             }
 
+            var catalog = options.CatalogPath is null
+                ? ApprovedGenerationBenchmarkCatalog.Create()
+                : await LoadExternalCatalogAsync(options, cancellationToken);
+
             return await ExecuteAsync(
                 options,
-                ApprovedGenerationBenchmarkCatalog.Create(),
+                catalog,
                 new HarnessSelfTestGenerationModel(),
                 cancellationToken);
         }
@@ -52,10 +56,26 @@ public static class BenchmarkCli
         ArgumentNullException.ThrowIfNull(model);
 
         var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
-        var report = await runner.RunAsync(catalog, options.ToMetadata(), cancellationToken);
+        var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
         var json = GenerationBenchmarkJson.Serialize(report);
 
         await AtomicTextFileWriter.WriteAsync(options.OutputPath, json, cancellationToken);
         return report.Passed ? SuccessExitCode : GateFailureExitCode;
+    }
+
+    private static async Task<GenerationBenchmarkCatalog> LoadExternalCatalogAsync(
+        BenchmarkCliOptions options,
+        CancellationToken cancellationToken)
+    {
+        var json = await File.ReadAllTextAsync(options.CatalogPath!, cancellationToken);
+        var actualSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(json);
+        if (!StringComparer.Ordinal.Equals(actualSha256, options.CatalogSha256))
+        {
+            throw new InvalidOperationException(
+                $"External benchmark catalog checksum mismatch. Expected {options.CatalogSha256}, observed {actualSha256}.");
+        }
+
+        var external = ExternalGenerationBenchmarkCatalog.Parse(json);
+        return external.ToBenchmarkCatalog();
     }
 }
