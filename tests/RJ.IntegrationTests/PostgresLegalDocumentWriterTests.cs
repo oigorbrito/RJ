@@ -52,6 +52,64 @@ public sealed class PostgresLegalDocumentWriterTests
     }
 
     [Fact]
+    public async Task StoreAsync_concurrent_same_identity_and_hash_converges_to_one_row_without_error()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var document = CreateDocument(HashA, "concurrent raw", "concurrent normalized");
+
+        await Task.WhenAll(
+            writer.StoreAsync(document, CancellationToken.None),
+            writer.StoreAsync(document, CancellationToken.None));
+
+        Assert.Equal(1, await CountDocumentsAsync(dataSource, document.CaseId.Value));
+        var stored = await ReadStoredAsync(dataSource, document.CaseId.Value, document.Id.Value);
+        Assert.NotNull(stored);
+        Assert.Equal(document.SourceName, stored.Value.SourceName);
+        Assert.Equal(document.RawContent, stored.Value.RawContent);
+        Assert.Equal(document.Content, stored.Value.Content);
+        Assert.Equal(document.ContentSha256, stored.Value.ContentSha256);
+    }
+
+    [Fact]
+    public async Task StoreAsync_concurrent_same_identity_with_different_hashes_commits_exactly_one_complete_document()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var caseId = new LegalCaseId($"case-{Guid.NewGuid():N}");
+        var documentId = new LegalDocumentId("doc-1");
+        var first = new LegalDocument(
+            documentId,
+            caseId,
+            "first.pdf",
+            "first raw",
+            "first normalized",
+            HashA);
+        var second = new LegalDocument(
+            documentId,
+            caseId,
+            "second.pdf",
+            "second raw",
+            "second normalized",
+            HashB);
+
+        var outcomes = await Task.WhenAll(
+            CaptureStoreOutcomeAsync(writer, first),
+            CaptureStoreOutcomeAsync(writer, second));
+
+        Assert.Equal(1, outcomes.Count(outcome => outcome is null));
+        var conflict = Assert.Single(outcomes.OfType<LegalDocumentConflictException>());
+        Assert.Contains("Legal document conflict", conflict.Message, StringComparison.Ordinal);
+        Assert.Equal(1, await CountDocumentsAsync(dataSource, caseId.Value));
+
+        var stored = await ReadStoredAsync(dataSource, caseId.Value, documentId.Value);
+        Assert.NotNull(stored);
+        var matchesFirst = StoredMatches(stored.Value, first);
+        var matchesSecond = StoredMatches(stored.Value, second);
+        Assert.True(matchesFirst ^ matchesSecond);
+    }
+
+    [Fact]
     public async Task StoreAsync_conflict_rolls_back_and_preserves_original_evidence()
     {
         await using var dataSource = await CreateDataSourceAsync();
@@ -128,6 +186,29 @@ public sealed class PostgresLegalDocumentWriterTests
         Assert.NotNull(stored);
         Assert.Equal(document.ContentSha256, stored.Value.ContentSha256);
     }
+
+    private static async Task<Exception?> CaptureStoreOutcomeAsync(
+        PostgresLegalDocumentWriter writer,
+        LegalDocument document)
+    {
+        try
+        {
+            await writer.StoreAsync(document, CancellationToken.None);
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
+
+    private static bool StoredMatches(
+        (string SourceName, string RawContent, string Content, string ContentSha256) stored,
+        LegalDocument document) =>
+        StringComparer.Ordinal.Equals(stored.SourceName, document.SourceName)
+        && StringComparer.Ordinal.Equals(stored.RawContent, document.RawContent)
+        && StringComparer.Ordinal.Equals(stored.Content, document.Content)
+        && StringComparer.Ordinal.Equals(stored.ContentSha256, document.ContentSha256);
 
     private static async Task<NpgsqlDataSource> CreateDataSourceAsync()
     {
