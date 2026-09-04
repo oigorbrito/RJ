@@ -18,7 +18,7 @@ public sealed class PostgresLegalDocumentRetrievalTests
         var writer = new PostgresLegalDocumentWriter(dataSource);
         var reader = new PostgresLegalDocumentReader(dataSource);
         var caseId = NewCaseId();
-        var document = new LegalDocument(new LegalDocumentId("doc-1"), caseId, "peticao.pdf", "pedido de tutela provisoria", HashA);
+        var document = CreateDocument("doc-1", caseId, "peticao.pdf", "pedido de tutela provisoria", HashA);
 
         await writer.StoreAsync(document, CancellationToken.None);
 
@@ -37,9 +37,9 @@ public sealed class PostgresLegalDocumentRetrievalTests
         var targetCase = NewCaseId();
         var otherCase = NewCaseId();
 
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-b"), targetCase, "b.pdf", "conteudo b", HashA), CancellationToken.None);
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-a"), targetCase, "a.pdf", "conteudo a", HashB), CancellationToken.None);
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-x"), otherCase, "x.pdf", "conteudo x", HashC), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-b", targetCase, "b.pdf", "conteudo b", HashA), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-a", targetCase, "a.pdf", "conteudo a", HashB), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-x", otherCase, "x.pdf", "conteudo x", HashC), CancellationToken.None);
 
         var results = await reader.ListByCaseAsync(targetCase, CancellationToken.None);
 
@@ -55,9 +55,9 @@ public sealed class PostgresLegalDocumentRetrievalTests
         var targetCase = NewCaseId();
         var otherCase = NewCaseId();
 
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-1"), targetCase, "decisao.pdf", "A tutela provisoria foi deferida pelo juizo.", HashA), CancellationToken.None);
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-2"), targetCase, "contrato.pdf", "Contrato de prestacao de servicos.", HashB), CancellationToken.None);
-        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-3"), otherCase, "decisao.pdf", "A tutela provisoria foi deferida.", HashC), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-1", targetCase, "decisao.pdf", "A tutela provisoria foi deferida pelo juizo.", HashA), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-2", targetCase, "contrato.pdf", "Contrato de prestacao de servicos.", HashB), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-3", otherCase, "decisao.pdf", "A tutela provisoria foi deferida.", HashC), CancellationToken.None);
 
         var results = await search.SearchAsync(targetCase, "tutela provisoria", 10, CancellationToken.None);
 
@@ -77,6 +77,19 @@ public sealed class PostgresLegalDocumentRetrievalTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => search.SearchAsync(caseId, "tutela", 0, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => search.SearchAsync(caseId, "tutela", 101, CancellationToken.None));
     }
+
+    private static LegalDocument CreateDocument(
+        string id,
+        LegalCaseId caseId,
+        string sourceName,
+        string content,
+        string hash) => new(
+            new LegalDocumentId(id),
+            caseId,
+            sourceName,
+            content,
+            content,
+            hash);
 
     private static LegalCaseId NewCaseId() => new($"case-{Guid.NewGuid():N}");
 
