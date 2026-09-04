@@ -4,18 +4,27 @@
 
 `RJ.BenchmarkCli` is the executable harness for the generation benchmark protocol. It does not integrate an external language-model provider.
 
-The only model currently available through the command line is `harness-selftest-v1`. It is a deterministic test double whose sole purpose is to verify the benchmark execution path, report persistence, abstention handling, citation gates, and process exit codes. It must not be treated as a promoted generation candidate.
+The only model currently available through the command line is `harness-selftest-v1`. It is a deterministic test double whose sole purpose is to verify the benchmark execution path, report persistence, abstention handling, citation gates, catalog loading, and process exit codes. It must not be treated as a promoted generation candidate.
 
-## Approved catalog
+## Catalog selection
 
-The executable loads `ApprovedGenerationBenchmarkCatalog.Version = generation-benchmark-v1` from code.
+When no external catalog arguments are supplied, the executable loads `ApprovedGenerationBenchmarkCatalog.Version = generation-benchmark-v1` from code.
 
 The self-test catalog contains both:
 
 - a normal claim that must be reproduced with its exact evidence citation;
 - an explicit abstention case.
 
-Catalog version is copied into `GenerationBenchmarkMetadata` and must match the catalog supplied to the runner.
+An external versioned catalog may instead be supplied with:
+
+```text
+--catalog <json-path>
+--catalog-sha256 <64-hex-sha256>
+```
+
+The arguments are valid only as a pair. The exact UTF-8 file is hashed before deserialization, and checksum mismatch is an execution error. The external document's `catalogVersion` becomes the version recorded in `GenerationBenchmarkMetadata`.
+
+External catalog structure and provenance gates are defined in `docs/EXTERNAL_BENCHMARK_CATALOG.md`.
 
 ## Required arguments
 
@@ -28,9 +37,9 @@ Catalog version is copied into `GenerationBenchmarkMetadata` and must match the 
 --output <json-path>
 ```
 
-Arguments are strict name/value pairs. Unknown names, duplicates, missing values, or empty values are usage errors.
+Arguments are strict name/value pairs. Unknown names, duplicates, missing values, empty values, malformed catalog checksums, or an unpaired catalog path/checksum are usage errors.
 
-Example:
+Self-test example:
 
 ```text
 dotnet run --project src/RJ.BenchmarkCli -- \
@@ -42,11 +51,27 @@ dotnet run --project src/RJ.BenchmarkCli -- \
   --output artifacts/generation-benchmark.json
 ```
 
+External-catalog harness example:
+
+```text
+dotnet run --project src/RJ.BenchmarkCli -- \
+  --git-commit <git-sha> \
+  --runtime ".NET 10" \
+  --model-id harness-selftest-v1 \
+  --model-config "deterministic-self-test" \
+  --seed "0" \
+  --catalog benchmark/catalog.json \
+  --catalog-sha256 <exact-file-sha256> \
+  --output artifacts/generation-benchmark.json
+```
+
+Using the self-test model with an external legal catalog validates the harness path only; it is not a model-quality benchmark and may legitimately return hard-gate failure.
+
 ## Exit codes
 
 - `0`: every benchmark case passed all non-compensable gates and the JSON report was written;
 - `1`: benchmark execution completed and at least one hard gate failed; the JSON report is still written;
-- `2`: command-line/configuration/execution failure prevented a trustworthy benchmark result.
+- `2`: command-line/configuration/catalog/execution failure prevented a trustworthy benchmark result.
 
 Cancellation is propagated rather than converted to an ordinary exit result.
 
@@ -71,9 +96,11 @@ The focal test set proves:
 1. the deterministic self-test returns exit code `0` and writes a passing report;
 2. a model output that violates hard citation gates produces exit code `1` after writing a failing report;
 3. an unavailable model identifier produces exit code `2` without creating a benchmark report;
-4. report replacement leaves only the final target file;
-5. duplicate command-line argument names are rejected;
-6. the CLI project may reference only `RJ.Application`;
-7. prior benchmark, evaluator, generation, retrieval, ingestion, persistence, domain, and architecture gates remain unchanged.
+4. external catalog checksum mismatch produces exit code `2` before creating a report;
+5. external catalog path/checksum must be supplied together;
+6. report replacement leaves only the final target file;
+7. duplicate command-line argument names are rejected;
+8. the CLI project may reference only `RJ.Application`;
+9. prior benchmark, evaluator, generation, retrieval, ingestion, persistence, domain, and architecture gates remain unchanged.
 
-A missing runtime, unavailable runner, unavailable local checkout, or absent execution log is not PASS. It remains `BLOCKED` or `NOT_TESTED` based on the observed evidence.
+A missing runtime, unavailable runner, unavailable local checkout, absent legal corpus, or absent execution log is not PASS. It remains `BLOCKED` or `NOT_TESTED` based on the observed evidence.
