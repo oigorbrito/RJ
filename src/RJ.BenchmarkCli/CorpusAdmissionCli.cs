@@ -8,10 +8,18 @@ public static class CorpusAdmissionCli
     public const int AdmissionFailureExitCode = 1;
     public const int UsageOrExecutionErrorExitCode = 2;
 
+    public static Task<int> RunAsync(
+        IReadOnlyList<string> args,
+        CancellationToken cancellationToken) =>
+        RunAsync(args, Console.Error, cancellationToken);
+
     public static async Task<int> RunAsync(
         IReadOnlyList<string> args,
+        TextWriter errorWriter,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(errorWriter);
+
         try
         {
             var options = CorpusAdmissionCliOptions.Parse(args);
@@ -19,8 +27,7 @@ public static class CorpusAdmissionCli
             var observedCatalogSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(catalogBytes);
             if (!StringComparer.Ordinal.Equals(observedCatalogSha256, options.CatalogSha256))
             {
-                throw new InvalidOperationException(
-                    $"External benchmark catalog checksum mismatch. Expected {options.CatalogSha256}, observed {observedCatalogSha256}.");
+                throw new InvalidOperationException("External benchmark catalog checksum mismatch.");
             }
 
             var externalCatalog = ExternalGenerationBenchmarkCatalog.Parse(catalogBytes);
@@ -35,9 +42,14 @@ public static class CorpusAdmissionCli
         {
             throw;
         }
+        catch (ArgumentException exception)
+        {
+            await errorWriter.WriteLineAsync($"{exception.GetType().Name}: {exception.Message}");
+            return UsageOrExecutionErrorExitCode;
+        }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"{exception.GetType().Name}: {exception.Message}");
+            await errorWriter.WriteLineAsync($"{exception.GetType().Name}: Corpus admission execution failed.");
             return UsageOrExecutionErrorExitCode;
         }
     }
