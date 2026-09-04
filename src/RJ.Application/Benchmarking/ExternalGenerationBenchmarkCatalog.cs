@@ -45,7 +45,17 @@ public sealed record ExternalGenerationBenchmarkCatalog(
             throw new ArgumentException("External benchmark catalog JSON cannot be empty.", nameof(json));
         }
 
-        var catalog = JsonSerializer.Deserialize<ExternalGenerationBenchmarkCatalog>(json, JsonOptions)
+        return Parse(Encoding.UTF8.GetBytes(json));
+    }
+
+    public static ExternalGenerationBenchmarkCatalog Parse(ReadOnlySpan<byte> utf8Json)
+    {
+        if (utf8Json.IsEmpty)
+        {
+            throw new ArgumentException("External benchmark catalog UTF-8 payload cannot be empty.", nameof(utf8Json));
+        }
+
+        var catalog = JsonSerializer.Deserialize<ExternalGenerationBenchmarkCatalog>(utf8Json, JsonOptions)
             ?? throw new InvalidOperationException("External benchmark catalog JSON produced no document.");
         return catalog;
     }
@@ -53,8 +63,11 @@ public sealed record ExternalGenerationBenchmarkCatalog(
     public static string ComputeSha256(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))).ToLowerInvariant();
+        return ComputeSha256(Encoding.UTF8.GetBytes(json));
     }
+
+    public static string ComputeSha256(ReadOnlySpan<byte> bytes) =>
+        Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
     private static GenerationEvaluationCase ConvertCase(ExternalGenerationBenchmarkCase source)
     {
