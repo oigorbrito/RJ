@@ -86,7 +86,7 @@ public sealed class BenchmarkCliTests
             await AtomicTextFileWriter.WriteAsync(outputPath, "second", CancellationToken.None);
 
             Assert.Equal("second", await File.ReadAllTextAsync(outputPath));
-            Assert.Equal([outputPath], Directory.GetFiles(directory));
+            Assert.Equal(new[] { outputPath }, Directory.GetFiles(directory));
         }
         finally
         {
