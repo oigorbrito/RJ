@@ -19,6 +19,7 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
             """;
 
         await using var command = dataSource.CreateCommand(sql);
+        command.CommandTimeout = PostgresCommandPolicy.CommandTimeoutSeconds;
         command.Parameters.AddWithValue(caseId.Value);
         command.Parameters.AddWithValue(documentId.Value);
 
@@ -52,6 +53,7 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
             """;
 
         await using var command = dataSource.CreateCommand(sql);
+        command.CommandTimeout = PostgresCommandPolicy.CommandTimeoutSeconds;
         command.Parameters.AddWithValue(caseId.Value);
         command.Parameters.AddWithValue(offset);
         command.Parameters.AddWithValue(limit);
