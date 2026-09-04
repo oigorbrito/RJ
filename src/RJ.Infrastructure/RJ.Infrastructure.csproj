@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\RJ.Application\RJ.Application.csproj" />
     <ProjectReference Include="..\RJ.Domain\RJ.Domain.csproj" />
   </ItemGroup>
