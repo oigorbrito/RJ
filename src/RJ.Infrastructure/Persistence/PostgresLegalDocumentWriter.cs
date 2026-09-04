@@ -33,7 +33,10 @@ public sealed class PostgresLegalDocumentWriter(NpgsqlDataSource dataSource) : I
             ON CONFLICT DO NOTHING;
             """;
 
-        await using (var insert = new NpgsqlCommand(insertSql, connection, transaction))
+        await using (var insert = new NpgsqlCommand(insertSql, connection, transaction)
+        {
+            CommandTimeout = PostgresCommandPolicy.CommandTimeoutSeconds
+        })
         {
             insert.Parameters.AddWithValue("case_id", document.CaseId.Value);
             insert.Parameters.AddWithValue("document_id", document.Id.Value);
@@ -59,7 +62,10 @@ public sealed class PostgresLegalDocumentWriter(NpgsqlDataSource dataSource) : I
             LIMIT 1;
             """;
 
-        await using var conflict = new NpgsqlCommand(conflictSql, connection, transaction);
+        await using var conflict = new NpgsqlCommand(conflictSql, connection, transaction)
+        {
+            CommandTimeout = PostgresCommandPolicy.CommandTimeoutSeconds
+        };
         conflict.Parameters.AddWithValue("case_id", document.CaseId.Value);
         conflict.Parameters.AddWithValue("document_id", document.Id.Value);
         conflict.Parameters.AddWithValue("content_sha256", document.ContentSha256);
