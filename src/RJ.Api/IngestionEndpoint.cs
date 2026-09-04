@@ -1,3 +1,4 @@
+using System.Text;
 using RJ.Application.Ingestion;
 
 namespace RJ.Api;
@@ -11,6 +12,14 @@ public static class IngestionEndpoint
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(handler);
+
+        if (request.RawContent is not null
+            && Encoding.UTF8.GetByteCount(request.RawContent) > IngestionLimits.MaxRawContentBytes)
+        {
+            return Results.Json(
+                new ApiError("payload_too_large", "Raw content exceeds the ingestion size limit."),
+                statusCode: StatusCodes.Status413PayloadTooLarge);
+        }
 
         try
         {
