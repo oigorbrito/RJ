@@ -1,4 +1,5 @@
 using Npgsql;
+using RJ.Application.Ingestion;
 using RJ.Domain.Cases;
 using RJ.Domain.Documents;
 using RJ.Infrastructure.Persistence;
@@ -70,7 +71,7 @@ public sealed class PostgresLegalDocumentWriterTests
 
         await writer.StoreAsync(original, CancellationToken.None);
 
-        await Assert.ThrowsAsync<LegalDocumentPersistenceConflictException>(
+        await Assert.ThrowsAsync<LegalDocumentConflictException>(
             () => writer.StoreAsync(conflicting, CancellationToken.None));
 
         Assert.Equal(1, await CountDocumentsAsync(dataSource, original.CaseId.Value));
@@ -92,7 +93,7 @@ public sealed class PostgresLegalDocumentWriterTests
 
         await writer.StoreAsync(original, CancellationToken.None);
 
-        await Assert.ThrowsAsync<LegalDocumentPersistenceConflictException>(
+        await Assert.ThrowsAsync<LegalDocumentConflictException>(
             () => writer.StoreAsync(conflicting, CancellationToken.None));
 
         Assert.Equal(1, await CountDocumentsAsync(dataSource, original.CaseId.Value));
@@ -107,7 +108,7 @@ public sealed class PostgresLegalDocumentWriterTests
         }
 
         var dataSource = NpgsqlDataSource.Create(connectionString);
-        await PostgresSchema.InitializeAsync(dataSource);
+        await PostgresSchema.MigrateAsync(dataSource);
         return dataSource;
     }
 
