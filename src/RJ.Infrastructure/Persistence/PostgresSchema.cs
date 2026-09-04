@@ -4,7 +4,7 @@ namespace RJ.Infrastructure.Persistence;
 
 public static class PostgresSchema
 {
-    public const string Version = "1";
+    public const string Version = "2";
 
     private const string Sql = """
         CREATE TABLE IF NOT EXISTS legal_documents (
@@ -18,6 +18,15 @@ public static class PostgresSchema
             CONSTRAINT uq_legal_documents_case_hash UNIQUE (case_id, content_sha256),
             CONSTRAINT ck_legal_documents_sha256 CHECK (content_sha256 ~ '^[0-9a-f]{64}$')
         );
+
+        ALTER TABLE legal_documents
+            ADD COLUMN IF NOT EXISTS search_vector tsvector
+            GENERATED ALWAYS AS (
+                to_tsvector('portuguese', coalesce(source_name, '') || ' ' || coalesce(content, ''))
+            ) STORED;
+
+        CREATE INDEX IF NOT EXISTS ix_legal_documents_search_vector
+            ON legal_documents USING GIN (search_vector);
         """;
 
     public static async Task InitializeAsync(
