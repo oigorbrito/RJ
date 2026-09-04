@@ -110,7 +110,7 @@ public sealed class PostgresSchemaTests
     }
 
     [Fact]
-    public async Task Sha256_check_accepts_only_lowercase_hexadecimal_length_64_in_isolated_schema()
+    public async Task Sha256_check_accepts_valid_value_and_rejects_invalid_values_in_isolated_schema()
     {
         await using var dataSource = CreateDataSourceOrSkip();
         var schemaName = $"rj_sha_check_{Guid.NewGuid():N}";
@@ -140,7 +140,6 @@ public sealed class PostgresSchemaTests
             foreach (var invalidHash in new[]
                      {
                          new string('a', 63),
-                         new string('a', 65),
                          new string('A', 64),
                          new string('g', 64)
                      })
@@ -153,6 +152,16 @@ public sealed class PostgresSchemaTests
                     () => invalid.ExecuteNonQueryAsync());
                 Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
             }
+
+            await using (var overlength = new NpgsqlCommand(
+                $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
+                connection))
+            {
+                overlength.Parameters.AddWithValue(new string('a', 65));
+                var exception = await Assert.ThrowsAsync<PostgresException>(
+                    () => overlength.ExecuteNonQueryAsync());
+                Assert.Equal("22001", exception.SqlState);
+            }
         }
         finally
         {
@@ -160,6 +169,43 @@ public sealed class PostgresSchemaTests
                 $"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE;",
                 connection);
             await cleanup.ExecuteNonQueryAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Migrated_sha256_check_rejects_invalid_values_without_schema_mutation()
+    {
+        await using var dataSource = CreateDataSourceOrSkip();
+        await PostgresSchema.MigrateAsync(dataSource);
+
+        foreach (var invalidHash in new[]
+                 {
+                     new string('a', 63),
+                     new string('A', 64),
+                     new string('g', 64)
+                 })
+        {
+            var suffix = Guid.NewGuid().ToString("N");
+            await using var command = dataSource.CreateCommand("""
+                INSERT INTO legal_documents (
+                    case_id,
+                    document_id,
+                    source_name,
+                    raw_content,
+                    content,
+                    content_sha256)
+                VALUES ($1, $2, $3, $4, $5, $6);
+                """);
+            command.Parameters.AddWithValue($"schema-check-case-{suffix}");
+            command.Parameters.AddWithValue($"schema-check-document-{suffix}");
+            command.Parameters.AddWithValue("schema-check");
+            command.Parameters.AddWithValue("raw");
+            command.Parameters.AddWithValue("normalized");
+            command.Parameters.AddWithValue(invalidHash);
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(
+                () => command.ExecuteNonQueryAsync());
+            Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
         }
     }
 
