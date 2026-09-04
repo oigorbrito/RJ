@@ -8,7 +8,8 @@ public sealed class LegalDocument
         LegalDocumentId id,
         LegalCaseId caseId,
         string sourceName,
-        string content,
+        string rawContent,
+        string normalizedContent,
         string contentSha256)
     {
         if (string.IsNullOrWhiteSpace(sourceName))
@@ -16,9 +17,14 @@ public sealed class LegalDocument
             throw new ArgumentException("Source name cannot be empty.", nameof(sourceName));
         }
 
-        if (string.IsNullOrWhiteSpace(content))
+        if (string.IsNullOrWhiteSpace(rawContent))
         {
-            throw new ArgumentException("Document content cannot be empty.", nameof(content));
+            throw new ArgumentException("Raw document content cannot be empty.", nameof(rawContent));
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedContent))
+        {
+            throw new ArgumentException("Normalized document content cannot be empty.", nameof(normalizedContent));
         }
 
         if (!IsSha256Hex(contentSha256))
@@ -29,7 +35,8 @@ public sealed class LegalDocument
         Id = id;
         CaseId = caseId;
         SourceName = sourceName.Trim();
-        Content = content;
+        RawContent = rawContent;
+        Content = normalizedContent;
         ContentSha256 = contentSha256.ToLowerInvariant();
     }
 
@@ -38,6 +45,8 @@ public sealed class LegalDocument
     public LegalCaseId CaseId { get; }
 
     public string SourceName { get; }
+
+    public string RawContent { get; }
 
     public string Content { get; }
 
