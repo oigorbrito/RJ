@@ -2,7 +2,9 @@ using Npgsql;
 using RJ.Api;
 using RJ.Application.Generation;
 using RJ.Application.Ingestion;
+using RJ.Application.Operations;
 using RJ.Application.Retrieval;
+using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +20,7 @@ builder.Services.AddSingleton(dataSource);
 builder.Services.AddSingleton<ILegalDocumentWriter, PostgresLegalDocumentWriter>();
 builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>();
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
+builder.Services.AddSingleton<IReadinessProbe, PostgresReadinessProbe>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
 builder.Services.AddSingleton<GenerationContextBuilder>();
@@ -25,7 +28,9 @@ builder.Services.AddSingleton<GenerationContextService>();
 
 var app = builder.Build();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", HealthEndpoint.Live);
+app.MapGet("/health/live", HealthEndpoint.Live);
+app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
 app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
 
