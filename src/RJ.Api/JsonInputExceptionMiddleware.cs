@@ -11,7 +11,7 @@ public sealed class JsonInputExceptionMiddleware(RequestDelegate next)
             await next(context);
         }
         catch (BadHttpRequestException exception) when (
-            context.Request.Path.Equals("/api/legal-documents", StringComparison.Ordinal)
+            context.Request.Path == "/api/legal-documents"
             && exception.StatusCode == StatusCodes.Status400BadRequest)
         {
             if (context.Response.HasStarted)
