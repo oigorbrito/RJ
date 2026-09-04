@@ -10,6 +10,47 @@ namespace RJ.ApiTests;
 public sealed class GenerationContextEndpointTests
 {
     [Fact]
+    public async Task HandleAsync_returns_explicit_generation_context_projection()
+    {
+        const string content = "tutela urgente requerida";
+        var snapshot = new LegalDocumentSnapshot(
+            "case-1",
+            "doc-1",
+            "source.txt",
+            content,
+            content,
+            new string('a', 64));
+        var retrieval = new LegalDocumentQueryService(
+            new StubReader(),
+            new StubSearch([new LegalDocumentSearchHit(snapshot, 0.75f)]));
+        var service = new GenerationContextService(retrieval, new GenerationContextBuilder());
+
+        var result = await GenerationContextEndpoint.HandleAsync(
+            "case-1",
+            "tutela",
+            20,
+            12000,
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
+        var response = Assert.IsType<GenerationContextResponse>(((IValueHttpResult)result).Value);
+        Assert.Equal("case-1", response.CaseId);
+        Assert.Equal("tutela", response.Query);
+        Assert.Equal(12000, response.CharacterBudget);
+        var item = Assert.Single(response.Items);
+        Assert.Equal("case-1", item.CaseId);
+        Assert.Equal("doc-1", item.DocumentId);
+        Assert.Equal("source.txt", item.SourceName);
+        Assert.Equal(snapshot.ContentSha256, item.ContentSha256);
+        Assert.Equal("tutela", item.Excerpt);
+        Assert.Equal(0, item.Position.StartOffset);
+        Assert.Equal("tutela".Length, item.Position.Length);
+        Assert.Equal(item.Excerpt.Length, response.UsedCharacters);
+        Assert.Equal(0.75f, item.Rank);
+    }
+
+    [Fact]
     public async Task HandleAsync_returns_sanitized_422_for_internal_evidence_invariant_failure()
     {
         var snapshot = new LegalDocumentSnapshot(
