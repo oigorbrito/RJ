@@ -37,9 +37,18 @@ The ingestion HTTP boundary returns:
 
 - `202 Accepted` when ingestion succeeds or is an idempotent no-op;
 - `400 Bad Request` with `{ "code": "invalid_request", "error": "..." }` when transport/domain validation rejects the request;
-- `409 Conflict` with `{ "code": "evidence_conflict", "error": "..." }` when the same case/document identity conflicts with different evidence or the same case/evidence hash conflicts with a different document identity.
+- `409 Conflict` with `{ "code": "evidence_conflict", "error": "..." }` when the same case/document identity conflicts with different evidence or the same case/evidence hash conflicts with a different document identity;
+- `413 Payload Too Large` with `{ "code": "payload_too_large", "error": "..." }` when `rawContent` exceeds the application ingestion limit.
 
 Persistence-specific exceptions are not part of the HTTP contract. Infrastructure signals evidence conflicts through the Application-level `LegalDocumentConflictException`. Unexpected failures are not converted into client errors and continue through the normal server error path.
+
+## Payload limits
+
+The ingestion endpoint carries request-size metadata of `10 MiB` (`10 * 1024 * 1024` bytes). The application boundary independently limits UTF-8 encoded `rawContent` to `8 MiB` (`8 * 1024 * 1024` bytes) and rejects larger content before hashing or persistence.
+
+These values are operational safety defaults, not corpus-derived legal thresholds. They exist because the current API accepts JSON text rather than general large-file upload and because an unbounded/default-large request surface increases resource-exhaustion risk. The limits must be revisited when an admitted representative corpus provides measured document-size distributions.
+
+The two layers are deliberate: server request-size enforcement protects transport resource usage when supported by the host, while application-level UTF-8 byte validation gives a deterministic contract in test hosts and alternate hosting topologies.
 
 ## Minimum acceptance evidence
 
@@ -51,7 +60,8 @@ Persistence-specific exceptions are not part of the HTTP contract. Infrastructur
 6. valid ingestion maps to HTTP `202`;
 7. validation maps to `400` with stable error code `invalid_request`;
 8. evidence conflict maps to `409` with stable error code `evidence_conflict`;
-9. unexpected failures are not mislabeled as client errors;
-10. prior domain, architecture, persistence, retrieval, benchmark, and corpus-admission gates remain unchanged.
+9. oversized raw content maps to `413` with stable error code `payload_too_large` and is not persisted;
+10. unexpected failures are not mislabeled as client errors;
+11. prior domain, architecture, persistence, retrieval, benchmark, and corpus-admission gates remain unchanged.
 
 Missing runtime, database, runner, or connection string is not PASS; it is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
