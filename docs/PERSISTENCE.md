@@ -6,10 +6,21 @@
 - PostgreSQL validation target: `18.6`
 - Npgsql: `10.0.3`
 - Connection environment variable: `RJ_POSTGRES_CONNECTION`
+- Runtime PostgreSQL command timeout: `15 seconds`
 
 The API does not create, migrate, or repair database objects during startup.
 
 `PostgresSchema.MigrateAsync` owns schema changes. `PostgresSchema.EnsureCurrentAsync` is a read-only startup gate that requires the expected migration ledger version and required `legal_documents` columns before the API starts serving requests.
+
+## Runtime command policy
+
+`PostgresLegalDocumentWriter`, `PostgresLegalDocumentReader`, and `PostgresLegalDocumentSearch` set an explicit `CommandTimeout` of `15` seconds on application data commands.
+
+This is an operational fail-fast baseline, not a legal-domain SLA and not a corpus-derived threshold. It prevents indefinite database commands while preserving caller cancellation through the existing `CancellationToken` passed to connection open, command execution, reader iteration, and transaction commit operations.
+
+Timeout and cancellation are not validation failures or evidence conflicts. The API must not convert them into `400`, `409`, or a partial successful response. A cancelled operation propagates cancellation; a database timeout remains a server/dependency failure unless a future explicit transport policy defines a different server-side status.
+
+The timeout value must be revisited only with measured production/benchmark latency evidence; it must not be raised merely to hide slow queries.
 
 ## Migration ledger
 
@@ -93,6 +104,9 @@ GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the
 4. the API contains no schema mutation call in its startup path;
 5. persistence conflict behavior remains unchanged at the Application contract;
 6. retrieval/persistence integration setup uses the explicit migrator path;
-7. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
+7. writer/read/search commands have an explicit `15` second command timeout;
+8. caller cancellation propagates through read/search operations without returning partial results;
+9. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
+10. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
 A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
