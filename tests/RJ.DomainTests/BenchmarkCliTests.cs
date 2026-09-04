@@ -89,11 +89,45 @@ public sealed class BenchmarkCliTests
             args.Add(catalogPath);
             args.Add("--catalog-sha256");
             args.Add(new string('a', 64));
+            using var errorWriter = new StringWriter();
 
-            var exitCode = await BenchmarkCli.RunAsync(args, CancellationToken.None);
+            var exitCode = await BenchmarkCli.RunAsync(args, errorWriter, CancellationToken.None);
+            var diagnostic = errorWriter.ToString();
 
             Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
             Assert.False(File.Exists(outputPath));
+            Assert.Contains("InvalidOperationException: Benchmark execution failed.", diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(catalogPath, diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(new string('a', 64), diagnostic, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_does_not_expose_missing_catalog_path_in_execution_diagnostic()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var catalogPath = Path.Combine(directory, "secret-catalog-name.json");
+            var outputPath = Path.Combine(directory, "benchmark.json");
+            var args = Args(outputPath, HarnessSelfTestGenerationModel.ModelId).ToList();
+            args.Add("--catalog");
+            args.Add(catalogPath);
+            args.Add("--catalog-sha256");
+            args.Add(new string('b', 64));
+            using var errorWriter = new StringWriter();
+
+            var exitCode = await BenchmarkCli.RunAsync(args, errorWriter, CancellationToken.None);
+            var diagnostic = errorWriter.ToString();
+
+            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.Contains("FileNotFoundException: Benchmark execution failed.", diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(catalogPath, diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain("secret-catalog-name.json", diagnostic, StringComparison.Ordinal);
         }
         finally
         {
