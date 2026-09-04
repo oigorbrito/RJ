@@ -22,7 +22,7 @@ public static class GenerationContextEndpoint
                 limit ?? 20,
                 budget ?? 12000,
                 cancellationToken);
-            return Results.Ok(context);
+            return Results.Ok(ToResponse(context));
         }
         catch (ArgumentException exception)
         {
@@ -33,6 +33,38 @@ public static class GenerationContextEndpoint
             return Results.UnprocessableEntity(new GenerationContextError(InvalidEvidenceMessage));
         }
     }
+
+    private static GenerationContextResponse ToResponse(GenerationContext context) => new(
+        context.CaseId,
+        context.Query,
+        context.CharacterBudget,
+        context.UsedCharacters,
+        context.Items.Select(item => new GenerationContextItemResponse(
+            item.CaseId,
+            item.DocumentId,
+            item.SourceName,
+            item.ContentSha256,
+            item.Excerpt,
+            new GenerationContextPosition(item.Position.StartOffset, item.Position.Length),
+            item.Rank)).ToArray());
 }
+
+public sealed record GenerationContextResponse(
+    string CaseId,
+    string Query,
+    int CharacterBudget,
+    int UsedCharacters,
+    IReadOnlyList<GenerationContextItemResponse> Items);
+
+public sealed record GenerationContextItemResponse(
+    string CaseId,
+    string DocumentId,
+    string SourceName,
+    string ContentSha256,
+    string Excerpt,
+    GenerationContextPosition Position,
+    float Rank);
+
+public sealed record GenerationContextPosition(int StartOffset, int Length);
 
 public sealed record GenerationContextError(string Error);
