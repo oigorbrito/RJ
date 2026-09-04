@@ -73,6 +73,34 @@ public sealed class IngestionEndpointTests
     }
 
     [Fact]
+    public async Task HandleAsync_does_not_convert_cancellation_into_client_error()
+    {
+        var handler = new IngestLegalDocumentHandler(new StubWriter(
+            new OperationCanceledException("cancelled")));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            IngestionEndpoint.HandleAsync(
+                new IngestLegalDocumentRequest("case-1", "doc-1", "source.txt", "conteudo"),
+                handler,
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task HandleAsync_does_not_convert_timeout_into_client_error()
+    {
+        var handler = new IngestLegalDocumentHandler(new StubWriter(
+            new TimeoutException("database timeout")));
+
+        var exception = await Assert.ThrowsAsync<TimeoutException>(() =>
+            IngestionEndpoint.HandleAsync(
+                new IngestLegalDocumentRequest("case-1", "doc-1", "source.txt", "conteudo"),
+                handler,
+                CancellationToken.None));
+
+        Assert.Equal("database timeout", exception.Message);
+    }
+
+    [Fact]
     public async Task HandleAsync_does_not_convert_unexpected_failure_into_client_error()
     {
         var handler = new IngestLegalDocumentHandler(new StubWriter(
