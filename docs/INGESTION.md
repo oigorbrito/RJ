@@ -36,9 +36,12 @@ The API constructs an application command only. Domain identifiers, normalizatio
 The ingestion HTTP boundary returns:
 
 - `202 Accepted` when ingestion succeeds or is an idempotent no-op;
-- `400 Bad Request` with `{ "code": "invalid_request", "error": "..." }` when transport/domain validation rejects the request;
+- `400 Bad Request` with `{ "code": "invalid_json", "error": "Request body is not valid for the ingestion contract." }` when JSON syntax or JSON-to-request type binding is invalid;
+- `400 Bad Request` with `{ "code": "invalid_request", "error": "..." }` when the JSON shape binds but transport/domain validation rejects the request, including absent required values;
 - `409 Conflict` with `{ "code": "evidence_conflict", "error": "..." }` when the same case/document identity conflicts with different evidence or the same case/evidence hash conflicts with a different document identity;
 - `413 Payload Too Large` with `{ "code": "payload_too_large", "error": "..." }` when `rawContent` exceeds the application ingestion limit.
+
+Malformed JSON and incompatible JSON types are normalized by the API transport middleware. Parser/binder exception text is not returned to callers. The middleware is scoped to the ingestion route and does not convert unexpected application failures or errors from unrelated routes into `400` responses.
 
 Persistence-specific exceptions are not part of the HTTP contract. Infrastructure signals evidence conflicts through the Application-level `LegalDocumentConflictException`. Unexpected failures are not converted into client errors and continue through the normal server error path.
 
@@ -58,10 +61,11 @@ The two layers are deliberate: server request-size enforcement protects transpor
 4. invalid/blank content is rejected before persistence;
 5. PostgreSQL stores both raw and normalized representations;
 6. valid ingestion maps to HTTP `202`;
-7. validation maps to `400` with stable error code `invalid_request`;
-8. evidence conflict maps to `409` with stable error code `evidence_conflict`;
-9. oversized raw content maps to `413` with stable error code `payload_too_large` and is not persisted;
-10. unexpected failures are not mislabeled as client errors;
-11. prior domain, architecture, persistence, retrieval, benchmark, and corpus-admission gates remain unchanged.
+7. malformed JSON and incompatible JSON types map to `400` with stable error code `invalid_json` without parser details;
+8. absent required values and domain validation map to `400` with stable error code `invalid_request`;
+9. evidence conflict maps to `409` with stable error code `evidence_conflict`;
+10. oversized raw content maps to `413` with stable error code `payload_too_large` and is not persisted;
+11. unexpected failures are not mislabeled as client errors;
+12. prior domain, architecture, persistence, retrieval, benchmark, and corpus-admission gates remain unchanged.
 
 Missing runtime, database, runner, or connection string is not PASS; it is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
