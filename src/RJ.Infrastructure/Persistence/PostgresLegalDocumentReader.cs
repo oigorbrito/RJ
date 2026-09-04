@@ -13,7 +13,7 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
         CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT case_id, document_id, source_name, content, content_sha256
+            SELECT case_id, document_id, source_name, raw_content, content, content_sha256
             FROM legal_documents
             WHERE case_id = $1 AND document_id = $2;
             """;
@@ -36,7 +36,7 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
         CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT case_id, document_id, source_name, content, content_sha256
+            SELECT case_id, document_id, source_name, raw_content, content, content_sha256
             FROM legal_documents
             WHERE case_id = $1
             ORDER BY document_id ASC;
@@ -61,5 +61,6 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
         reader.GetString(1),
         reader.GetString(2),
         reader.GetString(3),
-        reader.GetString(4));
+        reader.GetString(4),
+        reader.GetString(5).TrimEnd());
 }
