@@ -32,14 +32,10 @@ public sealed class PostgresLegalDocumentWriterTests
 
         await writer.StoreAsync(document, CancellationToken.None);
 
-        await using var command = dataSource.CreateCommand(
-            "SELECT raw_content, content FROM legal_documents WHERE case_id = @case_id AND document_id = @document_id;");
-        command.Parameters.AddWithValue("case_id", document.CaseId.Value);
-        command.Parameters.AddWithValue("document_id", document.Id.Value);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        Assert.Equal("raw\r\ncontent", reader.GetString(0));
-        Assert.Equal("raw\ncontent", reader.GetString(1));
+        var stored = await ReadStoredAsync(dataSource, document.CaseId.Value, document.Id.Value);
+        Assert.NotNull(stored);
+        Assert.Equal("raw\r\ncontent", stored.Value.RawContent);
+        Assert.Equal("raw\ncontent", stored.Value.Content);
     }
 
     [Fact]
@@ -56,15 +52,15 @@ public sealed class PostgresLegalDocumentWriterTests
     }
 
     [Fact]
-    public async Task StoreAsync_rejects_same_identity_with_different_hash()
+    public async Task StoreAsync_conflict_rolls_back_and_preserves_original_evidence()
     {
         await using var dataSource = await CreateDataSourceAsync();
         var writer = new PostgresLegalDocumentWriter(dataSource);
-        var original = CreateDocument(HashA);
+        var original = CreateDocument(HashA, "original raw", "original normalized");
         var conflicting = new LegalDocument(
             original.Id,
             original.CaseId,
-            original.SourceName,
+            "conflicting-source.pdf",
             "different raw content",
             "different content",
             HashB);
@@ -75,10 +71,19 @@ public sealed class PostgresLegalDocumentWriterTests
             () => writer.StoreAsync(conflicting, CancellationToken.None));
 
         Assert.Equal(1, await CountDocumentsAsync(dataSource, original.CaseId.Value));
+        var stored = await ReadStoredAsync(dataSource, original.CaseId.Value, original.Id.Value);
+        Assert.NotNull(stored);
+        Assert.Equal(original.SourceName, stored.Value.SourceName);
+        Assert.Equal(original.RawContent, stored.Value.RawContent);
+        Assert.Equal(original.Content, stored.Value.Content);
+        Assert.Equal(original.ContentSha256, stored.Value.ContentSha256);
+
+        await writer.StoreAsync(original, CancellationToken.None);
+        Assert.Equal(1, await CountDocumentsAsync(dataSource, original.CaseId.Value));
     }
 
     [Fact]
-    public async Task StoreAsync_rejects_same_hash_with_different_identity_in_same_case()
+    public async Task StoreAsync_same_hash_conflict_rolls_back_without_second_identity()
     {
         await using var dataSource = await CreateDataSourceAsync();
         var writer = new PostgresLegalDocumentWriter(dataSource);
@@ -97,6 +102,31 @@ public sealed class PostgresLegalDocumentWriterTests
             () => writer.StoreAsync(conflicting, CancellationToken.None));
 
         Assert.Equal(1, await CountDocumentsAsync(dataSource, original.CaseId.Value));
+        Assert.Null(await ReadStoredAsync(dataSource, original.CaseId.Value, conflicting.Id.Value));
+        Assert.NotNull(await ReadStoredAsync(dataSource, original.CaseId.Value, original.Id.Value));
+    }
+
+    [Fact]
+    public async Task StoreAsync_cancelled_attempt_writes_nothing_and_retry_succeeds_once()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var document = CreateDocument(HashA);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => writer.StoreAsync(document, cancellation.Token));
+
+        Assert.Equal(0, await CountDocumentsAsync(dataSource, document.CaseId.Value));
+
+        await writer.StoreAsync(document, CancellationToken.None);
+        await writer.StoreAsync(document, CancellationToken.None);
+
+        Assert.Equal(1, await CountDocumentsAsync(dataSource, document.CaseId.Value));
+        var stored = await ReadStoredAsync(dataSource, document.CaseId.Value, document.Id.Value);
+        Assert.NotNull(stored);
+        Assert.Equal(document.ContentSha256, stored.Value.ContentSha256);
     }
 
     private static async Task<NpgsqlDataSource> CreateDataSourceAsync()
@@ -134,5 +164,28 @@ public sealed class PostgresLegalDocumentWriterTests
         command.Parameters.AddWithValue("case_id", caseId);
         var result = await command.ExecuteScalarAsync();
         return Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<(string SourceName, string RawContent, string Content, string ContentSha256)?> ReadStoredAsync(
+        NpgsqlDataSource dataSource,
+        string caseId,
+        string documentId)
+    {
+        await using var command = dataSource.CreateCommand(
+            "SELECT source_name, raw_content, content, content_sha256 FROM legal_documents WHERE case_id = @case_id AND document_id = @document_id;");
+        command.Parameters.AddWithValue("case_id", caseId);
+        command.Parameters.AddWithValue("document_id", documentId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return (
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3).TrimEnd());
     }
 }
