@@ -35,6 +35,19 @@ public sealed class CorpusAdmissionServiceTests
     }
 
     [Fact]
+    public async Task AdmitAsync_fails_when_source_is_not_strict_utf8_even_with_matching_hash()
+    {
+        var fixture = Fixture.Create(sourceBytesOverride: [0xff, 0xfe, 0xfd]);
+        var service = new CorpusAdmissionService(new DictionaryArtifactReader(fixture.Artifacts));
+
+        var report = await service.AdmitAsync(fixture.Catalog, fixture.CatalogSha256, CancellationToken.None);
+
+        Assert.False(report.Passed);
+        var failure = Assert.Single(Assert.Single(report.Cases).Failures);
+        Assert.Equal("source-utf8", failure.Gate);
+    }
+
+    [Fact]
     public async Task AdmitAsync_fails_when_catalog_excerpt_cannot_be_reproduced_from_source_offsets()
     {
         var fixture = Fixture.Create(excerptOverride: "indeferi");
@@ -79,9 +92,10 @@ public sealed class CorpusAdmissionServiceTests
         public static Fixture Create(
             string? sourceHashOverride = null,
             string? oracleHashOverride = null,
-            string? excerptOverride = null)
+            string? excerptOverride = null,
+            byte[]? sourceBytesOverride = null)
         {
-            var sourceBytes = Encoding.UTF8.GetBytes("deferido");
+            var sourceBytes = sourceBytesOverride ?? Encoding.UTF8.GetBytes("deferido");
             var oracleBytes = Encoding.UTF8.GetBytes("oracle-v1");
             var actualSourceHash = ExternalGenerationBenchmarkCatalog.ComputeSha256(sourceBytes);
             var actualOracleHash = ExternalGenerationBenchmarkCatalog.ComputeSha256(oracleBytes);
