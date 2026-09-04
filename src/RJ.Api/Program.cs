@@ -29,21 +29,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
 
-app.MapGet("/api/cases/{caseId}/documents", async (
-    string caseId,
-    LegalDocumentQueryService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var documents = await service.ListAsync(caseId, cancellationToken);
-        return Results.Ok(documents);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.BadRequest(new { error = exception.Message });
-    }
-});
+app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
 
 app.MapGet("/api/cases/{caseId}/documents/{documentId}", async (
     string caseId,
@@ -62,23 +48,7 @@ app.MapGet("/api/cases/{caseId}/documents/{documentId}", async (
     }
 });
 
-app.MapGet("/api/cases/{caseId}/search", async (
-    string caseId,
-    string? q,
-    int? limit,
-    LegalDocumentQueryService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var hits = await service.SearchAsync(caseId, q ?? string.Empty, limit ?? 20, cancellationToken);
-        return Results.Ok(hits);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.BadRequest(new { error = exception.Message });
-    }
-});
+app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync);
 
 app.MapGet("/api/cases/{caseId}/evidence", async (
     string caseId,
