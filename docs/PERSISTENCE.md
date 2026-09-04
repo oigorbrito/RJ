@@ -2,20 +2,71 @@
 
 ## Baseline
 
-- Schema version: `1`
+- Schema version: `3`
 - PostgreSQL validation target: `18.6`
 - Npgsql: `10.0.3`
 - Connection environment variable: `RJ_POSTGRES_CONNECTION`
 
-`PostgresSchema.InitializeAsync` owns the executable schema baseline for this phase. The `legal_documents` table uses `(case_id, document_id)` as its primary identity and enforces uniqueness of `(case_id, content_sha256)`.
+The API does not create, migrate, or repair database objects during startup.
+
+`PostgresSchema.MigrateAsync` owns schema changes. `PostgresSchema.EnsureCurrentAsync` is a read-only startup gate that requires the expected migration ledger version and required `legal_documents` columns before the API starts serving requests.
+
+## Migration ledger
+
+`rj_schema_migrations` records applied schema versions:
+
+- `version integer PRIMARY KEY`
+- `applied_at timestamptz NOT NULL DEFAULT now()`
+
+Current expected version is `3`.
+
+Migration execution is transactional and acquires a PostgreSQL transaction-scoped advisory lock before inspecting or changing the schema. Re-running the current migration is idempotent. A database ledger newer than the application version is rejected rather than modified or downgraded.
+
+Existing databases that predate the ledger can be adopted by the explicit migration command: the existing idempotent v3 DDL is applied, then version `3` is recorded. No migration is performed implicitly by API startup.
+
+## Explicit migration command
+
+The operational migrator is a separate executable:
+
+```text
+dotnet run --project tools/RJ.DatabaseMigrator
+```
+
+It reads the connection string only from `RJ_POSTGRES_CONNECTION`.
+
+Exit codes:
+
+- `0`: migration completed successfully;
+- `2`: missing configuration or migration/execution error.
+
+The command does not print the connection string or raw exception message.
+
+Deployment ordering is therefore:
+
+1. set `RJ_POSTGRES_CONNECTION` for the migration environment;
+2. run `RJ.DatabaseMigrator` and require exit code `0`;
+3. start the API;
+4. API startup executes only `EnsureCurrentAsync` and fails fast when the ledger/schema is not current.
+
+## Startup verification
+
+`EnsureCurrentAsync` requires:
+
+- `rj_schema_migrations` to exist;
+- maximum recorded version to equal `3` exactly;
+- `legal_documents` to exist with the required runtime columns (`case_id`, `document_id`, `source_name`, `raw_content`, `content`, `content_sha256`, `search_vector`).
+
+A missing ledger, older version, newer version, or structurally incomplete required table is a startup failure. Startup does not attempt recovery.
 
 ## Idempotency contract
 
-`PostgresLegalDocumentWriter.StoreAsync` is idempotent only when the same case, document identifier, and SHA-256 are repeated. A repeated document identity with a different hash, or the same case/hash under a different document identity, fails with `LegalDocumentPersistenceConflictException`. Existing evidence is never overwritten by this operation.
+`PostgresLegalDocumentWriter.StoreAsync` is idempotent only when the same case, document identifier, and SHA-256 are repeated. A repeated document identity with a different hash, or the same case/hash under a different document identity, fails with the Application-level `LegalDocumentConflictException`. Existing evidence is never overwritten by this operation.
 
 ## Integration-test protocol
 
-A PostgreSQL instance must be reachable through `RJ_POSTGRES_CONNECTION`. If it is absent, the PostgreSQL integration tests are reported as skipped rather than passed.
+A PostgreSQL instance must be reachable through `RJ_POSTGRES_CONNECTION`. If it is absent, PostgreSQL integration tests are skipped rather than passed.
+
+Integration setup explicitly calls `PostgresSchema.MigrateAsync`; production API startup does not.
 
 Focal execution:
 
@@ -34,15 +85,14 @@ dotnet test RJ.slnx --configuration Release --no-build
 
 GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the test-only connection string into `RJ_POSTGRES_CONNECTION`.
 
-## Acceptance evidence
+## Minimum acceptance evidence
 
-The minimum persistence evidence for this schema version is:
+1. explicit migration creates/adopts schema v3 and records the ledger;
+2. repeating the migration does not add duplicate version records or rewrite evidence;
+3. startup verification accepts a migrated current schema;
+4. the API contains no schema mutation call in its startup path;
+5. persistence conflict behavior remains unchanged at the Application contract;
+6. retrieval/persistence integration setup uses the explicit migrator path;
+7. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
-1. schema initialization succeeds;
-2. a valid document is stored once;
-3. repeating the same identity/hash does not create a duplicate;
-4. same identity with a different hash is rejected;
-5. same case/hash with a different identity is rejected;
-6. domain and architecture suites remain green.
-
-A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to the observed execution state.
+A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
