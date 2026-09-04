@@ -5,8 +5,10 @@ namespace RJ.Infrastructure.Persistence;
 public static class PostgresSchema
 {
     public const string Version = "3";
+    private const int VersionNumber = 3;
+    private const long MigrationLockKey = 724_587_321;
 
-    private const string Sql = """
+    private const string MigrationSql = """
         CREATE TABLE IF NOT EXISTS legal_documents (
             case_id text NOT NULL,
             document_id text NOT NULL,
@@ -39,13 +41,114 @@ public static class PostgresSchema
             ON legal_documents USING GIN (search_vector);
         """;
 
-    public static async Task InitializeAsync(
+    public static async Task MigrateAsync(
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
 
-        await using var command = dataSource.CreateCommand(Sql);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await ExecuteAsync(
+            connection,
+            transaction,
+            "SELECT pg_advisory_xact_lock($1);",
+            cancellationToken,
+            MigrationLockKey);
+
+        await ExecuteAsync(
+            connection,
+            transaction,
+            """
+            CREATE TABLE IF NOT EXISTS rj_schema_migrations (
+                version integer PRIMARY KEY,
+                applied_at timestamptz NOT NULL DEFAULT now()
+            );
+            """,
+            cancellationToken);
+
+        var currentVersion = await ReadCurrentVersionAsync(connection, transaction, cancellationToken);
+        if (currentVersion > VersionNumber)
+        {
+            throw new PostgresSchemaVersionException(
+                $"Database schema version {currentVersion} is newer than application schema version {VersionNumber}.");
+        }
+
+        if (currentVersion < VersionNumber)
+        {
+            await ExecuteAsync(connection, transaction, MigrationSql, cancellationToken);
+            await ExecuteAsync(
+                connection,
+                transaction,
+                "INSERT INTO rj_schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING;",
+                cancellationToken,
+                VersionNumber);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public static async Task EnsureCurrentAsync(
+        NpgsqlDataSource dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dataSource);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var tableCheck = new NpgsqlCommand(
+            "SELECT to_regclass('public.rj_schema_migrations') IS NOT NULL;",
+            connection);
+        var ledgerExists = Convert.ToBoolean(
+            await tableCheck.ExecuteScalarAsync(cancellationToken),
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        if (!ledgerExists)
+        {
+            throw new PostgresSchemaVersionException(
+                $"Database schema ledger is missing. Apply schema version {VersionNumber} before starting the API.");
+        }
+
+        await using var versionCommand = new NpgsqlCommand(
+            "SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;",
+            connection);
+        var currentVersion = Convert.ToInt32(
+            await versionCommand.ExecuteScalarAsync(cancellationToken),
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        if (currentVersion != VersionNumber)
+        {
+            throw new PostgresSchemaVersionException(
+                $"Database schema version {currentVersion} does not match required version {VersionNumber}.");
+        }
+    }
+
+    private static async Task<int> ReadCurrentVersionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;",
+            connection,
+            transaction);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task ExecuteAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sql,
+        CancellationToken cancellationToken,
+        params object[] values)
+    {
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        foreach (var value in values)
+        {
+            command.Parameters.AddWithValue(value);
+        }
+
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }
