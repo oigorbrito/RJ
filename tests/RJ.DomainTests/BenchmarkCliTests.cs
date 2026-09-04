@@ -76,6 +76,32 @@ public sealed class BenchmarkCliTests
     }
 
     [Fact]
+    public async Task RunAsync_rejects_external_catalog_checksum_mismatch_before_creating_report()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var catalogPath = Path.Combine(directory, "catalog.json");
+            var outputPath = Path.Combine(directory, "benchmark.json");
+            await File.WriteAllTextAsync(catalogPath, "{}");
+            var args = Args(outputPath, HarnessSelfTestGenerationModel.ModelId).ToList();
+            args.Add("--catalog");
+            args.Add(catalogPath);
+            args.Add("--catalog-sha256");
+            args.Add(new string('a', 64));
+
+            var exitCode = await BenchmarkCli.RunAsync(args, CancellationToken.None);
+
+            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Atomic_writer_replaces_target_and_leaves_no_temporary_file()
     {
         var directory = CreateTemporaryDirectory();
@@ -100,6 +126,16 @@ public sealed class BenchmarkCliTests
         var args = Args("report.json", HarnessSelfTestGenerationModel.ModelId).ToList();
         args.Add("--seed");
         args.Add("duplicate");
+
+        Assert.Throws<ArgumentException>(() => BenchmarkCliOptions.Parse(args));
+    }
+
+    [Fact]
+    public void Options_parser_requires_external_catalog_path_and_checksum_together()
+    {
+        var args = Args("report.json", HarnessSelfTestGenerationModel.ModelId).ToList();
+        args.Add("--catalog");
+        args.Add("catalog.json");
 
         Assert.Throws<ArgumentException>(() => BenchmarkCliOptions.Parse(args));
     }
