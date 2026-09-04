@@ -7,5 +7,4 @@ public sealed record IngestLegalDocumentCommand(
     LegalCaseId CaseId,
     LegalDocumentId DocumentId,
     string SourceName,
-    string Content,
-    string ContentSha256);
+    string RawContent);
