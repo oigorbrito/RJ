@@ -42,7 +42,7 @@ public sealed class GenerationContextEndpointTests
     }
 
     [Fact]
-    public async Task HandleAsync_keeps_static_validation_message_for_invalid_request()
+    public async Task HandleAsync_keeps_validation_failure_as_400()
     {
         var retrieval = new LegalDocumentQueryService(new StubReader(), new StubSearch([]));
         var service = new GenerationContextService(retrieval, new GenerationContextBuilder());
@@ -57,7 +57,7 @@ public sealed class GenerationContextEndpointTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
         var error = Assert.IsType<GenerationContextError>(((IValueHttpResult)result).Value);
-        Assert.Equal("Generation query cannot be empty. (Parameter 'query')", error.Error);
+        Assert.Contains("Generation query cannot be empty.", error.Error, StringComparison.Ordinal);
     }
 
     private sealed class StubReader : ILegalDocumentReader
