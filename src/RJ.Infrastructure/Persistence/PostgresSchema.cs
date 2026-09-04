@@ -123,22 +123,62 @@ public static class PostgresSchema
         }
 
         const string structureSql = """
+            WITH target AS (
+                SELECT c.oid AS table_oid
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                  AND c.relname = 'legal_documents'
+                  AND c.relkind = 'r'
+            ),
+            required_columns AS (
+                SELECT count(*) = 7 AS ok
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'legal_documents'
+                  AND column_name IN (
+                      'case_id',
+                      'document_id',
+                      'source_name',
+                      'raw_content',
+                      'content',
+                      'content_sha256',
+                      'search_vector')
+            ),
+            required_constraints AS (
+                SELECT
+                    count(*) FILTER (
+                        WHERE con.conname = 'pk_legal_documents'
+                          AND con.contype = 'p'
+                          AND pg_get_constraintdef(con.oid) = 'PRIMARY KEY (case_id, document_id)') = 1
+                    AND count(*) FILTER (
+                        WHERE con.conname = 'uq_legal_documents_case_hash'
+                          AND con.contype = 'u'
+                          AND pg_get_constraintdef(con.oid) = 'UNIQUE (case_id, content_sha256)') = 1
+                    AND count(*) FILTER (
+                        WHERE con.conname = 'ck_legal_documents_sha256'
+                          AND con.contype = 'c'
+                          AND pg_get_constraintdef(con.oid) LIKE 'CHECK ((content_sha256 ~%^[0-9a-f]{64}%') = 1 AS ok
+                FROM pg_constraint con
+                JOIN target t ON t.table_oid = con.conrelid
+            ),
+            required_index AS (
+                SELECT count(*) = 1 AS ok
+                FROM pg_class idx
+                JOIN pg_namespace n ON n.oid = idx.relnamespace
+                JOIN pg_index i ON i.indexrelid = idx.oid
+                JOIN target t ON t.table_oid = i.indrelid
+                JOIN pg_am am ON am.oid = idx.relam
+                WHERE n.nspname = 'public'
+                  AND idx.relname = 'ix_legal_documents_search_vector'
+                  AND am.amname = 'gin'
+                  AND pg_get_indexdef(idx.oid) LIKE '%USING gin (search_vector)%'
+            )
             SELECT
-                to_regclass('public.legal_documents') IS NOT NULL
-                AND (
-                    SELECT count(*)
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public'
-                      AND table_name = 'legal_documents'
-                      AND column_name IN (
-                          'case_id',
-                          'document_id',
-                          'source_name',
-                          'raw_content',
-                          'content',
-                          'content_sha256',
-                          'search_vector')
-                ) = 7;
+                EXISTS (SELECT 1 FROM target)
+                AND (SELECT ok FROM required_columns)
+                AND (SELECT ok FROM required_constraints)
+                AND (SELECT ok FROM required_index);
             """;
         await using var structureCommand = new NpgsqlCommand(structureSql, connection);
         var structureMatches = Convert.ToBoolean(
@@ -148,7 +188,7 @@ public static class PostgresSchema
         if (!structureMatches)
         {
             throw new PostgresSchemaVersionException(
-                $"Database schema ledger reports version {VersionNumber}, but required schema objects are missing.");
+                $"Database schema ledger reports version {VersionNumber}, but required schema invariants are missing or degraded.");
         }
     }
 
