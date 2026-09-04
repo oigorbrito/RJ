@@ -23,6 +23,12 @@ Exit codes:
 
 Cancellation is propagated.
 
+Argument-validation failures retain the exception type and parser message. Current parser messages contain option names or fixed validation text and do not echo catalog/output values.
+
+Non-argument execution failures emit only the exception type plus the fixed text `Corpus admission execution failed.` The originating exception message is not copied to stderr. This prevents local catalog/output paths, referenced artifact paths, checksum values, parser payload fragments, and filesystem/provider details from silently becoming part of the CLI diagnostic contract.
+
+The catalog checksum mismatch exception itself is fixed and does not embed the supplied or observed hash. Exact hash values remain admission inputs/provenance data and are not required in the process-level diagnostic.
+
 ## Artifact resolution
 
 `sourceReference` and `oracleReference` are local paths relative to the directory containing the catalog file.
@@ -94,7 +100,9 @@ The focal tests cover:
 4. exact excerpt reproduction failure;
 5. oracle SHA-256 mismatch;
 6. catalog checksum mismatch at the CLI boundary;
-7. rejection of artifact path traversal;
-8. passing admission report persistence.
+7. checksum-mismatch diagnostics do not expose catalog paths or supplied/observed hashes;
+8. missing-catalog filesystem diagnostics do not expose local paths or file names;
+9. rejection of artifact path traversal;
+10. passing admission report persistence.
 
 Unavailable runtime, runner, local checkout, or absent legal corpus is never converted to PASS.
