@@ -121,6 +121,35 @@ public static class PostgresSchema
             throw new PostgresSchemaVersionException(
                 $"Database schema version {currentVersion} does not match required version {VersionNumber}.");
         }
+
+        const string structureSql = """
+            SELECT
+                to_regclass('public.legal_documents') IS NOT NULL
+                AND (
+                    SELECT count(*)
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'legal_documents'
+                      AND column_name IN (
+                          'case_id',
+                          'document_id',
+                          'source_name',
+                          'raw_content',
+                          'content',
+                          'content_sha256',
+                          'search_vector')
+                ) = 7;
+            """;
+        await using var structureCommand = new NpgsqlCommand(structureSql, connection);
+        var structureMatches = Convert.ToBoolean(
+            await structureCommand.ExecuteScalarAsync(cancellationToken),
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        if (!structureMatches)
+        {
+            throw new PostgresSchemaVersionException(
+                $"Database schema ledger reports version {VersionNumber}, but required schema objects are missing.");
+        }
     }
 
     private static async Task<int> ReadCurrentVersionAsync(
@@ -146,7 +175,7 @@ public static class PostgresSchema
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         foreach (var value in values)
         {
-            command.Parameters.AddWithValue(value);
+            command.Parameters.Add(new NpgsqlParameter { Value = value });
         }
 
         await command.ExecuteNonQueryAsync(cancellationToken);
