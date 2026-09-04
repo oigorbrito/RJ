@@ -7,6 +7,7 @@
     <Project Path="src/RJ.Infrastructure/RJ.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/RJ.ApiTests/RJ.ApiTests.csproj" />
     <Project Path="tests/RJ.ArchitectureTests/RJ.ArchitectureTests.csproj" />
     <Project Path="tests/RJ.DomainTests/RJ.DomainTests.csproj" />
     <Project Path="tests/RJ.IntegrationTests/RJ.IntegrationTests.csproj" />
