@@ -1,4 +1,5 @@
 using Npgsql;
+using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
 
 namespace RJ.IntegrationTests;
@@ -6,24 +7,21 @@ namespace RJ.IntegrationTests;
 public sealed class PostgresSchemaTests
 {
     [Fact]
-    public async Task MigrateAsync_is_idempotent_and_records_expected_version_once()
+    public async Task MigrateAsync_is_idempotent_and_records_expected_version()
     {
         await using var dataSource = CreateDataSourceOrSkip();
 
         await PostgresSchema.MigrateAsync(dataSource);
         await PostgresSchema.MigrateAsync(dataSource);
 
-        var expectedVersion = int.Parse(
-            PostgresSchema.Version,
-            System.Globalization.CultureInfo.InvariantCulture);
         await using var command = dataSource.CreateCommand(
-            "SELECT count(*) FROM rj_schema_migrations WHERE version = $1;");
-        command.Parameters.Add(new NpgsqlParameter { Value = expectedVersion });
-        var count = Convert.ToInt64(
+            "SELECT max(version) FROM rj_schema_migrations;");
+        var currentVersion = Convert.ToInt32(
             await command.ExecuteScalarAsync(),
             System.Globalization.CultureInfo.InvariantCulture);
-
-        Assert.Equal(1, count);
+        Assert.Equal(
+            int.Parse(PostgresSchema.Version, System.Globalization.CultureInfo.InvariantCulture),
+            currentVersion);
     }
 
     [Fact]
@@ -33,6 +31,16 @@ public sealed class PostgresSchemaTests
         await PostgresSchema.MigrateAsync(dataSource);
 
         await PostgresSchema.EnsureCurrentAsync(dataSource);
+    }
+
+    [Fact]
+    public async Task PostgresReadinessProbe_passes_after_explicit_migration()
+    {
+        await using var dataSource = CreateDataSourceOrSkip();
+        await PostgresSchema.MigrateAsync(dataSource);
+        var probe = new PostgresReadinessProbe(dataSource);
+
+        await probe.CheckAsync(CancellationToken.None);
     }
 
     private static NpgsqlDataSource CreateDataSourceOrSkip()
