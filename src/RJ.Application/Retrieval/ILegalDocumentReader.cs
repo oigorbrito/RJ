@@ -12,5 +12,7 @@ public interface ILegalDocumentReader
 
     Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
         LegalCaseId caseId,
+        int offset,
+        int limit,
         CancellationToken cancellationToken);
 }
