@@ -1,4 +1,5 @@
 using Npgsql;
+using RJ.Application.Retrieval;
 using RJ.Domain.Cases;
 using RJ.Domain.Documents;
 using RJ.Infrastructure.Persistence;
@@ -64,6 +65,30 @@ public sealed class PostgresLegalDocumentRetrievalTests
         var hit = Assert.Single(results);
         Assert.Equal("doc-1", hit.Document.DocumentId);
         Assert.True(hit.Rank > 0);
+    }
+
+    [Fact]
+    public async Task Evidence_is_case_scoped_and_offsets_reproduce_exact_raw_excerpt()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var reader = new PostgresLegalDocumentReader(dataSource);
+        var search = new PostgresLegalDocumentSearch(dataSource);
+        var service = new LegalDocumentQueryService(reader, search);
+        var targetCase = NewCaseId();
+        var otherCase = NewCaseId();
+        const string raw = "cabecalho\r\nA tutela provisoria foi deferida pelo juizo.\r\nrodape";
+        var normalized = raw.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-1"), targetCase, "decisao.txt", raw, normalized, HashA), CancellationToken.None);
+        await writer.StoreAsync(new LegalDocument(new LegalDocumentId("doc-2"), otherCase, "decisao.txt", raw, normalized, HashB), CancellationToken.None);
+
+        var evidence = await service.RetrieveEvidenceAsync(targetCase.Value, "tutela provisoria", 10, CancellationToken.None);
+
+        var hit = Assert.Single(evidence);
+        Assert.Equal(targetCase.Value, hit.CaseId);
+        Assert.Equal("doc-1", hit.DocumentId);
+        Assert.Equal(raw.Substring(hit.Position.StartOffset, hit.Position.Length), hit.Excerpt);
     }
 
     [Fact]
