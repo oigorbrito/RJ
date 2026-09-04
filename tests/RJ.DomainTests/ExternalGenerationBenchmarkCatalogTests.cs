@@ -36,6 +36,19 @@ public sealed class ExternalGenerationBenchmarkCatalogTests
     }
 
     [Fact]
+    public void Convert_rejects_provenance_hash_that_does_not_match_content_hash()
+    {
+        var json = ValidCatalogJson().Replace(
+            "\"sourceSha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+            "\"sourceSha256\": \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"",
+            StringComparison.Ordinal);
+
+        var external = ExternalGenerationBenchmarkCatalog.Parse(json);
+
+        Assert.Throws<InvalidOperationException>(() => external.ToBenchmarkCatalog());
+    }
+
+    [Fact]
     public void Convert_rejects_unknown_format_version()
     {
         var json = ValidCatalogJson().Replace(
@@ -70,8 +83,6 @@ public sealed class ExternalGenerationBenchmarkCatalogTests
           "id": "fixture-001",
           "contextCaseId": "case-1",
           "query": "Qual foi a decisão?",
-          "sourceReference": "source://fixture-001/doc-1",
-          "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "oracleReference": "oracle://fixture-001/v1",
           "oracleSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           "expectAbstention": false,
@@ -79,6 +90,8 @@ public sealed class ExternalGenerationBenchmarkCatalogTests
             {
               "documentId": "doc-1",
               "sourceName": "decisao.txt",
+              "sourceReference": "source://fixture-001/doc-1",
+              "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "excerpt": "deferido",
               "startOffset": 0,
