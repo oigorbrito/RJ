@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using RJ.Api;
 using RJ.Application.Generation;
@@ -32,7 +33,8 @@ app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
-app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
+    .WithMetadata(new RequestSizeLimitAttribute(IngestionLimits.MaxRequestBodyBytes));
 
 app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
 
