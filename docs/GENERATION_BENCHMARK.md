@@ -29,7 +29,9 @@ All fields are required. `ModelConfiguration` must contain only reproducibility-
 
 Cases are executed in ordinal `CaseId` order, independent of catalog insertion order.
 
-A candidate exception fails that case and is recorded as `ErrorType` plus `ErrorMessage`; it does not silently abort remaining independent cases. Cancellation remains cancellation and is propagated immediately.
+A candidate exception fails that case and does not silently abort remaining independent cases. The report records the exception type for diagnosis plus the fixed message `Candidate execution failed.`; the originating `Exception.Message` is not persisted. This prevents provider payloads, prompts, local paths, endpoints, tokens, or runtime details from becoming part of the benchmark artifact through an exception message.
+
+Cancellation remains cancellation and is propagated immediately.
 
 ## Non-compensable aggregation
 
@@ -39,7 +41,7 @@ The report records:
 - minimum claim recall across evaluated cases;
 - minimum citation validity across evaluated cases;
 - minimum groundedness across evaluated cases;
-- each individual case result or execution error.
+- each individual case result or sanitized execution error.
 
 A run passes only when:
 
@@ -56,6 +58,8 @@ No average, weighted score, or strong result from another case may compensate fo
 
 The artifact is intended for candidate comparison and audit. At minimum, retain it together with the exact git commit, catalog version, runtime, model identifier, model configuration, seed, command used to execute the benchmark, exit code, and any execution deviation.
 
+The JSON may contain structured benchmark/evaluation data and deliberate reproducibility metadata, but it must not persist arbitrary provider/runtime exception messages. `errorType` remains diagnostic evidence; `errorMessage` is fixed for candidate execution exceptions.
+
 ## Promotion rule
 
 A candidate model/provider must not be promoted because of anecdotal output quality or aggregate preference alone. Promotion requires a reproducible benchmark artifact for the exact candidate configuration and all non-compensable gates passing on the approved catalog.
@@ -67,9 +71,10 @@ Latency, cost, availability, privacy, and operational constraints are separate g
 1. catalog version mismatch is rejected before model execution;
 2. duplicate fixture ids are rejected;
 3. case execution order is deterministic;
-4. one candidate exception is recorded and independent cases continue;
-5. a failed citation/groundedness gate cannot be averaged away;
-6. JSON contains reproducibility metadata and case results;
-7. prior evaluation, generation-boundary, context, citation, retrieval, ingestion, persistence, domain, and architecture gates remain green.
+4. one candidate exception is recorded with exception type plus fixed sanitized message and independent cases continue;
+5. benchmark JSON does not contain an injected provider exception payload/path/token sentinel;
+6. a failed citation/groundedness gate cannot be averaged away;
+7. JSON contains reproducibility metadata and case results;
+8. prior evaluation, generation-boundary, context, citation, retrieval, ingestion, persistence, domain, and architecture gates remain green.
 
 Missing runtime, runner, local checkout, provider, or credentials is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed evidence.
