@@ -7,6 +7,7 @@ public sealed class GenerationBenchmarkRunner(
     IGenerationModel model,
     GenerationEvaluator evaluator)
 {
+    private const string CandidateExecutionFailureMessage = "Candidate execution failed.";
     private readonly IGenerationModel _model = model ?? throw new ArgumentNullException(nameof(model));
     private readonly GenerationEvaluator _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
 
@@ -56,7 +57,7 @@ public sealed class GenerationBenchmarkRunner(
                     false,
                     null,
                     exception.GetType().FullName,
-                    exception.Message));
+                    CandidateExecutionFailureMessage));
             }
         }
 
