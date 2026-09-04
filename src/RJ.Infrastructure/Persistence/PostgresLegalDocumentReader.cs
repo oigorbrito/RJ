@@ -33,17 +33,23 @@ public sealed class PostgresLegalDocumentReader(NpgsqlDataSource dataSource) : I
 
     public async Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
         LegalCaseId caseId,
+        int offset,
+        int limit,
         CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT case_id, document_id, source_name, raw_content, content, content_sha256
             FROM legal_documents
             WHERE case_id = $1
-            ORDER BY document_id ASC;
+            ORDER BY document_id ASC
+            OFFSET $2
+            LIMIT $3;
             """;
 
         await using var command = dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue(caseId.Value);
+        command.Parameters.AddWithValue(offset);
+        command.Parameters.AddWithValue(limit);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<LegalDocumentSnapshot>();
