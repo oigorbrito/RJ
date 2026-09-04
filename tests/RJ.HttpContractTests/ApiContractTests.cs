@@ -15,9 +15,12 @@ public sealed class ApiContractTests
     {
         await using var fixture = await HttpFixture.CreateAsync();
 
+        var compatibilityLive = await fixture.Client.GetAsync("/health");
         var live = await fixture.Client.GetAsync("/health/live");
         var ready = await fixture.Client.GetAsync("/health/ready");
 
+        Assert.Equal(HttpStatusCode.OK, compatibilityLive.StatusCode);
+        Assert.Equal("live", (await ReadJsonAsync(compatibilityLive)).RootElement.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal("live", (await ReadJsonAsync(live)).RootElement.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
