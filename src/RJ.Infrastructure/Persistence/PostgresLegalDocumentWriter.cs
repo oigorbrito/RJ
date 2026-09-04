@@ -81,7 +81,7 @@ public sealed class PostgresLegalDocumentWriter(NpgsqlDataSource dataSource) : I
             return;
         }
 
-        throw new LegalDocumentPersistenceConflictException(
-            $"Legal document persistence conflict for case '{document.CaseId.Value}' and document '{document.Id.Value}'.");
+        throw new LegalDocumentConflictException(
+            $"Legal document conflict for case '{document.CaseId.Value}' and document '{document.Id.Value}'.");
     }
 }
