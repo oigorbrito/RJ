@@ -1,7 +1,17 @@
 namespace RJ.Application.Retrieval;
 
-public sealed record SourcePosition(int StartOffset, int Length)
+public sealed record SourcePosition
 {
+    private SourcePosition(int startOffset, int length)
+    {
+        StartOffset = startOffset;
+        Length = length;
+    }
+
+    public int StartOffset { get; }
+
+    public int Length { get; }
+
     public int EndOffset => checked(StartOffset + Length);
 
     public static SourcePosition Create(int startOffset, int length, int sourceLength)
