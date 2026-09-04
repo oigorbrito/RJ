@@ -1,6 +1,6 @@
 namespace RJ.Domain.Cases;
 
-public readonly record struct LegalCaseId
+public sealed record LegalCaseId
 {
     public LegalCaseId(string value)
     {
