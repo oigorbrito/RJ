@@ -48,6 +48,8 @@ Dependency exception messages are not copied into the HTTP response.
 
 The readiness boundary applies a two-second internal timeout. Internal timeout/cancellation is mapped to HTTP 503. Cancellation originating from the request token is propagated rather than rewritten as dependency failure.
 
+The unit contract now proves the actual timeout path with a probe that blocks indefinitely until the linked readiness token is cancelled. The acceptance condition is both HTTP 503 and observed cancellation at the probe boundary; this distinguishes the configured timeout behavior from merely throwing a synthetic `OperationCanceledException`.
+
 ## Startup relationship
 
 The API still performs `PostgresSchema.EnsureCurrentAsync` at startup as the fail-fast schema-version guard established by the persistence protocol. This call is read-only and does not migrate the database.
@@ -71,8 +73,9 @@ Readiness does not:
 2. readiness returns 200 when the probe succeeds;
 3. readiness returns 503 for dependency/schema failure without leaking exception details;
 4. internal readiness cancellation is 503;
-5. request cancellation propagates;
-6. PostgreSQL readiness succeeds after an explicit migration;
-7. prior migration, persistence, ingestion, retrieval, and architecture gates remain unchanged.
+5. the configured readiness timeout cancels a blocked probe and returns 503;
+6. request cancellation propagates;
+7. PostgreSQL readiness succeeds after an explicit migration;
+8. prior migration, persistence, ingestion, retrieval, and architecture gates remain unchanged.
 
 Unavailable runtime, PostgreSQL, or GitHub Actions runner is not PASS.
