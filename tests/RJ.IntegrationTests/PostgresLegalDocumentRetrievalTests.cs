@@ -30,7 +30,7 @@ public sealed class PostgresLegalDocumentRetrievalTests
     }
 
     [Fact]
-    public async Task Reader_lists_only_documents_from_requested_case_in_document_order()
+    public async Task Reader_lists_only_requested_page_from_case_in_document_order()
     {
         await using var dataSource = await CreateDataSourceAsync();
         var writer = new PostgresLegalDocumentWriter(dataSource);
@@ -38,13 +38,14 @@ public sealed class PostgresLegalDocumentRetrievalTests
         var targetCase = NewCaseId();
         var otherCase = NewCaseId();
 
-        await writer.StoreAsync(CreateDocument("doc-b", targetCase, "b.pdf", "conteudo b", HashA), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-c", targetCase, "c.pdf", "conteudo c", HashA), CancellationToken.None);
         await writer.StoreAsync(CreateDocument("doc-a", targetCase, "a.pdf", "conteudo a", HashB), CancellationToken.None);
-        await writer.StoreAsync(CreateDocument("doc-x", otherCase, "x.pdf", "conteudo x", HashC), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-b", targetCase, "b.pdf", "conteudo b", HashC), CancellationToken.None);
+        await writer.StoreAsync(CreateDocument("doc-x", otherCase, "x.pdf", "conteudo x", new string('4', 64)), CancellationToken.None);
 
-        var results = await reader.ListByCaseAsync(targetCase, CancellationToken.None);
+        var results = await reader.ListByCaseAsync(targetCase, 1, 2, CancellationToken.None);
 
-        Assert.Equal(["doc-a", "doc-b"], results.Select(item => item.DocumentId).ToArray());
+        Assert.Equal(["doc-b", "doc-c"], results.Select(item => item.DocumentId).ToArray());
     }
 
     [Fact]
@@ -127,7 +128,7 @@ public sealed class PostgresLegalDocumentRetrievalTests
         }
 
         var dataSource = NpgsqlDataSource.Create(connectionString);
-        await PostgresSchema.InitializeAsync(dataSource);
+        await PostgresSchema.MigrateAsync(dataSource);
         return dataSource;
     }
 }
