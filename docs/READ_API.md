@@ -9,7 +9,11 @@ All document retrieval routes are scoped by `caseId` in the URL. There is no uns
 - `GET /api/cases/{caseId}/search?q={query}&limit={1..100}`
 - `GET /api/cases/{caseId}/evidence?q={query}&limit={1..100}`
 
-Document listing defaults to `page=1&pageSize=20`. Search defaults to `limit=20`. Invalid identifiers, blank queries, invalid page values, and limits outside their documented ranges return HTTP 400. A missing document returns HTTP 404.
+Document listing defaults to `page=1&pageSize=20`. Search defaults to `limit=20`. Invalid identifiers, blank queries, invalid page values, and limits outside their documented ranges return HTTP 400 with `{ "code": "invalid_request", "error": "..." }`. A missing document returns HTTP 404.
+
+The read routes use one boundary contract for validation failures. Document detail and evidence retrieval are routed through `ReadEndpoint` together with list/search, so they no longer return anonymous error payloads without a stable code.
+
+Current `ArgumentException` validation messages are static application/domain validation text and do not interpolate case identifiers, document identifiers, query text, or legal evidence content. They remain part of the current 400 response only while that property holds; infrastructure/internal exceptions are not converted into read `400` responses.
 
 ## Collection payload minimization
 
@@ -52,7 +56,9 @@ List ordering is deterministic by `document_id ASC`. Search ordering remains ran
 4. list payload omits raw and normalized content;
 5. search payload omits raw and normalized content while retaining evidence identity and rank;
 6. `/evidence` remains the explicit bounded excerpt surface;
-7. missing documents return 404 and invalid inputs return 400;
-8. prior architecture, ingestion, persistence, retrieval, citation, and generation gates remain unchanged.
+7. missing documents return 404;
+8. invalid inputs across list, document detail, search, and evidence return 400 with stable code `invalid_request`;
+9. read validation responses do not convert infrastructure/internal failures into client errors;
+10. prior architecture, ingestion, persistence, retrieval, citation, and generation gates remain unchanged.
 
 Unavailable runner, runtime, or PostgreSQL is not PASS. It remains `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
