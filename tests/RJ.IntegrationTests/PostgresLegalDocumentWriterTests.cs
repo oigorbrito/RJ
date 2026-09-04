@@ -23,6 +23,25 @@ public sealed class PostgresLegalDocumentWriterTests
     }
 
     [Fact]
+    public async Task StoreAsync_preserves_raw_and_normalized_content()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var document = CreateDocument(HashA, "raw\r\ncontent", "raw\ncontent");
+
+        await writer.StoreAsync(document, CancellationToken.None);
+
+        await using var command = dataSource.CreateCommand(
+            "SELECT raw_content, content FROM legal_documents WHERE case_id = @case_id AND document_id = @document_id;");
+        command.Parameters.AddWithValue("case_id", document.CaseId.Value);
+        command.Parameters.AddWithValue("document_id", document.Id.Value);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal("raw\r\ncontent", reader.GetString(0));
+        Assert.Equal("raw\ncontent", reader.GetString(1));
+    }
+
+    [Fact]
     public async Task StoreAsync_is_idempotent_for_same_identity_and_hash()
     {
         await using var dataSource = await CreateDataSourceAsync();
@@ -45,6 +64,7 @@ public sealed class PostgresLegalDocumentWriterTests
             original.Id,
             original.CaseId,
             original.SourceName,
+            "different raw content",
             "different content",
             HashB);
 
@@ -66,6 +86,7 @@ public sealed class PostgresLegalDocumentWriterTests
             new LegalDocumentId("doc-2"),
             original.CaseId,
             "source-2.pdf",
+            original.RawContent,
             original.Content,
             original.ContentSha256);
 
@@ -90,14 +111,18 @@ public sealed class PostgresLegalDocumentWriterTests
         return dataSource;
     }
 
-    private static LegalDocument CreateDocument(string hash)
+    private static LegalDocument CreateDocument(
+        string hash,
+        string rawContent = "document content",
+        string normalizedContent = "document content")
     {
         var suffix = Guid.NewGuid().ToString("N");
         return new LegalDocument(
             new LegalDocumentId("doc-1"),
             new LegalCaseId($"case-{suffix}"),
             "source.pdf",
-            "document content",
+            rawContent,
+            normalizedContent,
             hash);
     }
 
