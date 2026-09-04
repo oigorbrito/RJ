@@ -78,6 +78,10 @@ No newline rewriting, Unicode normalization, BOM removal, whitespace normalizati
 - per-case pass/fail state;
 - explicit failures with artifact reference, gate identifier, and observed reason.
 
+Artifact references in failures are the catalog-provided relative references and remain intentionally auditable. Hash-gate failures retain expected and observed SHA-256 values because those hashes are the evidence used to establish artifact identity.
+
+Operational exception messages are not persisted into admission failures. Read failures retain the exception type plus fixed gate text only, so filesystem paths and provider/runtime details cannot enter the report through `Exception.Message`. Strict UTF-8 failures likewise use a fixed semantic reason instead of persisting `DecoderFallbackException.Message`.
+
 A failure in one case does not erase the evidence collected for other independently verifiable cases.
 
 ## Non-compensable admission gates
@@ -102,7 +106,10 @@ The focal tests cover:
 6. catalog checksum mismatch at the CLI boundary;
 7. checksum-mismatch diagnostics do not expose catalog paths or supplied/observed hashes;
 8. missing-catalog filesystem diagnostics do not expose local paths or file names;
-9. rejection of artifact path traversal;
-10. passing admission report persistence.
+9. admission-report read failures do not persist underlying exception paths/messages;
+10. strict UTF-8 failures use a fixed semantic report message;
+11. SHA-256 mismatch reports retain expected/observed hashes as audit evidence;
+12. rejection of artifact path traversal;
+13. passing admission report persistence.
 
 Unavailable runtime, runner, local checkout, or absent legal corpus is never converted to PASS.
