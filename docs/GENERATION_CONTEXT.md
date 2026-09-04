@@ -37,15 +37,11 @@ The API default budget is `12000` UTF-16 code units. The requested budget must b
 
 ## Output
 
-`GenerationContext` contains:
+The Application-layer `GenerationContext` contains case identity, normalized query, requested character budget, actually used characters, and ordered `GenerationContextItem` entries. Each item preserves document identity, source, hash, exact excerpt, source position, and retrieval rank.
 
-- `caseId`;
-- normalized query;
-- requested character budget;
-- actually used characters;
-- ordered `GenerationContextItem` entries.
+The HTTP boundary does not serialize `GenerationContext`, `GenerationContextItem`, or retrieval `SourcePosition` directly. It maps them to API-owned `GenerationContextResponse`, `GenerationContextItemResponse`, and `GenerationContextPosition` projections. The public position contains only `startOffset` and `length`; derived or future internal position properties cannot silently become part of the HTTP payload.
 
-Each item preserves `documentId`, `sourceName`, `contentSha256`, exact excerpt, source position, and retrieval rank.
+This projection is transport-only. It does not alter builder ordering, deduplication, character budgeting, excerpts, citation positions, hashes, or ranks.
 
 ## HTTP boundary
 
@@ -68,8 +64,10 @@ Evidence invariant violations return `422` rather than constructing a partially 
 4. ordering is deterministic;
 5. used character count equals the sum of included excerpts;
 6. no excerpt is truncated to fit the budget;
-7. generation-context invariant failures map to `422` with a fixed sanitized response rather than exposing internal exception details or legal evidence values;
-8. invalid request parameters remain `400` and do not require sanitization while their messages remain static and non-interpolating;
-9. prior ingestion, retrieval, citation, persistence, domain, and architecture gates remain green.
+7. the HTTP success response uses API-owned projections rather than serializing Application/retrieval records directly;
+8. projected context preserves case, normalized query, budget, used-character count, evidence identity, hash, exact excerpt, `startOffset`, `length`, and rank;
+9. generation-context invariant failures map to `422` with a fixed sanitized response rather than exposing internal exception details or legal evidence values;
+10. invalid request parameters remain `400` and do not require sanitization while their messages remain static and non-interpolating;
+11. prior ingestion, retrieval, citation, persistence, domain, and architecture gates remain unchanged.
 
 Missing runtime, database, runner, or connection string is not PASS; it is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
