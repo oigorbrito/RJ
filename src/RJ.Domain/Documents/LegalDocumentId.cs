@@ -1,6 +1,6 @@
 namespace RJ.Domain.Documents;
 
-public readonly record struct LegalDocumentId
+public sealed record LegalDocumentId
 {
     public LegalDocumentId(string value)
     {
