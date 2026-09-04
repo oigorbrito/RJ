@@ -12,7 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("PostgreSQL connection string is required via ConnectionStrings:Postgres or RJ_POSTGRES_CONNECTION.");
 
 var dataSource = NpgsqlDataSource.Create(connectionString);
-await PostgresSchema.InitializeAsync(dataSource);
+await PostgresSchema.EnsureCurrentAsync(dataSource);
 
 builder.Services.AddSingleton(dataSource);
 builder.Services.AddSingleton<ILegalDocumentWriter, PostgresLegalDocumentWriter>();
