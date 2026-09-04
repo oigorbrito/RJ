@@ -10,7 +10,7 @@
 
 The API does not create, migrate, or repair database objects during startup.
 
-`PostgresSchema.MigrateAsync` owns schema changes. `PostgresSchema.EnsureCurrentAsync` is a read-only startup gate that requires the expected migration ledger version and required `legal_documents` columns before the API starts serving requests.
+`PostgresSchema.MigrateAsync` owns schema changes. `PostgresSchema.EnsureCurrentAsync` is a read-only startup gate that requires the expected migration ledger version and the structural invariants needed by ingestion and retrieval before the API starts serving requests.
 
 ## Runtime command policy
 
@@ -65,9 +65,15 @@ Deployment ordering is therefore:
 
 - `rj_schema_migrations` to exist;
 - maximum recorded version to equal `3` exactly;
-- `legal_documents` to exist with the required runtime columns (`case_id`, `document_id`, `source_name`, `raw_content`, `content`, `content_sha256`, `search_vector`).
+- `legal_documents` to exist with the required runtime columns (`case_id`, `document_id`, `source_name`, `raw_content`, `content`, `content_sha256`, `search_vector`);
+- primary key `pk_legal_documents` with exactly `(case_id, document_id)`;
+- unique constraint `uq_legal_documents_case_hash` with exactly `(case_id, content_sha256)`;
+- SHA-256 check constraint `ck_legal_documents_sha256` enforcing lowercase hexadecimal length 64;
+- GIN index `ix_legal_documents_search_vector` over `search_vector`.
 
-A missing ledger, older version, newer version, or structurally incomplete required table is a startup failure. Startup does not attempt recovery.
+The startup check reads PostgreSQL catalogs only. It does not recreate, rename, repair, or otherwise mutate missing/degraded objects. A ledger that reports v3 while any required invariant is absent or structurally inconsistent is a startup failure.
+
+Tests verify that explicit migration installs these named invariants without destructively dropping or altering shared test-database objects. Destructive schema-degradation tests are intentionally avoided in the shared integration database because they could invalidate concurrently running tests; the production check itself is fail-closed against degraded catalog state.
 
 ## Idempotency, transaction, and concurrency contract
 
@@ -111,17 +117,18 @@ GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the
 1. explicit migration creates/adopts schema v3 and records the ledger;
 2. repeating the migration does not add duplicate version records or rewrite evidence;
 3. startup verification accepts a migrated current schema;
-4. the API contains no schema mutation call in its startup path;
-5. persistence conflict behavior remains unchanged at the Application contract;
-6. retrieval/persistence integration setup uses the explicit migrator path;
-7. writer/read/search commands have an explicit `15` second command timeout;
-8. caller cancellation propagates through read/search operations without returning partial results;
-9. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
-10. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
-11. same-hash/different-identity conflict does not persist a second identity;
-12. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
-13. two concurrent identical writes converge to one complete row without conflict;
-14. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
-15. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
+4. startup verification requires the primary key, case/hash uniqueness, SHA-256 check, and GIN search index in addition to columns/version;
+5. the API contains no schema mutation call in its startup path;
+6. persistence conflict behavior remains unchanged at the Application contract;
+7. retrieval/persistence integration setup uses the explicit migrator path;
+8. writer/read/search commands have an explicit `15` second command timeout;
+9. caller cancellation propagates through read/search operations without returning partial results;
+10. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
+11. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
+12. same-hash/different-identity conflict does not persist a second identity;
+13. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
+14. two concurrent identical writes converge to one complete row without conflict;
+15. two concurrent writes for the same identity with different hashes produce exactly one committed complete document and one evidence conflict;
+16. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
 A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
