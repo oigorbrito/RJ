@@ -69,9 +69,15 @@ Deployment ordering is therefore:
 
 A missing ledger, older version, newer version, or structurally incomplete required table is a startup failure. Startup does not attempt recovery.
 
-## Idempotency contract
+## Idempotency and transaction contract
 
-`PostgresLegalDocumentWriter.StoreAsync` is idempotent only when the same case, document identifier, and SHA-256 are repeated. A repeated document identity with a different hash, or the same case/hash under a different document identity, fails with the Application-level `LegalDocumentConflictException`. Existing evidence is never overwritten by this operation.
+`PostgresLegalDocumentWriter.StoreAsync` executes each ingestion attempt in a single PostgreSQL transaction. It commits only when a new row is inserted or when an existing row proves the same case, document identifier, and SHA-256, making the operation an idempotent no-op.
+
+A repeated document identity with a different hash, or the same case/hash under a different document identity, fails with the Application-level `LegalDocumentConflictException`. The uncommitted attempt is disposed without commit, so the original evidence remains unchanged and no second identity is persisted.
+
+Cancellation or another failure before commit must leave no newly committed evidence from that attempt. A later retry with the original valid document remains safe: the first successful retry writes exactly one row and subsequent identical retries remain idempotent.
+
+Existing evidence is never overwritten by this operation.
 
 ## Integration-test protocol
 
@@ -107,6 +113,9 @@ GitHub Actions provisions PostgreSQL `18.6`, database `rj_test`, and injects the
 7. writer/read/search commands have an explicit `15` second command timeout;
 8. caller cancellation propagates through read/search operations without returning partial results;
 9. timeout/cancellation are not converted into `400` or `409` at the ingestion boundary;
-10. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
+10. a conflicting write leaves the original source, raw content, normalized content, and SHA-256 unchanged;
+11. same-hash/different-identity conflict does not persist a second identity;
+12. a cancelled ingestion attempt persists no row, and a later retry succeeds exactly once and remains idempotent;
+13. prior architecture, ingestion, retrieval, and benchmark gates remain unchanged.
 
 A missing database, unavailable runner, missing runtime, or absent connection string is not PASS. It is `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
