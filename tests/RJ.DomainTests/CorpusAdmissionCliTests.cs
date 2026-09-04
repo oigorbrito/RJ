@@ -31,22 +31,60 @@ public sealed class CorpusAdmissionCliTests
     }
 
     [Fact]
-    public async Task RunAsync_catalog_checksum_mismatch_returns_execution_error_without_report()
+    public async Task RunAsync_catalog_checksum_mismatch_returns_sanitized_execution_error_without_report()
     {
         var fixture = await LocalFixture.CreateAsync();
         try
         {
             var output = Path.Combine(fixture.Root, "admission.json");
+            var suppliedHash = new string('f', 64);
+            using var stderr = new StringWriter();
+
             var exitCode = await CorpusAdmissionCli.RunAsync(
-                Args(fixture.CatalogPath, new string('f', 64), output),
+                Args(fixture.CatalogPath, suppliedHash, output),
+                stderr,
                 CancellationToken.None);
 
+            var diagnostic = stderr.ToString();
             Assert.Equal(CorpusAdmissionCli.UsageOrExecutionErrorExitCode, exitCode);
             Assert.False(File.Exists(output));
+            Assert.Contains("InvalidOperationException: Corpus admission execution failed.", diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(fixture.CatalogPath, diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(suppliedHash, diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(fixture.CatalogSha256, diagnostic, StringComparison.Ordinal);
         }
         finally
         {
             Directory.Delete(fixture.Root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_missing_catalog_does_not_expose_local_path()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"rj-corpus-admission-missing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var missingCatalog = Path.Combine(directory, "private-catalog.json");
+            var output = Path.Combine(directory, "admission.json");
+            using var stderr = new StringWriter();
+
+            var exitCode = await CorpusAdmissionCli.RunAsync(
+                Args(missingCatalog, new string('a', 64), output),
+                stderr,
+                CancellationToken.None);
+
+            var diagnostic = stderr.ToString();
+            Assert.Equal(CorpusAdmissionCli.UsageOrExecutionErrorExitCode, exitCode);
+            Assert.False(File.Exists(output));
+            Assert.Contains("Corpus admission execution failed.", diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain(missingCatalog, diagnostic, StringComparison.Ordinal);
+            Assert.DoesNotContain("private-catalog.json", diagnostic, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
         }
     }
 
