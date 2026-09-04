@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RJ.Domain.Cases;
 using RJ.Domain.Documents;
 
 namespace RJ.Application.Ingestion;
@@ -14,8 +15,8 @@ public sealed class IngestLegalDocumentHandler(ILegalDocumentWriter writer)
         var contentSha256 = ComputeSha256(command.RawContent);
 
         var document = new LegalDocument(
-            command.DocumentId,
-            command.CaseId,
+            new LegalDocumentId(command.DocumentId),
+            new LegalCaseId(command.CaseId),
             command.SourceName,
             command.RawContent,
             normalizedContent,
