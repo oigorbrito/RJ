@@ -95,6 +95,22 @@ public sealed class GenerationBenchmarkRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_rejects_duplicate_fixture_ids_before_model_execution()
+    {
+        var model = new ContextAwareModel(ValidOutputFor);
+        var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.RunAsync(
+            new GenerationBenchmarkCatalog(
+                "catalog-1",
+                [CreateCase("case-a", "claim-a"), CreateCase("case-a", "claim-b")]),
+            Metadata("catalog-1"),
+            CancellationToken.None));
+
+        Assert.Equal(0, model.CallCount);
+    }
+
+    [Fact]
     public async Task Json_report_contains_reproducibility_metadata_and_case_results()
     {
         var runner = new GenerationBenchmarkRunner(new ContextAwareModel(ValidOutputFor), new GenerationEvaluator());
