@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace RJ.ArchitectureTests;
 
@@ -37,11 +39,41 @@ public sealed class DependencyRulesTests
     }
 
     [Fact]
+    public void Api_must_not_reference_schema_migration_operation()
+    {
+        var apiAssembly = typeof(global::RJ.Api.AssemblyMarker).Assembly;
+
+        using var stream = File.OpenRead(apiAssembly.Location);
+        using var peReader = new PEReader(stream);
+        var metadata = peReader.GetMetadataReader();
+
+        var migrateReferences = metadata.MemberReferences
+            .Select(handle => metadata.GetMemberReference(handle))
+            .Where(reference => metadata.GetString(reference.Name) == "MigrateAsync")
+            .Where(reference => IsPostgresSchemaReference(metadata, reference.Parent))
+            .ToArray();
+
+        Assert.Empty(migrateReferences);
+    }
+
+    [Fact]
     public void BenchmarkCli_may_reference_only_Application()
     {
         AssertNoUnexpectedProjectReferences(
             typeof(global::RJ.BenchmarkCli.AssemblyMarker).Assembly,
             allowedProjectReferences: ["RJ.Application"]);
+    }
+
+    private static bool IsPostgresSchemaReference(MetadataReader metadata, EntityHandle parent)
+    {
+        if (parent.Kind != HandleKind.TypeReference)
+        {
+            return false;
+        }
+
+        var typeReference = metadata.GetTypeReference((TypeReferenceHandle)parent);
+        return metadata.GetString(typeReference.Name) == "PostgresSchema"
+            && metadata.GetString(typeReference.Namespace) == "RJ.Infrastructure.Persistence";
     }
 
     private static void AssertNoUnexpectedProjectReferences(
