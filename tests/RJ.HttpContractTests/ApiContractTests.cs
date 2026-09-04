@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using RJ.Infrastructure.Persistence;
@@ -25,6 +26,21 @@ public sealed class ApiContractTests
         Assert.Equal("live", (await ReadJsonAsync(live)).RootElement.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
         Assert.Equal("ready", (await ReadJsonAsync(ready)).RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void Startup_fails_closed_when_configured_postgres_is_unreachable()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+                builder.UseSetting(
+                    "ConnectionStrings:Postgres",
+                    "Host=127.0.0.1;Port=1;Database=rj_unreachable;Username=rj;Password=rj;Timeout=1"));
+
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        }));
     }
 
     [Fact]
