@@ -1,5 +1,6 @@
 using RJ.Application.Benchmarking;
 using RJ.Application.Evaluation;
+using RJ.Application.Generation;
 
 namespace RJ.BenchmarkCli;
 
@@ -23,14 +24,11 @@ public static class BenchmarkCli
                     nameof(args));
             }
 
-            var catalog = ApprovedGenerationBenchmarkCatalog.Create();
-            var model = new HarnessSelfTestGenerationModel();
-            var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
-            var report = await runner.RunAsync(catalog, options.ToMetadata(), cancellationToken);
-            var json = GenerationBenchmarkJson.Serialize(report);
-
-            await AtomicTextFileWriter.WriteAsync(options.OutputPath, json, cancellationToken);
-            return report.Passed ? SuccessExitCode : GateFailureExitCode;
+            return await ExecuteAsync(
+                options,
+                ApprovedGenerationBenchmarkCatalog.Create(),
+                new HarnessSelfTestGenerationModel(),
+                cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -41,5 +39,23 @@ public static class BenchmarkCli
             Console.Error.WriteLine($"{exception.GetType().Name}: {exception.Message}");
             return UsageOrExecutionErrorExitCode;
         }
+    }
+
+    public static async Task<int> ExecuteAsync(
+        BenchmarkCliOptions options,
+        GenerationBenchmarkCatalog catalog,
+        IGenerationModel model,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(model);
+
+        var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
+        var report = await runner.RunAsync(catalog, options.ToMetadata(), cancellationToken);
+        var json = GenerationBenchmarkJson.Serialize(report);
+
+        await AtomicTextFileWriter.WriteAsync(options.OutputPath, json, cancellationToken);
+        return report.Passed ? SuccessExitCode : GateFailureExitCode;
     }
 }
