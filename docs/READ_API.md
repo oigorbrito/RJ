@@ -34,7 +34,9 @@ Pagination is applied by PostgreSQL using mandatory case scope, `ORDER BY docume
 
 ## Explicit evidence/detail surfaces
 
-`GET /documents/{documentId}` remains the explicit full-document detail surface and may expose the stored raw and normalized representations.
+`GET /documents/{documentId}` remains the explicit full-document detail surface and exposes exactly `caseId`, `documentId`, `sourceName`, `rawContent`, `content`, and `contentSha256` through the API-owned `LegalDocumentDetail` projection.
+
+The endpoint does not serialize the Application-layer `LegalDocumentSnapshot` directly. This is a contract boundary: adding a field to an internal retrieval snapshot cannot silently add that field to the public HTTP payload. Raw and normalized content remain intentional on this explicit detail route because `rawContent` is the preserved evidence representation while `content` is the deterministic operational normalization; removing either would be a contract change not supported by the current requirements.
 
 `GET /evidence` remains the explicit citable retrieval surface. It returns bounded excerpts tied to `documentId`, `contentSha256`, and exact source offsets. Search itself is not an evidence-text API.
 
@@ -55,10 +57,11 @@ List ordering is deterministic by `document_id ASC`. Search ordering remains ran
 3. PostgreSQL applies case scope, deterministic ordering, offset, and limit;
 4. list payload omits raw and normalized content;
 5. search payload omits raw and normalized content while retaining evidence identity and rank;
-6. `/evidence` remains the explicit bounded excerpt surface;
-7. missing documents return 404;
-8. invalid inputs across list, document detail, search, and evidence return 400 with stable code `invalid_request`;
-9. read validation responses do not convert infrastructure/internal failures into client errors;
-10. prior architecture, ingestion, persistence, retrieval, citation, and generation gates remain unchanged.
+6. document detail uses an API-owned projection with exactly the six documented fields instead of serializing `LegalDocumentSnapshot` directly;
+7. `/evidence` remains the explicit bounded excerpt surface;
+8. missing documents return 404;
+9. invalid inputs across list, document detail, search, and evidence return 400 with stable code `invalid_request`;
+10. read validation responses do not convert infrastructure/internal failures into client errors;
+11. prior architecture, ingestion, persistence, retrieval, citation, and generation gates remain unchanged.
 
 Unavailable runner, runtime, or PostgreSQL is not PASS. It remains `BLOCKED` or `NOT_TESTED` according to observed execution evidence.
