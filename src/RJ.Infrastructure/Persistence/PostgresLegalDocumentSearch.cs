@@ -24,7 +24,7 @@ public sealed class PostgresLegalDocumentSearch(NpgsqlDataSource dataSource) : I
 
         const string sql = """
             WITH q AS (SELECT websearch_to_tsquery('portuguese', $2) AS query)
-            SELECT d.case_id, d.document_id, d.source_name, d.content, d.content_sha256,
+            SELECT d.case_id, d.document_id, d.source_name, d.raw_content, d.content, d.content_sha256,
                    ts_rank_cd(d.search_vector, q.query) AS rank
             FROM legal_documents d
             CROSS JOIN q
@@ -44,8 +44,13 @@ public sealed class PostgresLegalDocumentSearch(NpgsqlDataSource dataSource) : I
         while (await reader.ReadAsync(cancellationToken))
         {
             var snapshot = new LegalDocumentSnapshot(
-                reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4));
-            hits.Add(new LegalDocumentSearchHit(snapshot, reader.GetFloat(5)));
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5).TrimEnd());
+            hits.Add(new LegalDocumentSearchHit(snapshot, reader.GetFloat(6)));
         }
 
         return hits;
