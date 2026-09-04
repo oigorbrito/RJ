@@ -10,10 +10,18 @@ public static class BenchmarkCli
     public const int GateFailureExitCode = 1;
     public const int UsageOrExecutionErrorExitCode = 2;
 
+    public static Task<int> RunAsync(
+        IReadOnlyList<string> args,
+        CancellationToken cancellationToken) =>
+        RunAsync(args, Console.Error, cancellationToken);
+
     public static async Task<int> RunAsync(
         IReadOnlyList<string> args,
+        TextWriter errorWriter,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(errorWriter);
+
         try
         {
             var options = BenchmarkCliOptions.Parse(args);
@@ -38,9 +46,14 @@ public static class BenchmarkCli
         {
             throw;
         }
+        catch (ArgumentException exception)
+        {
+            await errorWriter.WriteLineAsync($"{exception.GetType().Name}: {exception.Message}");
+            return UsageOrExecutionErrorExitCode;
+        }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"{exception.GetType().Name}: {exception.Message}");
+            await errorWriter.WriteLineAsync($"{exception.GetType().Name}: Benchmark execution failed.");
             return UsageOrExecutionErrorExitCode;
         }
     }
@@ -71,8 +84,7 @@ public static class BenchmarkCli
         var actualSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(bytes);
         if (!StringComparer.Ordinal.Equals(actualSha256, options.CatalogSha256))
         {
-            throw new InvalidOperationException(
-                $"External benchmark catalog checksum mismatch. Expected {options.CatalogSha256}, observed {actualSha256}.");
+            throw new InvalidOperationException("External benchmark catalog checksum mismatch.");
         }
 
         var external = ExternalGenerationBenchmarkCatalog.Parse(bytes);
