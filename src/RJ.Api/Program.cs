@@ -82,33 +82,7 @@ app.MapGet("/api/cases/{caseId}/evidence", async (
     }
 });
 
-app.MapGet("/api/cases/{caseId}/generation-context", async (
-    string caseId,
-    string? q,
-    int? limit,
-    int? budget,
-    GenerationContextService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var context = await service.BuildAsync(
-            caseId,
-            q ?? string.Empty,
-            limit ?? 20,
-            budget ?? 12000,
-            cancellationToken);
-        return Results.Ok(context);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.BadRequest(new { error = exception.Message });
-    }
-    catch (InvalidOperationException exception)
-    {
-        return Results.UnprocessableEntity(new { error = exception.Message });
-    }
-});
+app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync);
 
 app.Run();
 
