@@ -1,4 +1,5 @@
 using Npgsql;
+using RJ.Application.Generation;
 using RJ.Application.Ingestion;
 using RJ.Application.Retrieval;
 using RJ.Infrastructure.Persistence;
@@ -18,6 +19,8 @@ builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
+builder.Services.AddSingleton<GenerationContextBuilder>();
+builder.Services.AddSingleton<GenerationContextService>();
 
 var app = builder.Build();
 
@@ -104,6 +107,34 @@ app.MapGet("/api/cases/{caseId}/evidence", async (
     catch (ArgumentException exception)
     {
         return Results.BadRequest(new { error = exception.Message });
+    }
+});
+
+app.MapGet("/api/cases/{caseId}/generation-context", async (
+    string caseId,
+    string? q,
+    int? limit,
+    int? budget,
+    GenerationContextService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var context = await service.BuildAsync(
+            caseId,
+            q ?? string.Empty,
+            limit ?? 20,
+            budget ?? 12000,
+            cancellationToken);
+        return Results.Ok(context);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.UnprocessableEntity(new { error = exception.Message });
     }
 });
 
