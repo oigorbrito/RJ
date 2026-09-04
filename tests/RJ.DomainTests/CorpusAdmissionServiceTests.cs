@@ -32,6 +32,7 @@ public sealed class CorpusAdmissionServiceTests
         Assert.False(report.Passed);
         var failure = Assert.Single(Assert.Single(report.Cases).Failures);
         Assert.Equal("source-sha256", failure.Gate);
+        Assert.Contains(new string('f', 64), failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -45,6 +46,7 @@ public sealed class CorpusAdmissionServiceTests
         Assert.False(report.Passed);
         var failure = Assert.Single(Assert.Single(report.Cases).Failures);
         Assert.Equal("source-utf8", failure.Gate);
+        Assert.Equal("Resolved source artifact is not valid strict UTF-8.", failure.Message);
     }
 
     [Fact]
@@ -70,7 +72,25 @@ public sealed class CorpusAdmissionServiceTests
 
         Assert.False(report.Passed);
         Assert.False(Assert.Single(report.Cases).OracleVerified);
-        Assert.Equal("oracle-sha256", Assert.Single(Assert.Single(report.Cases).Failures).Gate);
+        var failure = Assert.Single(Assert.Single(report.Cases).Failures);
+        Assert.Equal("oracle-sha256", failure.Gate);
+        Assert.Contains(new string('e', 64), failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AdmitAsync_sanitizes_reader_exception_messages_in_persistable_failures()
+    {
+        var fixture = Fixture.Create();
+        const string sentinelPath = "/sensitive/internal/root/oracle/fixture-001.txt";
+        var service = new CorpusAdmissionService(new ThrowingArtifactReader(sentinelPath));
+
+        var report = await service.AdmitAsync(fixture.Catalog, fixture.CatalogSha256, CancellationToken.None);
+
+        Assert.False(report.Passed);
+        var failures = Assert.Single(report.Cases).Failures;
+        Assert.NotEmpty(failures);
+        Assert.All(failures, failure => Assert.DoesNotContain(sentinelPath, failure.Message, StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Message.Contains("could not be read", StringComparison.Ordinal));
     }
 
     private sealed class DictionaryArtifactReader(IReadOnlyDictionary<string, byte[]> artifacts) : IBenchmarkArtifactReader
@@ -81,6 +101,15 @@ public sealed class CorpusAdmissionServiceTests
             return artifacts.TryGetValue(artifactReference, out var bytes)
                 ? Task.FromResult<ReadOnlyMemory<byte>>(bytes)
                 : throw new FileNotFoundException("Artifact not found.", artifactReference);
+        }
+    }
+
+    private sealed class ThrowingArtifactReader(string sentinelPath) : IBenchmarkArtifactReader
+    {
+        public Task<ReadOnlyMemory<byte>> ReadAsync(string artifactReference, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new FileNotFoundException($"Could not find file '{sentinelPath}'.", sentinelPath);
         }
     }
 
