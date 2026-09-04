@@ -89,6 +89,24 @@ app.MapGet("/api/cases/{caseId}/search", async (
     }
 });
 
+app.MapGet("/api/cases/{caseId}/evidence", async (
+    string caseId,
+    string? q,
+    int? limit,
+    LegalDocumentQueryService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var evidence = await service.RetrieveEvidenceAsync(caseId, q ?? string.Empty, limit ?? 20, cancellationToken);
+        return Results.Ok(evidence);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+});
+
 app.Run();
 
 public sealed record IngestLegalDocumentRequest(
