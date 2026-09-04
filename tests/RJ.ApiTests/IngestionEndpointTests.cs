@@ -56,10 +56,11 @@ public sealed class IngestionEndpointTests
     }
 
     [Fact]
-    public async Task HandleAsync_maps_evidence_conflict_to_409()
+    public async Task HandleAsync_maps_evidence_conflict_to_409_without_exposing_exception_details()
     {
+        const string sensitiveDetails = "case-legal-123 document-secret-456";
         var handler = new IngestLegalDocumentHandler(new StubWriter(
-            new LegalDocumentConflictException("conflict")));
+            new LegalDocumentConflictException(sensitiveDetails)));
 
         var result = await IngestionEndpoint.HandleAsync(
             new IngestLegalDocumentRequest("case-1", "doc-1", "source.txt", "conteudo"),
@@ -69,7 +70,8 @@ public sealed class IngestionEndpointTests
         Assert.Equal(StatusCodes.Status409Conflict, ((IStatusCodeHttpResult)result).StatusCode);
         var error = Assert.IsType<ApiError>(((IValueHttpResult)result).Value);
         Assert.Equal("evidence_conflict", error.Code);
-        Assert.Equal("conflict", error.Error);
+        Assert.Equal("Evidence conflicts with an existing legal document.", error.Error);
+        Assert.DoesNotContain(sensitiveDetails, error.Error, StringComparison.Ordinal);
     }
 
     [Fact]
