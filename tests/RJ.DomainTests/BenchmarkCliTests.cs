@@ -1,5 +1,6 @@
 using RJ.Application.Benchmarking;
 using RJ.Application.Generation;
+using System.Text.Json;
 using ApprovedGenerationBenchmarkCatalogType = global::RJ.BenchmarkCli.ApprovedGenerationBenchmarkCatalog;
 using AtomicTextFileWriterType = global::RJ.BenchmarkCli.AtomicTextFileWriter;
 using BenchmarkCliApp = global::RJ.BenchmarkCli.BenchmarkCli;
@@ -23,9 +24,18 @@ public sealed class BenchmarkCliTests
 
             Assert.Equal(BenchmarkCliApp.SuccessExitCode, exitCode);
             var json = await File.ReadAllTextAsync(outputPath);
+            var manifest = await File.ReadAllTextAsync(Path.ChangeExtension(outputPath, ".run-manifest.json"));
             Assert.Contains("\"passed\": true", json, StringComparison.Ordinal);
             Assert.Contains("\"catalogVersion\": \"generation-benchmark-v1\"", json, StringComparison.Ordinal);
             Assert.Contains("\"modelId\": \"harness-selftest-v1\"", json, StringComparison.Ordinal);
+
+            using var manifestJson = JsonDocument.Parse(manifest);
+            var root = manifestJson.RootElement;
+            Assert.Equal(0, root.GetProperty("exitCode").GetInt32());
+            Assert.Equal("abc123", root.GetProperty("gitCommit").GetString());
+            Assert.Equal(".NET 10.0.0", root.GetProperty("runtime").GetString());
+            Assert.Contains("--git-commit abc123", root.GetProperty("command").GetString(), StringComparison.Ordinal);
+            Assert.Contains(Path.GetFullPath(outputPath), root.GetProperty("command").GetString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -46,12 +56,17 @@ public sealed class BenchmarkCliTests
                 options,
                 ApprovedGenerationBenchmarkCatalogType.Create(),
                 new InvalidCitationModel(),
+                "--git-commit abc123 --runtime .NET 10.0.0 --model-id harness-selftest-v1 --model-config temperature=0 --seed 42 --output failed.json",
                 CancellationToken.None);
 
             Assert.Equal(BenchmarkCliApp.GateFailureExitCode, exitCode);
             var json = await File.ReadAllTextAsync(outputPath);
+            var manifest = await File.ReadAllTextAsync(Path.ChangeExtension(outputPath, ".run-manifest.json"));
             Assert.Contains("\"passed\": false", json, StringComparison.Ordinal);
             Assert.Contains("\"failedCases\":", json, StringComparison.Ordinal);
+
+            using var manifestJson = JsonDocument.Parse(manifest);
+            Assert.Equal(1, manifestJson.RootElement.GetProperty("exitCode").GetInt32());
         }
         finally
         {

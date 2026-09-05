@@ -40,6 +40,7 @@ public static class BenchmarkCli
                 options,
                 catalog,
                 new HarnessSelfTestGenerationModel(),
+                BuildCommand(args),
                 cancellationToken);
         }
         catch (OperationCanceledException)
@@ -62,17 +63,34 @@ public static class BenchmarkCli
         BenchmarkCliOptions options,
         GenerationBenchmarkCatalog catalog,
         IGenerationModel model,
+        string command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(command);
 
         var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
         var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
         var json = GenerationBenchmarkJson.Serialize(report);
+        var manifest = new BenchmarkRunManifest(
+            options.GitCommit,
+            options.Runtime,
+            catalog.Version,
+            options.ModelId,
+            options.ModelConfiguration,
+            options.Seed,
+            command,
+            options.OutputPath,
+            report.Passed ? SuccessExitCode : GateFailureExitCode,
+            report.Passed);
 
         await AtomicTextFileWriter.WriteAsync(options.OutputPath, json, cancellationToken);
+        await AtomicTextFileWriter.WriteAsync(
+            Path.ChangeExtension(options.OutputPath, ".run-manifest.json"),
+            BenchmarkRunManifestJson.Serialize(manifest),
+            cancellationToken);
         return report.Passed ? SuccessExitCode : GateFailureExitCode;
     }
 
@@ -90,4 +108,12 @@ public static class BenchmarkCli
         var external = ExternalGenerationBenchmarkCatalog.Parse(bytes);
         return external.ToBenchmarkCatalog();
     }
+
+    private static string BuildCommand(IReadOnlyList<string> args) =>
+        string.Join(" ", args.Select(QuoteArgument));
+
+    private static string QuoteArgument(string argument) =>
+        argument.Any(character => char.IsWhiteSpace(character) || character == '"')
+            ? $"\"{argument.Replace("\"", "\\\"")}\""
+            : argument;
 }

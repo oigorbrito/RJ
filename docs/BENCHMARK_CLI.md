@@ -10,6 +10,13 @@ The only model currently available through the command line is `harness-selftest
 
 When no external catalog arguments are supplied, the executable loads `ApprovedGenerationBenchmarkCatalog.Version = generation-benchmark-v1` from code.
 
+Each successful or gate-failed benchmark execution writes two artifacts:
+
+- the benchmark report JSON at `--output`;
+- a reproducibility sidecar at the same path with `.run-manifest.json` appended.
+
+The run manifest records the exact CLI command, git commit, runtime, catalog version, model identity, model configuration, seed, output path, exit code, and pass/fail result. It is intended as reproducibility metadata, not as factual evidence.
+
 The self-test catalog contains both:
 
 - a normal claim that must be reproduced with its exact evidence citation;
