@@ -293,18 +293,21 @@ public sealed class PostgresSchemaTests
 
     private static async Task CreateLedgerOnlyAsync(NpgsqlDataSource dataSource, int version)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var createCommand = dataSource.CreateCommand("""
             CREATE TABLE IF NOT EXISTS rj_schema_migrations (
                 version integer PRIMARY KEY,
                 applied_at timestamptz NOT NULL DEFAULT now()
             );
+            """);
+        await createCommand.ExecuteNonQueryAsync();
 
+        await using var insertCommand = dataSource.CreateCommand("""
             INSERT INTO rj_schema_migrations (version)
             VALUES ($1)
             ON CONFLICT (version) DO NOTHING;
             """);
-        command.Parameters.AddWithValue(version);
-        await command.ExecuteNonQueryAsync();
+        insertCommand.Parameters.AddWithValue(version);
+        await insertCommand.ExecuteNonQueryAsync();
     }
 
     private static async Task<int> ReadLedgerVersionAsync(NpgsqlDataSource dataSource)
