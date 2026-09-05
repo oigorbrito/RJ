@@ -95,7 +95,9 @@ public sealed class PostgresSchemaTests
                       AND i.indislive
                       AND i.indnkeyatts = 1
                       AND i.indnatts = 1
-                      AND i.indkey::smallint[] = ARRAY[a.search_vector_attnum]::smallint[]
+                      AND (
+                          SELECT count(*) = 1 AND min(key_attnum) = a.search_vector_attnum
+                          FROM unnest(i.indkey::smallint[]) AS key_columns(key_attnum))
                       AND i.indexprs IS NULL
                       AND i.indpred IS NULL) AS has_search_gin;
             """;
@@ -119,10 +121,10 @@ public sealed class PostgresSchemaTests
         try
         {
             await using (var setup = new NpgsqlCommand($$"""
-                CREATE SCHEMA "{schemaName}";
-                CREATE TABLE "{schemaName}".hash_probe (
+                CREATE SCHEMA "{{schemaName}}";
+                CREATE TABLE "{{schemaName}}".hash_probe (
                     content_sha256 char(64) NOT NULL,
-                    CONSTRAINT ck_hash_probe_sha256 CHECK (content_sha256 ~ '^[0-9a-f]{{64}}$')
+                    CONSTRAINT ck_hash_probe_sha256 CHECK (content_sha256 ~ '^[0-9a-f]{64}$')
                 );
                 """, connection))
             {

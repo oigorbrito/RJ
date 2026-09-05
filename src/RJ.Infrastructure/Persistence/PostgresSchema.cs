@@ -195,7 +195,9 @@ public static class PostgresSchema
                   AND i.indislive
                   AND i.indnkeyatts = 1
                   AND i.indnatts = 1
-                  AND i.indkey::smallint[] = ARRAY[a.search_vector_attnum]::smallint[]
+                  AND (
+                      SELECT count(*) = 1 AND min(key_attnum) = a.search_vector_attnum
+                      FROM unnest(i.indkey::smallint[]) AS key_columns(key_attnum))
                   AND i.indexprs IS NULL
                   AND i.indpred IS NULL
             )

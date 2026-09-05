@@ -179,7 +179,7 @@ public sealed class BenchmarkCliTests
                 modelConfiguration = "deterministic-self-test",
                 seed = "0",
                 command = "cmd",
-                outputPath = @"..\outside.json",
+                outputPath = Path.Combine("..", "outside.json"),
                 reportSha256 = new string('a', 64),
                 exitCode = 0,
                 passed = true
@@ -250,7 +250,7 @@ public sealed class BenchmarkCliTests
 
             var manifestPath = Path.ChangeExtension(outputPath, ".run-manifest.json");
             var manifest = JsonSerializer.Deserialize<Dictionary<string, object>>(await File.ReadAllTextAsync(manifestPath))!;
-            manifest["outputPath"] = @"..\outside.json";
+            manifest["outputPath"] = Path.Combine("..", "outside.json");
             await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest));
 
             using var errorWriter = new StringWriter();
