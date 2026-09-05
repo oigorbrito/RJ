@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using RJ.Application.Generation;
 using RJ.BenchmarkCli;
 
 namespace RJ.DomainTests;
@@ -152,6 +153,33 @@ public sealed class OabRulingBrAbRunnerTests
         Assert.Throws<ArgumentException>(() => new OabRulingBrGenerationChallengerModel(" "));
     }
 
+    [Fact]
+    public async Task Challenger_uses_single_best_supported_claim_with_context_citation()
+    {
+        var model = new OabRulingBrGenerationChallengerModel("local-lexical-v1");
+        var context = CreateContextWithEvidence([
+            ("doc-a", "primeira evidencia sem termos relevantes", 1f),
+            ("doc-b", "A tutela foi deferida com fundamento expresso.", 3f),
+            ("doc-c", "outra evidencia acessoria", 2f)
+        ]);
+
+        var output = await model.GenerateAsync(context, CancellationToken.None);
+
+        Assert.False(output.Abstained);
+        Assert.Single(output.Claims);
+        Assert.Single(output.Claims[0].Citations);
+        Assert.Equal("doc-b", output.Claims[0].Citations[0].DocumentId);
+    }
+
+    [Fact]
+    public async Task Challenger_rejects_empty_context()
+    {
+        var model = new OabRulingBrGenerationChallengerModel("local-lexical-v1");
+        var context = new GenerationContext("case-1", "tutela", 100, 0, []);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => model.GenerateAsync(context, CancellationToken.None));
+    }
+
     private static async Task<string> CreateOabFixtureAsync()
     {
         var root = Path.Combine(Path.GetTempPath(), $"rj-oab-{Guid.NewGuid():N}");
@@ -176,5 +204,24 @@ public sealed class OabRulingBrAbRunnerTests
         {"ementa":"decisão de exemplo","acordao":"acórdão de exemplo","relatorio":"relatório de exemplo","voto":"voto de exemplo","area":"direito civil","relator":"relator exemplo"}
         """, Encoding.UTF8);
         return root;
+    }
+
+    private static GenerationContext CreateContextWithEvidence(
+        IReadOnlyList<(string DocumentId, string Excerpt, float Rank)> evidence)
+    {
+        var items = evidence.Select(item =>
+        {
+            var position = SourcePosition.Create(0, item.Excerpt.Length, item.Excerpt.Length);
+            return new GenerationContextItem(
+                "case-1",
+                item.DocumentId,
+                "source.txt",
+                new string('a', 64),
+                item.Excerpt,
+                position,
+                item.Rank);
+        }).ToArray();
+
+        return new GenerationContext("case-1", "A tutela foi deferida?", 1000, items.Sum(item => item.Excerpt.Length), items);
     }
 }

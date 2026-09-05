@@ -30,9 +30,10 @@ public sealed class OabRulingBrGenerationChallengerModel : IGenerationModel
             throw new InvalidOperationException("RulingBR challenger requires cited context evidence.");
         }
 
-        var claims = context.Items
-            .Take(3)
-            .Select(item => new GenerationClaim(
+        var item = SelectBestEvidence(context);
+        var claims = new[]
+        {
+            new GenerationClaim(
                 BuildClaimText(context.Query, item.Excerpt),
                 [
                     new GenerationCitation(
@@ -40,8 +41,8 @@ public sealed class OabRulingBrGenerationChallengerModel : IGenerationModel
                         item.ContentSha256,
                         item.Position.StartOffset,
                         item.Position.Length)
-                ]))
-            .ToArray();
+                ])
+        };
 
         return Task.FromResult(new GenerationModelOutput(
             false,
@@ -63,6 +64,49 @@ public sealed class OabRulingBrGenerationChallengerModel : IGenerationModel
         }
 
         return bestFragment;
+    }
+
+    private static GenerationContextItem SelectBestEvidence(GenerationContext context)
+    {
+        var best = context.Items[0];
+        var bestScore = ScoreEvidence(context.Query, best.Excerpt);
+
+        foreach (var item in context.Items.Skip(1))
+        {
+            var score = ScoreEvidence(context.Query, item.Excerpt);
+            if (score > bestScore
+                || (score == bestScore && StringComparer.Ordinal.Compare(item.DocumentId, best.DocumentId) < 0)
+                || (score == bestScore && StringComparer.Ordinal.Equals(item.DocumentId, best.DocumentId) && item.Position.StartOffset < best.Position.StartOffset)
+                || (score == bestScore && StringComparer.Ordinal.Equals(item.DocumentId, best.DocumentId) && item.Position.StartOffset == best.Position.StartOffset && item.Position.Length < best.Position.Length))
+            {
+                best = item;
+                bestScore = score;
+            }
+        }
+
+        return best;
+    }
+
+    private static int ScoreEvidence(string query, string excerpt)
+    {
+        var normalizedQuery = Normalize(query);
+        var normalizedExcerpt = Normalize(excerpt);
+        var score = 0;
+
+        foreach (var token in normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (token.Length < 3)
+            {
+                continue;
+            }
+
+            if (normalizedExcerpt.Contains(token, StringComparison.Ordinal))
+            {
+                score++;
+            }
+        }
+
+        return score;
     }
 
     private static string SelectBestFragment(string excerpt, string query)
