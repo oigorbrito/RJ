@@ -34,7 +34,7 @@ public static class BenchmarkCli
             }
 
             var catalog = options.CatalogPath is null
-                ? ApprovedGenerationBenchmarkCatalog.Create()
+                ? await LoadCatalogAsync(options, cancellationToken)
                 : await LoadExternalCatalogAsync(options, cancellationToken);
 
             return await ExecuteAsync(
@@ -58,6 +58,21 @@ public static class BenchmarkCli
             await errorWriter.WriteLineAsync($"{exception.GetType().Name}: Benchmark execution failed.");
             return UsageOrExecutionErrorExitCode;
         }
+    }
+
+    private static async Task<GenerationBenchmarkCatalog> LoadCatalogAsync(
+        BenchmarkCliOptions options,
+        CancellationToken cancellationToken)
+    {
+        var corpusRoot = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(corpusRoot))
+        {
+            return ApprovedGenerationBenchmarkCatalog.Create();
+        }
+
+        var adapter = await OabBenchDemoCatalogAdapter.BuildAsync(corpusRoot, options.GitCommit, cancellationToken);
+        var external = ExternalGenerationBenchmarkCatalog.Parse(await File.ReadAllBytesAsync(adapter.CatalogPath, cancellationToken));
+        return external.ToBenchmarkCatalog();
     }
 
     public static async Task<int> ExecuteAsync(

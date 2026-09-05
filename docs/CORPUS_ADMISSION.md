@@ -94,6 +94,8 @@ Hash success cannot compensate for excerpt mismatch. Valid UTF-8 cannot compensa
 
 This protocol does not fabricate legal benchmark data. Until authorized real legal sources and reviewed oracle artifacts are supplied with their hashes and references, the real-corpus benchmark remains externally blocked rather than PASS.
 
+The demo adapter may build a temporary corpus from `RJ_LEGAL_DEMO_CORPUS` for `DEMO_LEGAL_VALIDATION`, but that path is intentionally separate from real validation and does not affect `RJ-BLK-003`.
+
 ## Minimum acceptance evidence
 
 The focal tests cover:

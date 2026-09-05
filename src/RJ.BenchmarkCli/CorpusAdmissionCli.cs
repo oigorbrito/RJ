@@ -22,6 +22,11 @@ public static class CorpusAdmissionCli
 
         try
         {
+            if (args.Count == 0)
+            {
+                return await RunDemoAsync(cancellationToken);
+            }
+
             var options = CorpusAdmissionCliOptions.Parse(args);
             var catalogBytes = await File.ReadAllBytesAsync(options.CatalogPath, cancellationToken);
             var observedCatalogSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(catalogBytes);
@@ -52,5 +57,23 @@ public static class CorpusAdmissionCli
             await errorWriter.WriteLineAsync($"{exception.GetType().Name}: Corpus admission execution failed.");
             return UsageOrExecutionErrorExitCode;
         }
+    }
+
+    private static async Task<int> RunDemoAsync(CancellationToken cancellationToken)
+    {
+        var corpusRoot = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(corpusRoot))
+        {
+            throw new InvalidOperationException($"Environment variable {OabBenchDemoCatalogAdapter.EnvironmentVariable} is required for demo corpus admission.");
+        }
+
+        var adapter = await OabBenchDemoCatalogAdapter.BuildAsync(corpusRoot, null, cancellationToken);
+        var catalogBytes = await File.ReadAllBytesAsync(adapter.CatalogPath, cancellationToken);
+        var externalCatalog = ExternalGenerationBenchmarkCatalog.Parse(catalogBytes);
+        var service = new CorpusAdmissionService(new LocalBenchmarkArtifactReader(adapter.CatalogPath));
+        var report = await service.AdmitAsync(externalCatalog, adapter.CatalogSha256, cancellationToken);
+        var outputPath = Path.Combine(Path.GetTempPath(), "rj-oab-demo-admission.json");
+        await AtomicTextFileWriter.WriteAsync(outputPath, CorpusAdmissionJson.Serialize(report), cancellationToken);
+        return report.Passed ? SuccessExitCode : AdmissionFailureExitCode;
     }
 }

@@ -45,6 +45,16 @@ The arguments are valid only as a pair. The exact UTF-8 file is hashed before de
 
 External catalog structure and provenance gates are defined in `docs/EXTERNAL_BENCHMARK_CATALOG.md`.
 
+## Demo corpus mode
+
+When `RJ_LEGAL_DEMO_CORPUS` is set to a read-only `oab-bench` checkout, the CLI can build an external demo catalog from:
+
+- `data\oab_bench\question.jsonl`
+- `data\oab_bench\reference_answer\guidelines.jsonl`
+- `data\judge_prompts.jsonl`
+
+This mode is for `DEMO_LEGAL_VALIDATION` only. It records provenance and SHA-256 values for the exact artifacts used, but it does not use `model_answer` files as gold truth and it does not close the real-corpus blocker.
+
 ## Required arguments
 
 ```text
