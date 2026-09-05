@@ -187,6 +187,48 @@ public sealed class PostgresLegalDocumentWriterTests
         Assert.Equal(document.ContentSha256, stored.Value.ContentSha256);
     }
 
+    [Fact]
+    public async Task StoreAsync_times_out_when_legal_documents_is_locked_exclusively()
+    {
+        await using var dataSource = await CreateDataSourceAsync();
+        await using var lockConnection = await dataSource.OpenConnectionAsync();
+        await using var lockTransaction = await lockConnection.BeginTransactionAsync();
+        await using var lockCommand = new NpgsqlCommand(
+            "LOCK TABLE legal_documents IN ACCESS EXCLUSIVE MODE;",
+            lockConnection,
+            lockTransaction);
+        await lockCommand.ExecuteNonQueryAsync();
+
+        var writer = new PostgresLegalDocumentWriter(dataSource);
+        var document = CreateDocument(HashA, "timeout raw", "timeout normalized");
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var storeTask = writer.StoreAsync(document, CancellationToken.None);
+        var completed = await Task.WhenAny(storeTask, Task.Delay(TimeSpan.FromSeconds(30)));
+        Assert.Same(storeTask, completed);
+
+        Exception? exception = null;
+        try
+        {
+            await storeTask;
+        }
+        catch (Exception caught)
+        {
+            exception = caught;
+        }
+        finally
+        {
+            await lockTransaction.RollbackAsync();
+        }
+
+        stopwatch.Stop();
+
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(14), TimeSpan.FromSeconds(30));
+        Assert.NotNull(exception);
+        Assert.True(exception is NpgsqlException or TimeoutException or OperationCanceledException);
+        Assert.Equal(0, await CountDocumentsAsync(dataSource, document.CaseId.Value));
+    }
+
     private static async Task<Exception?> CaptureStoreOutcomeAsync(
         PostgresLegalDocumentWriter writer,
         LegalDocument document)

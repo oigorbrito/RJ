@@ -27,10 +27,66 @@ public sealed class PostgresSchemaTests
     [Fact]
     public async Task EnsureCurrentAsync_accepts_schema_after_explicit_migration()
     {
-        await using var dataSource = CreateDataSourceOrSkip();
-        await PostgresSchema.MigrateAsync(dataSource);
+        await using var database = await CreateTemporaryDatabaseAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
 
-        await PostgresSchema.EnsureCurrentAsync(dataSource);
+        await PostgresSchema.EnsureCurrentAsync(database.DataSource);
+    }
+
+    [Fact]
+    public async Task EnsureCurrentAsync_rejects_missing_ledger_without_mutating_schema()
+    {
+        await using var database = await CreateTemporaryDatabaseAsync();
+
+        var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
+            () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
+
+        Assert.Contains("ledger is missing", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, await CountRowsAsync(database.DataSource, "rj_schema_migrations"));
+        Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+    }
+
+    [Fact]
+    public async Task EnsureCurrentAsync_rejects_older_ledger_version_without_mutating_schema()
+    {
+        await using var database = await CreateTemporaryDatabaseAsync();
+        await CreateLedgerOnlyAsync(database.DataSource, 2);
+
+        var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
+            () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
+
+        Assert.Contains("does not match required version 3", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(2, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+    }
+
+    [Fact]
+    public async Task EnsureCurrentAsync_rejects_newer_ledger_version_without_mutating_schema()
+    {
+        await using var database = await CreateTemporaryDatabaseAsync();
+        await CreateLedgerOnlyAsync(database.DataSource, 4);
+
+        var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
+            () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
+
+        Assert.Contains("does not match required version 3", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(4, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+    }
+
+    [Fact]
+    public async Task EnsureCurrentAsync_rejects_structurally_degraded_schema_without_recreating_index()
+    {
+        await using var database = await CreateTemporaryDatabaseAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
+        await DropSearchIndexAsync(database.DataSource);
+
+        var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
+            () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
+
+        Assert.Contains("required schema invariants are missing or degraded", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(3, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.False(await SearchIndexExistsAsync(database.DataSource));
     }
 
     [Fact]
@@ -230,5 +286,66 @@ public sealed class PostgresSchemaTests
         }
 
         return NpgsqlDataSource.Create(connectionString);
+    }
+
+    private static async Task<TemporaryPostgresDatabase> CreateTemporaryDatabaseAsync() =>
+        await TemporaryPostgresDatabase.CreateAsync();
+
+    private static async Task CreateLedgerOnlyAsync(NpgsqlDataSource dataSource, int version)
+    {
+        await using var command = dataSource.CreateCommand("""
+            CREATE TABLE IF NOT EXISTS rj_schema_migrations (
+                version integer PRIMARY KEY,
+                applied_at timestamptz NOT NULL DEFAULT now()
+            );
+
+            INSERT INTO rj_schema_migrations (version)
+            VALUES ($1)
+            ON CONFLICT (version) DO NOTHING;
+            """);
+        command.Parameters.AddWithValue(version);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<int> ReadLedgerVersionAsync(NpgsqlDataSource dataSource)
+    {
+        await using var command = dataSource.CreateCommand("SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;");
+        return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<long> CountRowsAsync(NpgsqlDataSource dataSource, string tableName)
+    {
+        await using var command = dataSource.CreateCommand("""
+            SELECT count(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = @table_name;
+            """);
+        command.Parameters.AddWithValue("table_name", tableName);
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> TableExistsAsync(NpgsqlDataSource dataSource, string tableName) =>
+        await CountRowsAsync(dataSource, tableName) > 0;
+
+    private static async Task DropSearchIndexAsync(NpgsqlDataSource dataSource)
+    {
+        await using var command = dataSource.CreateCommand("""
+            DROP INDEX IF EXISTS public.ix_legal_documents_search_vector;
+            """);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<bool> SearchIndexExistsAsync(NpgsqlDataSource dataSource)
+    {
+        await using var command = dataSource.CreateCommand("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_class idx
+                JOIN pg_namespace n ON n.oid = idx.relnamespace
+                WHERE n.nspname = 'public'
+                  AND idx.relname = 'ix_legal_documents_search_vector');
+            """);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 }
