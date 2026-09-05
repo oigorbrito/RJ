@@ -48,7 +48,7 @@ External catalog structure and provenance gates are defined in `docs/EXTERNAL_BE
 The benchmark CLI currently accepts two explicit model ids:
 
 - `harness-selftest-v1` for the original harness self-test;
-- `oab-bench-demo-v1` for the demo OAB-Bench flow when `RJ_LEGAL_DEMO_CORPUS` points at the external read-only corpus checkout.
+- `oab-bench-demo-v2` for the demo OAB-Bench flow when `RJ_LEGAL_DEMO_CORPUS` points at the external read-only corpus checkout.
 
 ## Demo corpus mode
 

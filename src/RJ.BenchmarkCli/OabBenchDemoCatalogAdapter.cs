@@ -58,7 +58,7 @@ public static class OabBenchDemoCatalogAdapter
                 continue;
             }
 
-            var sourceText = question.Statement.Trim();
+            var sourceText = BuildQueryText(question.Statement, question.Turns);
             var oracleText = string.Join(Environment.NewLine + Environment.NewLine, guideline.Turns);
             var sourceFile = Path.Combine(sourceRoot, $"{question.QuestionId}.txt");
             var oracleFile = Path.Combine(oracleRoot, $"{question.QuestionId}.txt");
@@ -148,10 +148,17 @@ public static class OabBenchDemoCatalogAdapter
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
+        var turns = root.TryGetProperty("turns", out var turnsElement)
+            ? turnsElement.EnumerateArray()
+                .Select(item => item.GetString() ?? string.Empty)
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .ToArray()
+            : [];
         return new OabQuestionRow(
             root.GetProperty("question_id").GetString() ?? throw new InvalidOperationException("question_id cannot be empty."),
             root.GetProperty("category").GetString() ?? throw new InvalidOperationException("category cannot be empty."),
-            root.GetProperty("statement").GetString() ?? throw new InvalidOperationException("statement cannot be empty."));
+            root.GetProperty("statement").GetString() ?? throw new InvalidOperationException("statement cannot be empty."),
+            turns);
     }
 
     private static OabGuidelineRow ParseGuidelineRow(string json)
@@ -168,7 +175,28 @@ public static class OabBenchDemoCatalogAdapter
             turns);
     }
 
-    private sealed record OabQuestionRow(string QuestionId, string Category, string Statement);
+    private static string BuildQueryText(string statement, IReadOnlyList<string> turns)
+    {
+        if (turns.Count == 0)
+        {
+            return statement.Trim();
+        }
+
+        var builder = new StringBuilder(statement.Trim());
+        builder.AppendLine();
+        builder.AppendLine();
+        builder.AppendLine("Itens:");
+        for (var index = 0; index < turns.Count; index++)
+        {
+            builder.Append(index + 1);
+            builder.Append(". ");
+            builder.AppendLine(turns[index].Trim());
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private sealed record OabQuestionRow(string QuestionId, string Category, string Statement, IReadOnlyList<string> Turns);
 
     private sealed record OabGuidelineRow(string QuestionId, IReadOnlyList<string> Turns);
 
