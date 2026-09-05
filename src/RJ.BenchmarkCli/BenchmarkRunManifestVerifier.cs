@@ -95,14 +95,15 @@ public static class BenchmarkRunManifestVerifier
         }
 
         var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(manifestPath)) ?? ".";
-        var resolved = Path.GetFullPath(Path.Combine(manifestDirectory, outputPath));
         var baseDirectory = Path.GetFullPath(manifestDirectory);
-        var basePrefix = baseDirectory.EndsWith(Path.DirectorySeparatorChar)
-            ? baseDirectory
-            : baseDirectory + Path.DirectorySeparatorChar;
+        var resolved = Path.GetFullPath(Path.Combine(baseDirectory, outputPath));
+        var relativePath = Path.GetRelativePath(baseDirectory, resolved);
 
-        if (!StringComparer.OrdinalIgnoreCase.Equals(Path.GetDirectoryName(resolved), baseDirectory)
-            && !resolved.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
+        if (Path.IsPathRooted(relativePath)
+            || relativePath == "."
+            || relativePath == ".."
+            || relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            || relativePath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal))
         {
             reportPath = string.Empty;
             return false;
