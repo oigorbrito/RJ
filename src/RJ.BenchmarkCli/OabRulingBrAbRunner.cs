@@ -36,8 +36,9 @@ public static class OabRulingBrAbRunner
             var rulingbr = await RulingBrDemoCatalogAdapter.BuildAsync(options.RulingBrRoot, options.RepositoryCommit, cancellationToken);
             var rulingbrCorpusPath = await RulingBrDemoCatalogAdapter.ResolveCorpusPathAsync(options.RulingBrRoot, cancellationToken);
             var rulingbrCases = await RulingBrDemoCatalogAdapter.ReadCasesFromFileAsync(rulingbrCorpusPath, cancellationToken);
-            var a = await RunBranchAsync(oab.CatalogPath, options, branchLabel: "A", withRetrieval: false, rulingbrCases, cancellationToken);
-            var b = await RunBranchAsync(oab.CatalogPath, options, branchLabel: "B", withRetrieval: true, rulingbrCases, cancellationToken);
+            var a = await RunBranchAsync(oab.CatalogPath, options, branchLabel: "A", withRetrieval: false, useChallenger: false, rulingbrCases, cancellationToken);
+            var b = await RunBranchAsync(oab.CatalogPath, options, branchLabel: "B", withRetrieval: true, useChallenger: false, rulingbrCases, cancellationToken);
+            var c = await RunBranchAsync(oab.CatalogPath, options, branchLabel: "C", withRetrieval: true, useChallenger: true, rulingbrCases, cancellationToken);
 
             var report = new OabRulingBrAbReport(
                 "oab-rulingbr-ab-v1",
@@ -45,12 +46,14 @@ public static class OabRulingBrAbRunner
                 options.OabRoot,
                 options.RulingBrRoot,
                 options.TopK,
+                options.ModelConfiguration,
                 oab.CatalogSha256,
                 rulingbr.CatalogSha256,
                 a,
                 b,
-                b.TotalCases > 0 ? (double)b.RetrievalCoverageCases / b.TotalCases : 0.0,
-                b.ZeroEvidenceCases,
+                c,
+                c.TotalCases > 0 ? (double)c.RetrievalCoverageCases / c.TotalCases : 0.0,
+                c.ZeroEvidenceCases,
                 DateTimeOffset.UtcNow);
 
             await AtomicTextFileWriter.WriteAsync(options.ReportPath, JsonSerializer.Serialize(report, JsonOptions), cancellationToken);
@@ -82,13 +85,16 @@ public static class OabRulingBrAbRunner
         OabRulingBrAbOptions options,
         string branchLabel,
         bool withRetrieval,
+        bool useChallenger,
         IReadOnlyList<RulingBrDemoCatalogAdapter.RulingBrDemoCase> rulingbrCases,
         CancellationToken cancellationToken = default)
     {
         var external = ExternalGenerationBenchmarkCatalog.Parse(await File.ReadAllBytesAsync(catalogPath, cancellationToken));
         var catalog = external.ToBenchmarkCatalog();
         var evaluator = new GenerationEvaluator();
-        var model = new OabBenchDemoGenerationModel();
+        IGenerationModel model = useChallenger
+            ? new OabRulingBrGenerationChallengerModel(options.ModelConfiguration)
+            : new OabBenchDemoGenerationModel();
         var caseReports = new List<OabRulingBrAbCaseReport>(catalog.Cases.Count);
         var retrievalCoverageCases = 0;
         var zeroEvidenceCases = 0;
@@ -280,7 +286,8 @@ public static class OabRulingBrAbRunner
             GetRequired("--rulingbr-root"),
             GetRequired("--report"),
             values.TryGetValue("--repo-commit", out var commit) ? commit.Trim() : null,
-            topK);
+            topK,
+            values.TryGetValue("--model-config", out var modelConfig) ? modelConfig.Trim() : string.Empty);
     }
 
     private static string ComputeSha256(byte[] bytes) =>
@@ -297,7 +304,8 @@ public sealed record OabRulingBrAbOptions(
     string RulingBrRoot,
     string ReportPath,
     string? RepositoryCommit,
-    int TopK);
+    int TopK,
+    string ModelConfiguration);
 
 public sealed record OabRulingBrAbReport(
     string RunnerVersion,
@@ -305,10 +313,12 @@ public sealed record OabRulingBrAbReport(
     string OabRoot,
     string RulingBrRoot,
     int TopK,
+    string ModelConfiguration,
     string OabCorpusSha256,
     string RulingBrCorpusSha256,
     OabRulingBrAbBranchReport A,
     OabRulingBrAbBranchReport B,
+    OabRulingBrAbBranchReport C,
     double RetrievalCoverage,
     int ZeroEvidenceCases,
     DateTimeOffset Runtime);

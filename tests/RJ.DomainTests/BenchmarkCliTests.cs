@@ -320,6 +320,39 @@ public sealed class BenchmarkCliTests
     }
 
     [Fact]
+    public async Task RunAsync_selects_rulingbr_generation_challenger_when_explicitly_requested()
+    {
+        var directory = CreateTemporaryDirectory();
+        var corpusRoot = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
+        var previous = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable, corpusRoot);
+            var outputPath = Path.Combine(directory, "challenger-benchmark.json");
+            var exitCode = await BenchmarkCliApp.RunAsync(
+                [
+                    "--git-commit", "abc123",
+                    "--runtime", ".NET 10.0.0",
+                    "--model-id", OabRulingBrGenerationChallengerModel.ModelId,
+                    "--model-config", "local-lexical-v1",
+                    "--seed", "42",
+                    "--output", outputPath
+                ],
+                CancellationToken.None);
+
+            Assert.Equal(BenchmarkCliApp.GateFailureExitCode, exitCode);
+            Assert.True(File.Exists(outputPath));
+            var json = await File.ReadAllTextAsync(outputPath);
+            Assert.Contains("\"modelId\": \"oab-rulingbr-generation-challenger-v1\"", json, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable, previous);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_rejects_external_catalog_checksum_mismatch_before_creating_report()
     {
         var directory = CreateTemporaryDirectory();

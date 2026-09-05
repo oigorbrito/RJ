@@ -27,7 +27,7 @@ public static class BenchmarkCli
         {
             var options = BenchmarkCliOptions.Parse(args);
             var demoCorpusRoot = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
-            var model = CreateModel(options.ModelId, !string.IsNullOrWhiteSpace(demoCorpusRoot));
+            var model = CreateModel(options.ModelId, options.ModelConfiguration, !string.IsNullOrWhiteSpace(demoCorpusRoot));
 
             var catalog = options.CatalogPath is null
                 ? await LoadCatalogAsync(options, cancellationToken)
@@ -56,7 +56,7 @@ public static class BenchmarkCli
         }
     }
 
-    private static IGenerationModel CreateModel(string modelId, bool hasDemoCorpus)
+    private static IGenerationModel CreateModel(string modelId, string modelConfiguration, bool hasDemoCorpus)
     {
         if (StringComparer.Ordinal.Equals(modelId, HarnessSelfTestGenerationModel.ModelId))
         {
@@ -75,8 +75,13 @@ public static class BenchmarkCli
             return new OabBenchDemoGenerationModel();
         }
 
+        if (StringComparer.Ordinal.Equals(modelId, OabRulingBrGenerationChallengerModel.ModelId))
+        {
+            return new OabRulingBrGenerationChallengerModel(modelConfiguration);
+        }
+
         throw new ArgumentException(
-            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}' and '{OabBenchDemoGenerationModel.ModelId}'.",
+            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}', '{OabBenchDemoGenerationModel.ModelId}' and '{OabRulingBrGenerationChallengerModel.ModelId}'.",
             nameof(modelId));
     }
 

@@ -20,6 +20,7 @@ public sealed class OabRulingBrAbRunnerTests
                     "--oab-root", oabRoot,
                     "--rulingbr-root", rulingbrRoot,
                     "--top-k", "3",
+                    "--model-config", "local-lexical-v1",
                     "--report", report,
                     "--repo-commit", "abc123"
                 ],
@@ -34,8 +35,10 @@ public sealed class OabRulingBrAbRunnerTests
             var root = document.RootElement;
             Assert.Equal(1, root.GetProperty("a").GetProperty("totalCases").GetInt32());
             Assert.Equal(1, root.GetProperty("b").GetProperty("totalCases").GetInt32());
+            Assert.Equal(1, root.GetProperty("c").GetProperty("totalCases").GetInt32());
             Assert.Equal(0, root.GetProperty("a").GetProperty("retrievalCoverageCases").GetInt32());
             Assert.InRange(root.GetProperty("b").GetProperty("retrievalCoverageCases").GetInt32(), 0, 1);
+            Assert.InRange(root.GetProperty("c").GetProperty("retrievalCoverageCases").GetInt32(), 0, 1);
             Assert.Equal("abc123", root.GetProperty("repositoryCommit").GetString());
             Assert.Equal(3, root.GetProperty("topK").GetInt32());
         }
@@ -64,6 +67,7 @@ public sealed class OabRulingBrAbRunnerTests
                 "--oab-root", oabRoot,
                 "--rulingbr-root", rulingbrRoot,
                 "--top-k", "1",
+                "--model-config", "local-lexical-v1",
                 "--report", report1
             ], CancellationToken.None);
 
@@ -71,6 +75,7 @@ public sealed class OabRulingBrAbRunnerTests
                 "--oab-root", oabRoot,
                 "--rulingbr-root", rulingbrRoot,
                 "--top-k", "1",
+                "--model-config", "local-lexical-v1",
                 "--report", report2
             ], CancellationToken.None);
 
@@ -97,6 +102,7 @@ public sealed class OabRulingBrAbRunnerTests
                 "--oab-root", oabRoot,
                 "--rulingbr-root", Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}"),
                 "--top-k", "1",
+                "--model-config", "local-lexical-v1",
                 "--report", report
             ], CancellationToken.None);
 
@@ -125,6 +131,7 @@ public sealed class OabRulingBrAbRunnerTests
                 "--oab-root", oabRoot,
                 "--rulingbr-root", rulingbrRoot,
                 "--top-k", "1",
+                "--model-config", "local-lexical-v1",
                 "--report", report
             ], CancellationToken.None);
 
@@ -137,6 +144,12 @@ public sealed class OabRulingBrAbRunnerTests
             Directory.Delete(rulingbrRoot, recursive: true);
             if (File.Exists(report)) File.Delete(report);
         }
+    }
+
+    [Fact]
+    public async Task RunAsync_fails_cleanly_when_challenger_model_configuration_is_missing()
+    {
+        Assert.Throws<ArgumentException>(() => new OabRulingBrGenerationChallengerModel(" "));
     }
 
     private static async Task<string> CreateOabFixtureAsync()
