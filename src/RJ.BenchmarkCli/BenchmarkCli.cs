@@ -80,8 +80,13 @@ public static class BenchmarkCli
             return new OabRulingBrGenerationChallengerModel(modelConfiguration);
         }
 
+        if (StringComparer.Ordinal.Equals(modelId, OpenAiGenerationModel.ModelId))
+        {
+            return OpenAiGenerationModel.FromEnvironment();
+        }
+
         throw new ArgumentException(
-            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}', '{OabBenchDemoGenerationModel.ModelId}' and '{OabRulingBrGenerationChallengerModel.ModelId}'.",
+            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}', '{OabBenchDemoGenerationModel.ModelId}', '{OabRulingBrGenerationChallengerModel.ModelId}' and '{OpenAiGenerationModel.ModelId}'.",
             nameof(modelId));
     }
 
