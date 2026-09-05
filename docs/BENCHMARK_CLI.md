@@ -15,7 +15,19 @@ Each successful or gate-failed benchmark execution writes two artifacts:
 - the benchmark report JSON at `--output`;
 - a reproducibility sidecar at the same path with `.run-manifest.json` appended.
 
-The run manifest records the exact CLI command, git commit, runtime, catalog version, model identity, model configuration, seed, output path, exit code, and pass/fail result. It is intended as reproducibility metadata, not as factual evidence.
+The run manifest records the exact CLI command, git commit, runtime, catalog version, model identity, model configuration, seed, output path, report checksum, exit code, and pass/fail result. It also carries `manifestVersion = benchmark-run-manifest-v1`.
+
+The checksum is the SHA-256 of the exact bytes written to the report file. It proves artifact integrity and report/manifest correspondence, not authorship or cryptographic authenticity.
+
+The manifest can be verified deterministically with:
+
+```text
+dotnet run --project src/RJ.BenchmarkCli -- manifest verify artifacts/generation-benchmark.run-manifest.json
+```
+
+Verification fails closed if the manifest JSON is invalid, required fields are missing, the version is wrong, the report is absent, the report checksum does not match, or the manifest points at a report path that escapes the manifest directory through a relative traversal.
+
+The run manifest is intended as reproducibility metadata, not as factual evidence.
 
 The self-test catalog contains both:
 
@@ -117,5 +129,6 @@ The focal test set proves:
 9. duplicate command-line argument names are rejected;
 10. the CLI project may reference only `RJ.Application`;
 11. prior benchmark, evaluator, generation, retrieval, ingestion, persistence, domain, and architecture gates remain unchanged.
+12. run manifest verification fails closed for malformed JSON, missing fields, checksum mismatch, missing report, and relative path escape.
 
 A missing runtime, unavailable runner, unavailable local checkout, absent legal corpus, or absent execution log is not PASS. It remains `BLOCKED` or `NOT_TESTED` based on the observed evidence.

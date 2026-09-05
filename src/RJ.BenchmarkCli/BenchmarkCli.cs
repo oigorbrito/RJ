@@ -1,6 +1,7 @@
 using RJ.Application.Benchmarking;
 using RJ.Application.Evaluation;
 using RJ.Application.Generation;
+using System.Text;
 
 namespace RJ.BenchmarkCli;
 
@@ -72,9 +73,11 @@ public static class BenchmarkCli
         ArgumentNullException.ThrowIfNull(command);
 
         var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
-        var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
-        var json = GenerationBenchmarkJson.Serialize(report);
+            var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
+            var json = GenerationBenchmarkJson.Serialize(report);
+        var reportSha256 = ComputeSha256(Encoding.UTF8.GetBytes(json));
         var manifest = new BenchmarkRunManifest(
+            BenchmarkRunManifestJson.CurrentVersion,
             options.GitCommit,
             options.Runtime,
             catalog.Version,
@@ -83,6 +86,7 @@ public static class BenchmarkCli
             options.Seed,
             command,
             options.OutputPath,
+            reportSha256,
             report.Passed ? SuccessExitCode : GateFailureExitCode,
             report.Passed);
 
@@ -116,4 +120,7 @@ public static class BenchmarkCli
         argument.Any(character => char.IsWhiteSpace(character) || character == '"')
             ? $"\"{argument.Replace("\"", "\\\"")}\""
             : argument;
+
+    private static string ComputeSha256(byte[] bytes) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
 }
