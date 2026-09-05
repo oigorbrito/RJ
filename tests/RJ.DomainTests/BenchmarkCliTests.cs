@@ -287,6 +287,39 @@ public sealed class BenchmarkCliTests
     }
 
     [Fact]
+    public async Task RunAsync_selects_oab_bench_demo_target_when_explicitly_requested()
+    {
+        var directory = CreateTemporaryDirectory();
+        var corpusRoot = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
+        var previous = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable, corpusRoot);
+            var outputPath = Path.Combine(directory, "demo-benchmark.json");
+            var exitCode = await BenchmarkCliApp.RunAsync(
+                [
+                    "--git-commit", "abc123",
+                    "--runtime", ".NET 10.0.0",
+                    "--model-id", OabBenchDemoGenerationModel.ModelId,
+                    "--model-config", "demo=oab-bench",
+                    "--seed", "42",
+                    "--output", outputPath
+                ],
+                CancellationToken.None);
+
+            Assert.Equal(BenchmarkCliApp.GateFailureExitCode, exitCode);
+            Assert.True(File.Exists(outputPath));
+            var json = await File.ReadAllTextAsync(outputPath);
+            Assert.Contains("\"catalogVersion\": \"oab-bench-demo-", json, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable, previous);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_rejects_external_catalog_checksum_mismatch_before_creating_report()
     {
         var directory = CreateTemporaryDirectory();

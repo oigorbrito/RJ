@@ -26,12 +26,8 @@ public static class BenchmarkCli
         try
         {
             var options = BenchmarkCliOptions.Parse(args);
-            if (!StringComparer.Ordinal.Equals(options.ModelId, HarnessSelfTestGenerationModel.ModelId))
-            {
-                throw new ArgumentException(
-                    $"Only model-id '{HarnessSelfTestGenerationModel.ModelId}' is available in this harness phase.",
-                    nameof(args));
-            }
+            var demoCorpusRoot = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
+            var model = CreateModel(options.ModelId, !string.IsNullOrWhiteSpace(demoCorpusRoot));
 
             var catalog = options.CatalogPath is null
                 ? await LoadCatalogAsync(options, cancellationToken)
@@ -40,7 +36,7 @@ public static class BenchmarkCli
             return await ExecuteAsync(
                 options,
                 catalog,
-                new HarnessSelfTestGenerationModel(),
+                model,
                 BuildCommand(args),
                 cancellationToken);
         }
@@ -58,6 +54,30 @@ public static class BenchmarkCli
             await errorWriter.WriteLineAsync($"{exception.GetType().Name}: Benchmark execution failed.");
             return UsageOrExecutionErrorExitCode;
         }
+    }
+
+    private static IGenerationModel CreateModel(string modelId, bool hasDemoCorpus)
+    {
+        if (StringComparer.Ordinal.Equals(modelId, HarnessSelfTestGenerationModel.ModelId))
+        {
+            return new HarnessSelfTestGenerationModel();
+        }
+
+        if (StringComparer.Ordinal.Equals(modelId, OabBenchDemoGenerationModel.ModelId))
+        {
+            if (!hasDemoCorpus)
+            {
+                throw new ArgumentException(
+                    $"Model-id '{OabBenchDemoGenerationModel.ModelId}' requires an external demo corpus via {OabBenchDemoCatalogAdapter.EnvironmentVariable}.",
+                    nameof(modelId));
+            }
+
+            return new OabBenchDemoGenerationModel();
+        }
+
+        throw new ArgumentException(
+            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}' and '{OabBenchDemoGenerationModel.ModelId}'.",
+            nameof(modelId));
     }
 
     private static async Task<GenerationBenchmarkCatalog> LoadCatalogAsync(

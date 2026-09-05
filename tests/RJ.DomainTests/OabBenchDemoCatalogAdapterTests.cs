@@ -1,10 +1,39 @@
 using System.Text;
+using RJ.Application.Generation;
 using RJ.BenchmarkCli;
 
 namespace RJ.DomainTests;
 
 public sealed class OabBenchDemoCatalogAdapterTests
 {
+    [Fact]
+    public async Task Demo_target_builds_structured_claim_without_accessing_oracle()
+    {
+        var model = new OabBenchDemoGenerationModel();
+        var context = new GenerationContext(
+            "case-1",
+            "QUESTÃO\nQual é a resposta?",
+            100,
+            20,
+            [
+                new GenerationContextItem(
+                    "case-1",
+                    "doc-1",
+                    "source.txt",
+                    new string('a', 64),
+                    "Fonte demo",
+                    RJ.Application.Retrieval.SourcePosition.Create(0, 10, 10),
+                    1.0f)
+            ]);
+
+        var output = await model.GenerateAsync(context, CancellationToken.None);
+
+        Assert.False(output.Abstained);
+        Assert.Single(output.Claims);
+        Assert.Single(output.Claims[0].Citations);
+        Assert.Equal("QUESTÃO", output.Claims[0].Text);
+    }
+
     [Fact]
     public async Task BuildAsync_can_map_real_oab_bench_corpus_into_rj_catalog()
     {
@@ -53,6 +82,7 @@ public sealed class OabBenchDemoCatalogAdapterTests
             Assert.Contains(Path.Combine(root, "data", "oab_bench", "question.jsonl"), info.UsedArtifactPaths);
             Assert.Contains(Path.Combine(root, "data", "oab_bench", "reference_answer", "guidelines.jsonl"), info.UsedArtifactPaths);
             Assert.Contains(Path.Combine(root, "data", "judge_prompts.jsonl"), info.UsedArtifactPaths);
+            Assert.DoesNotContain(info.UsedArtifactPaths, path => path.Contains("model_answer", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {

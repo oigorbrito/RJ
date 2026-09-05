@@ -45,6 +45,11 @@ The arguments are valid only as a pair. The exact UTF-8 file is hashed before de
 
 External catalog structure and provenance gates are defined in `docs/EXTERNAL_BENCHMARK_CATALOG.md`.
 
+The benchmark CLI currently accepts two explicit model ids:
+
+- `harness-selftest-v1` for the original harness self-test;
+- `oab-bench-demo-v1` for the demo OAB-Bench flow when `RJ_LEGAL_DEMO_CORPUS` points at the external read-only corpus checkout.
+
 ## Demo corpus mode
 
 When `RJ_LEGAL_DEMO_CORPUS` is set to a read-only `oab-bench` checkout, the CLI can build an external demo catalog from:
