@@ -62,5 +62,11 @@ jobs:
         run: dotnet restore RJ.slnx
       - name: Build
         run: dotnet build RJ.slnx --configuration Release --no-restore
+      - name: Database migrator
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
+          dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
       - name: Test
         run: dotnet test RJ.slnx --configuration Release --no-build
