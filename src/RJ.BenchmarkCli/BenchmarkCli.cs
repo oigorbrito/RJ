@@ -80,13 +80,8 @@ public static class BenchmarkCli
             return new OabRulingBrGenerationChallengerModel(modelConfiguration);
         }
 
-        if (StringComparer.Ordinal.Equals(modelId, OpenAiGenerationModel.ModelId))
-        {
-            return OpenAiGenerationModel.FromEnvironment();
-        }
-
         throw new ArgumentException(
-            $"Unsupported model-id '{modelId}'. Supported ids are '{HarnessSelfTestGenerationModel.ModelId}', '{OabBenchDemoGenerationModel.ModelId}', '{OabRulingBrGenerationChallengerModel.ModelId}' and '{OpenAiGenerationModel.ModelId}'.",
+            $"Unsupported model-id '{modelId}'. Supported offline ids are '{HarnessSelfTestGenerationModel.ModelId}', '{OabBenchDemoGenerationModel.ModelId}' and '{OabRulingBrGenerationChallengerModel.ModelId}'.",
             nameof(modelId));
     }
 
@@ -118,8 +113,8 @@ public static class BenchmarkCli
         ArgumentNullException.ThrowIfNull(command);
 
         var runner = new GenerationBenchmarkRunner(model, new GenerationEvaluator());
-            var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
-            var json = GenerationBenchmarkJson.Serialize(report);
+        var report = await runner.RunAsync(catalog, options.ToMetadata(catalog.Version), cancellationToken);
+        var json = GenerationBenchmarkJson.Serialize(report);
         var reportSha256 = ComputeSha256(Encoding.UTF8.GetBytes(json));
         var manifest = new BenchmarkRunManifest(
             BenchmarkRunManifestJson.CurrentVersion,
