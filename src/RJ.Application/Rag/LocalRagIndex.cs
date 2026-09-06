@@ -62,6 +62,16 @@ public sealed class LocalRagIndex
             score += 6;
         }
 
+        if (chunk.Section == "overview" && tokens.Any(token => token is "valor" or "juiz" or "status" or "fase" or "tribunal" or "cidade" or "estado" or "comarca"))
+        {
+            score += 8;
+        }
+
+        if (chunk.Section == "parties" && tokens.Any(token => token is "cpf" or "cnpj" or "oab" or "parte" or "autores" or "réu" or "reu" or "advogada" or "advogado"))
+        {
+            score += 8;
+        }
+
         return score;
     }
 

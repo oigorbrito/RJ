@@ -5,11 +5,11 @@
   "chunk_schema_version": "rj-local-rag-chunk-v1",
   "retriever": "baseline-lexical",
   "query_count": 24,
-  "hit_at_1": 20,
+  "hit_at_1": 24,
   "hit_at_3": 24,
   "hit_at_5": 24,
-  "mrr": 0.9166666666666666,
-  "duration_ms": 24.7312,
+  "mrr": 1,
+  "duration_ms": 2.3471,
   "per_query_results": [
     {
       "QueryId": "q-001",
@@ -68,7 +68,7 @@
       "OraclePath": "page_data[0].response_data.amount",
       "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
       "MatchedSource": "lawsuit:overview",
-      "Rank": 2,
+      "Rank": 1,
       "Status": "HIT"
     },
     {
@@ -78,7 +78,7 @@
       "OraclePath": "page_data[0].response_data.judge",
       "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
       "MatchedSource": "lawsuit:overview",
-      "Rank": 2,
+      "Rank": 1,
       "Status": "HIT"
     },
     {
@@ -88,7 +88,7 @@
       "OraclePath": "page_data[0].response_data.status",
       "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
       "MatchedSource": "lawsuit:overview",
-      "Rank": 2,
+      "Rank": 1,
       "Status": "HIT"
     },
     {
@@ -106,8 +106,8 @@
       "Question": "Quem s\u00E3o os autores?",
       "ExpectedAnswer": "GISELE DE OLIVEIRA GALLI; MATHEUS RIBEIRO GALLI",
       "OraclePath": "page_data[0].response_data.parties[].name",
-      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
-      "MatchedSource": "summary:summary",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
+      "MatchedSource": "lawsuit:parties",
       "Rank": 1,
       "Status": "HIT"
     },
@@ -126,8 +126,8 @@
       "Question": "Qual \u00E9 a advogada?",
       "ExpectedAnswer": "ANDREIA BELO ROSSO",
       "OraclePath": "page_data[0].response_data.parties[0].lawyers[0].name",
-      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
-      "MatchedSource": "summary:summary",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
+      "MatchedSource": "lawsuit:parties",
       "Rank": 1,
       "Status": "HIT"
     },
@@ -148,7 +148,7 @@
       "OraclePath": "page_data[0].response_data.parties[0].main_document",
       "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
       "MatchedSource": "lawsuit:parties",
-      "Rank": 2,
+      "Rank": 1,
       "Status": "HIT"
     },
     {

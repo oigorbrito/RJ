@@ -1,0 +1,53 @@
+{
+  "mvp_validation_version": "rj-mvp-local-validation-v1",
+  "git_commit": "fa1f36bae9626f25356b7c38a8f193f0961315c7",
+  "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+  "query_set_version": "rj-juridical-response-query-set-v2",
+  "fixture_hash": "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+  "baseline_metrics": {
+    "hit_at_1": 20,
+    "hit_at_3": 24,
+    "hit_at_5": 24,
+    "mrr": 0.9166666666666666
+  },
+  "final_metrics": {
+    "hit_at_1": 24,
+    "hit_at_3": 24,
+    "hit_at_5": 24,
+    "mrr": 1
+  },
+  "robustness_cases": [
+    "synthetic iaSummary exclusion",
+    "unknown fields",
+    "property reordering",
+    "negative queries",
+    "exact identifier retrieval"
+  ],
+  "negative_queries": [
+    "zzzzzzzzzzzzzzzz"
+  ],
+  "determinism_result": {
+    "chunk_ids_stable": true,
+    "retrieval_repeatable": true
+  },
+  "gate_results": [
+    "LocalRagEvaluationTests",
+    "ResponseFixtureIngestionTests",
+    "Wave1CorpusContractTests"
+  ],
+  "blockers": [
+    "BLK-POSTGRES-001"
+  ],
+  "known_failures": [
+    "OabRulingBrAbRunnerTests"
+  ],
+  "threats_to_validity": [
+    "only one real legal fixture",
+    "only one process",
+    "only one tribunal",
+    "iaSummary literal not observed in real corpus",
+    "attachments without binary content",
+    "generalization between tribunals not demonstrated",
+    "PostgreSQL validation blocked"
+  ]
+}
