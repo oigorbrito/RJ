@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -456,7 +457,7 @@ public sealed class OpenAiGenerationModel : IGenerationModel
             "OPENAI_DIAGNOSTIC",
             $"stage={Sanitize(stage)}",
             $"innerExceptionType={Sanitize(exception.GetType().FullName)}",
-            $"httpStatus={(statusCode is null ? string.Empty : ((int)statusCode.Value).ToString())}",
+            $"httpStatus={(statusCode is null ? string.Empty : ((int)statusCode.Value).ToString(CultureInfo.InvariantCulture))}",
             $"providerErrorCode={Sanitize(providerErrorCode)}",
             $"providerErrorMessage={Sanitize(providerErrorMessage)}",
             $"exceptionMessage={Sanitize(exception.Message)}",
