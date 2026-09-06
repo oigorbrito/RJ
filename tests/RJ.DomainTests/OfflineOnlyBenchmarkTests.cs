@@ -1,5 +1,3 @@
-using RJ.BenchmarkCli;
-
 namespace RJ.DomainTests;
 
 public sealed class OfflineOnlyBenchmarkTests
@@ -12,7 +10,7 @@ public sealed class OfflineOnlyBenchmarkTests
 
         try
         {
-            var exit = await BenchmarkCli.RunAsync(
+            var exit = await RJ.BenchmarkCli.BenchmarkCli.RunAsync(
                 [
                     "--git-commit", "offline-test",
                     "--runtime", ".NET 10",
@@ -24,7 +22,7 @@ public sealed class OfflineOnlyBenchmarkTests
                 error,
                 CancellationToken.None);
 
-            Assert.Equal(BenchmarkCli.UsageOrExecutionErrorExitCode, exit);
+            Assert.Equal(RJ.BenchmarkCli.BenchmarkCli.UsageOrExecutionErrorExitCode, exit);
             Assert.Contains("Unsupported model-id", error.ToString(), StringComparison.Ordinal);
             Assert.Contains("Supported offline ids", error.ToString(), StringComparison.Ordinal);
             Assert.False(File.Exists(output));
