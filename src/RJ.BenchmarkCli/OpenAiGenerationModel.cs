@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -272,7 +273,7 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         }
     }
 
-    private string ExtractOutputText(JsonElement root)
+    private static string ExtractOutputText(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -384,10 +385,10 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         if (!StringComparer.Ordinal.Equals(Environment.GetEnvironmentVariable(DiagnosticsEnvironmentVariable), "1")) return;
         var contentTypes = exception.ContentItemTypes.Count == 0 ? null : string.Join(',', exception.ContentItemTypes);
         Console.Error.WriteLine("OPENAI_DIAGNOSTIC "
-            + $"stage={D(exception.Stage)} innerExceptionType={D(exception.InnerException?.GetType().FullName)} httpStatus={D(exception.HttpStatus?.ToString())} "
+            + $"stage={D(exception.Stage)} innerExceptionType={D(exception.InnerException?.GetType().FullName)} httpStatus={D(exception.HttpStatus?.ToString(CultureInfo.InvariantCulture))} "
             + $"providerErrorCode={D(exception.ProviderErrorCode)} providerErrorMessage={D(exception.ProviderErrorMessage)} exceptionMessage={D(exception.Message)} "
             + $"modelSent={D(_modelId)} endpoint={D(Endpoint.AbsoluteUri)} failureClass=OPENAI_ADAPTER "
-            + $"responseObjectType={D(exception.ResponseObjectType)} outputItemCount={D(exception.OutputItemCount?.ToString())} contentItemTypes={D(contentTypes)} "
+            + $"responseObjectType={D(exception.ResponseObjectType)} outputItemCount={D(exception.OutputItemCount?.ToString(CultureInfo.InvariantCulture))} contentItemTypes={D(contentTypes)} "
             + $"hasOutputText={D(exception.HasOutputText?.ToString())} hasStructuredJson={D(exception.HasStructuredJson?.ToString())}");
     }
 
