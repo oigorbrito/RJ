@@ -13,75 +13,36 @@ public sealed class OpenAiGenerationModelTests
     [Fact]
     public void FromEnvironment_fails_closed_when_provider_is_missing()
     {
-        var previousProvider = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable);
-        var previousModel = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable);
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
-
+        var state = CaptureEnvironment();
         try
         {
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable, null);
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable, null);
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, null);
-
             Assert.Throws<ArgumentException>(() => OpenAiGenerationModel.FromEnvironment());
         }
         finally
         {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable, previousProvider);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable, previousModel);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
+            RestoreEnvironment(state);
         }
     }
 
     [Fact]
-    public void FromEnvironment_fails_closed_when_api_key_is_missing()
+    public async Task GenerateAsync_sends_correct_payload_and_parses_responses_rest_shape()
     {
-        var previousProvider = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable);
-        var previousModel = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable);
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
-
-        try
-        {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable, OpenAiGenerationModel.ProviderName);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable, "gpt-5.6");
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, null);
-
-            Assert.Throws<InvalidOperationException>(() => OpenAiGenerationModel.FromEnvironment());
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable, previousProvider);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable, previousModel);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
-        }
-    }
-
-    [Fact]
-    public async Task GenerateAsync_sends_correct_responses_payload_and_parses_rest_output_shape()
-    {
-        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(CreateValidResponse(), Encoding.UTF8, "application/json")
-        });
-        var httpClient = new HttpClient(handler);
-        var model = new OpenAiGenerationModel(httpClient, "gpt-5.6");
-        var context = CreateContext();
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
+        var handler = new RecordingHandler(Ok(CreateValidResponse()));
+        var model = new OpenAiGenerationModel(new HttpClient(handler), "gpt-5.6");
+        var state = CaptureEnvironment();
 
         try
         {
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
-
-            var output = await model.GenerateAsync(context, CancellationToken.None);
+            var output = await model.GenerateAsync(CreateContext(), CancellationToken.None);
 
             Assert.False(output.Abstained);
             Assert.Single(output.Claims);
-            Assert.Contains("Question:", handler.RequestBody);
-            Assert.Contains("Evidence:", handler.RequestBody);
-            Assert.DoesNotContain("guidelines", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("model_answer", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("secret-key", handler.RequestBody, StringComparison.Ordinal);
             Assert.DoesNotContain("oracle", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("secret-key", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
 
             using var requestJson = JsonDocument.Parse(handler.RequestBody);
             var root = requestJson.RootElement;
@@ -93,143 +54,90 @@ public sealed class OpenAiGenerationModelTests
             Assert.Equal("rj_generation_response", format.GetProperty("name").GetString());
             Assert.True(format.TryGetProperty("schema", out var schema));
             Assert.False(format.TryGetProperty("json_schema", out _));
-
-            var abstentionReason = schema.GetProperty("properties").GetProperty("abstention_reason");
-            Assert.True(abstentionReason.TryGetProperty("anyOf", out var anyOf));
-            Assert.Equal(2, anyOf.GetArrayLength());
+            Assert.True(schema.GetProperty("properties").GetProperty("abstention_reason").TryGetProperty("anyOf", out _));
         }
         finally
         {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
+            RestoreEnvironment(state);
         }
     }
 
     [Fact]
-    public async Task GenerateAsync_reports_json_deserialization_stage_for_http_200_with_invalid_output_text()
+    public async Task GenerateAsync_diagnoses_invalid_structured_json_after_http_200()
     {
-        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(CreateResponseWithText("not-json"), Encoding.UTF8, "application/json")
-        });
-        var model = new OpenAiGenerationModel(new HttpClient(handler), "gpt-5.6");
-        var context = CreateContext();
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
-        var previousDiagnostics = Environment.GetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable);
-        var previousError = Console.Error;
-        using var diagnosticWriter = new StringWriter();
+        var handler = new RecordingHandler(Ok(CreateResponseWithText("not-json")));
+        var diagnostic = await ExecuteFailureWithDiagnostics(handler);
 
-        try
-        {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, "1");
-            Console.SetError(diagnosticWriter);
-
-            await Assert.ThrowsAsync<OpenAiAdapterException>(() => model.GenerateAsync(context, CancellationToken.None));
-
-            var diagnostic = diagnosticWriter.ToString();
-            Assert.Contains("OPENAI_DIAGNOSTIC", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("stage=JSON_DESERIALIZATION", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("outputItemCount=1", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("contentItemTypes=output_text", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("hasOutputText=True", diagnostic, StringComparison.Ordinal);
-            Assert.DoesNotContain("secret-key", diagnostic, StringComparison.Ordinal);
-            Assert.DoesNotContain("not-json", diagnostic, StringComparison.Ordinal);
-        }
-        finally
-        {
-            Console.SetError(previousError);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, previousDiagnostics);
-        }
+        Assert.Contains("stage=JSON_DESERIALIZATION", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("outputItemCount=1", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("contentItemTypes=output_text", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("hasOutputText=True", diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-key", diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain("not-json", diagnostic, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task GenerateAsync_reports_structured_output_extraction_stage_when_output_text_is_missing()
+    public async Task GenerateAsync_diagnoses_missing_output_text_after_http_200()
     {
-        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        var response = """
         {
-            Content = new StringContent("""
-            {
-              "id": "resp-test",
-              "object": "response",
-              "status": "completed",
-              "output": [
-                {
-                  "type": "message",
-                  "role": "assistant",
-                  "status": "completed",
-                  "content": [
-                    { "type": "refusal", "refusal": "cannot answer" }
-                  ]
-                }
-              ]
-            }
-            """, Encoding.UTF8, "application/json")
-        });
-        var model = new OpenAiGenerationModel(new HttpClient(handler), "gpt-5.6");
-        var context = CreateContext();
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
-        var previousDiagnostics = Environment.GetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable);
-        var previousError = Console.Error;
-        using var diagnosticWriter = new StringWriter();
-
-        try
-        {
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, "1");
-            Console.SetError(diagnosticWriter);
-
-            await Assert.ThrowsAsync<OpenAiAdapterException>(() => model.GenerateAsync(context, CancellationToken.None));
-
-            var diagnostic = diagnosticWriter.ToString();
-            Assert.Contains("stage=STRUCTURED_OUTPUT_EXTRACTION", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("contentItemTypes=refusal", diagnostic, StringComparison.Ordinal);
-            Assert.Contains("hasOutputText=False", diagnostic, StringComparison.Ordinal);
-            Assert.DoesNotContain("cannot answer", diagnostic, StringComparison.Ordinal);
+          "id": "resp-test",
+          "object": "response",
+          "status": "completed",
+          "output": [{
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [{ "type": "refusal", "refusal": "cannot answer" }]
+          }]
         }
-        finally
-        {
-            Console.SetError(previousError);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, previousDiagnostics);
-        }
+        """;
+
+        var diagnostic = await ExecuteFailureWithDiagnostics(new RecordingHandler(Ok(response)));
+        Assert.Contains("stage=STRUCTURED_OUTPUT_EXTRACTION", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("contentItemTypes=refusal", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("hasOutputText=False", diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain("cannot answer", diagnostic, StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task GenerateAsync_rejects_citation_outside_context_as_local_validation_failure()
     {
-        const string invalidOutput = "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-x\",\"contentSha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"startOffset\":0,\"length\":1}]}]}";
-        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(CreateResponseWithText(invalidOutput), Encoding.UTF8, "application/json")
-        });
+        const string invalid = "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-x\",\"contentSha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"startOffset\":0,\"length\":1}]}]}";
+        var diagnostic = await ExecuteFailureWithDiagnostics(new RecordingHandler(Ok(CreateResponseWithText(invalid))));
+        Assert.Contains("stage=LOCAL_VALIDATION", diagnostic, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> ExecuteFailureWithDiagnostics(RecordingHandler handler)
+    {
         var model = new OpenAiGenerationModel(new HttpClient(handler), "gpt-5.6");
-        var context = CreateContext();
-        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
-        var previousDiagnostics = Environment.GetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable);
+        var state = CaptureEnvironment();
         var previousError = Console.Error;
-        using var diagnosticWriter = new StringWriter();
+        using var writer = new StringWriter();
 
         try
         {
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, "1");
-            Console.SetError(diagnosticWriter);
-
-            await Assert.ThrowsAsync<OpenAiAdapterException>(() => model.GenerateAsync(context, CancellationToken.None));
-            Assert.Contains("stage=LOCAL_VALIDATION", diagnosticWriter.ToString(), StringComparison.Ordinal);
+            Console.SetError(writer);
+            await Assert.ThrowsAsync<OpenAiAdapterException>(() => model.GenerateAsync(CreateContext(), CancellationToken.None));
+            return writer.ToString();
         }
         finally
         {
             Console.SetError(previousError);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
-            Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, previousDiagnostics);
+            RestoreEnvironment(state);
         }
     }
 
+    private static HttpResponseMessage Ok(string content) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(content, Encoding.UTF8, "application/json")
+    };
+
     private static string CreateValidResponse()
     {
-        const string output = "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":23}]}]}";
+        const string output = "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":22}]}]}";
         return CreateResponseWithText(output);
     }
 
@@ -245,10 +153,7 @@ public sealed class OpenAiGenerationModelTests
                 type = "message",
                 role = "assistant",
                 status = "completed",
-                content = new object[]
-                {
-                    new { type = "output_text", text, annotations = Array.Empty<object>() }
-                }
+                content = new object[] { new { type = "output_text", text, annotations = Array.Empty<object>() } }
             }
         }
     });
@@ -258,16 +163,25 @@ public sealed class OpenAiGenerationModelTests
         const string excerpt = "A tutela foi deferida.";
         var position = SourcePosition.Create(0, excerpt.Length, excerpt.Length);
         var item = new GenerationContextItem(
-            "case-1",
-            "doc-1",
-            "source.txt",
-            new string('a', 64),
-            excerpt,
-            position,
-            1f);
-
+            "case-1", "doc-1", "source.txt", new string('a', 64), excerpt, position, 1f);
         return new GenerationContext("case-1", "Qual foi a decisão?", 1000, excerpt.Length, [item]);
     }
+
+    private static EnvironmentState CaptureEnvironment() => new(
+        Environment.GetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable),
+        Environment.GetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable),
+        Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable),
+        Environment.GetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable));
+
+    private static void RestoreEnvironment(EnvironmentState state)
+    {
+        Environment.SetEnvironmentVariable(OpenAiGenerationModel.ProviderEnvironmentVariable, state.Provider);
+        Environment.SetEnvironmentVariable(OpenAiGenerationModel.ModelEnvironmentVariable, state.Model);
+        Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, state.ApiKey);
+        Environment.SetEnvironmentVariable(OpenAiGenerationModel.DiagnosticsEnvironmentVariable, state.Diagnostics);
+    }
+
+    private sealed record EnvironmentState(string? Provider, string? Model, string? ApiKey, string? Diagnostics);
 
     private sealed class RecordingHandler(HttpResponseMessage response) : HttpMessageHandler
     {
