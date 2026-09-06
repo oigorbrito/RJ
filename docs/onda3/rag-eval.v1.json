@@ -1,0 +1,255 @@
+{
+  "rag_eval_version": "rj-rag-eval-v1",
+  "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+  "query_set_version": "rj-juridical-response-query-set-v2",
+  "chunk_schema_version": "rj-local-rag-chunk-v1",
+  "retriever": "baseline-lexical",
+  "query_count": 24,
+  "hit_at_1": 20,
+  "hit_at_3": 24,
+  "hit_at_5": 24,
+  "mrr": 0.9166666666666666,
+  "duration_ms": 24.7312,
+  "per_query_results": [
+    {
+      "QueryId": "q-001",
+      "Question": "Qual \u00E9 o n\u00FAmero CNJ do processo?",
+      "ExpectedAnswer": "6003160-36.2026.8.16.0021",
+      "OraclePath": "page_data[0].response_data.code",
+      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
+      "MatchedSource": "summary:summary",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-002",
+      "Question": "Qual \u00E9 o tribunal?",
+      "ExpectedAnswer": "TJPR",
+      "OraclePath": "page_data[0].response_data.tribunal_acronym",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-003",
+      "Question": "Qual \u00E9 a comarca/vara?",
+      "ExpectedAnswer": "CASCAVEL - VARA DA FAZENDA P\u00DABLICA",
+      "OraclePath": "page_data[0].response_data.county",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-004",
+      "Question": "Qual \u00E9 a cidade?",
+      "ExpectedAnswer": "CASCAVEL",
+      "OraclePath": "page_data[0].response_data.city",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-005",
+      "Question": "Qual \u00E9 o estado?",
+      "ExpectedAnswer": "PR",
+      "OraclePath": "page_data[0].response_data.state",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-006",
+      "Question": "Qual \u00E9 o valor da causa?",
+      "ExpectedAnswer": "30000",
+      "OraclePath": "page_data[0].response_data.amount",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 2,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-007",
+      "Question": "Qual \u00E9 o juiz?",
+      "ExpectedAnswer": "LIA SARA TEDESCO",
+      "OraclePath": "page_data[0].response_data.judge",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 2,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-008",
+      "Question": "Qual \u00E9 o status?",
+      "ExpectedAnswer": "ATIVO",
+      "OraclePath": "page_data[0].response_data.status",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 2,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-009",
+      "Question": "Qual \u00E9 a fase?",
+      "ExpectedAnswer": "INICIAL",
+      "OraclePath": "page_data[0].response_data.phase",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:overview",
+      "MatchedSource": "lawsuit:overview",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-010",
+      "Question": "Quem s\u00E3o os autores?",
+      "ExpectedAnswer": "GISELE DE OLIVEIRA GALLI; MATHEUS RIBEIRO GALLI",
+      "OraclePath": "page_data[0].response_data.parties[].name",
+      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
+      "MatchedSource": "summary:summary",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-011",
+      "Question": "Quem \u00E9 o r\u00E9u?",
+      "ExpectedAnswer": "CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA",
+      "OraclePath": "page_data[0].response_data.parties[3].name",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
+      "MatchedSource": "lawsuit:parties",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-012",
+      "Question": "Qual \u00E9 a advogada?",
+      "ExpectedAnswer": "ANDREIA BELO ROSSO",
+      "OraclePath": "page_data[0].response_data.parties[0].lawyers[0].name",
+      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
+      "MatchedSource": "summary:summary",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-013",
+      "Question": "Qual \u00E9 a OAB?",
+      "ExpectedAnswer": "PR0035553",
+      "OraclePath": "page_data[0].response_data.parties[0].lawyers[0].documents[0].document",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
+      "MatchedSource": "lawsuit:parties",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-014",
+      "Question": "Qual \u00E9 o CPF/CNPJ do autor principal?",
+      "ExpectedAnswer": "02727135971",
+      "OraclePath": "page_data[0].response_data.parties[0].main_document",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:parties",
+      "MatchedSource": "lawsuit:parties",
+      "Rank": 2,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-015",
+      "Question": "Quais s\u00E3o os assuntos?",
+      "ExpectedAnswer": "INDENIZA\u00C7\u00C3O POR DANO MORAL; RESPONSABILIDADE CIVIL; DIREITO CIVIL",
+      "OraclePath": "page_data[0].response_data.subjects[].name",
+      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
+      "MatchedSource": "summary:summary",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-016",
+      "Question": "Quais s\u00E3o as classifica\u00E7\u00F5es?",
+      "ExpectedAnswer": "PROCEDIMENTO DO JUIZADO ESPECIAL C\u00CDVEL; EMBARGOS",
+      "OraclePath": "page_data[0].response_data.classifications[].name",
+      "MatchedChunkId": "92290b84-5e05-4549-ab1e-4563e31e5019:summary",
+      "MatchedSource": "summary:summary",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-017",
+      "Question": "Qual foi a \u00FAltima movimenta\u00E7\u00E3o?",
+      "ExpectedAnswer": "13 - REMETIDOS OS AUTOS - CASDIST -\u003E CAS17VJ",
+      "OraclePath": "page_data[0].response_data.last_step.content",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:steps",
+      "MatchedSource": "lawsuit:steps",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-018",
+      "Question": "Qual \u00E9 a data da \u00FAltima movimenta\u00E7\u00E3o?",
+      "ExpectedAnswer": "2026-09-02T16:09:16.000Z",
+      "OraclePath": "page_data[0].response_data.last_step.step_date",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:steps",
+      "MatchedSource": "lawsuit:steps",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-019",
+      "Question": "Quantas movimenta\u00E7\u00F5es existem?",
+      "ExpectedAnswer": "13",
+      "OraclePath": "page_data[0].response_data.last_step.steps_count",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:steps",
+      "MatchedSource": "lawsuit:steps",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-020",
+      "Question": "H\u00E1 audi\u00EAncia de concilia\u00E7\u00E3o?",
+      "ExpectedAnswer": "AUDI\u00CANCIA DE CONCILIA\u00C7\u00C3O DESIGNADA - LOCAL CONCILIA\u00C7\u00C3O JUIZADO C\u00CDVEL - 03/03/2027 15:00",
+      "OraclePath": "page_data[0].response_data.steps[3].content",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:steps",
+      "MatchedSource": "lawsuit:steps",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-021",
+      "Question": "Quantos anexos existem?",
+      "ExpectedAnswer": "2",
+      "OraclePath": "page_data[0].response_data.attachments.length",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:attachments",
+      "MatchedSource": "lawsuit:attachments",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-022",
+      "Question": "Qual \u00E9 um attachment_id observado?",
+      "ExpectedAnswer": "411788364428621657023616086781",
+      "OraclePath": "page_data[0].response_data.attachments[0].attachment_id",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:attachments",
+      "MatchedSource": "lawsuit:attachments",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-023",
+      "Question": "Qual \u00E9 a extens\u00E3o do anexo observado?",
+      "ExpectedAnswer": "html",
+      "OraclePath": "page_data[0].response_data.attachments[0].extension",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:attachments",
+      "MatchedSource": "lawsuit:attachments",
+      "Rank": 1,
+      "Status": "HIT"
+    },
+    {
+      "QueryId": "q-024",
+      "Question": "Qual \u00E9 a fonte/crawler?",
+      "ExpectedAnswer": "JEproc - TJPR - PR - Lawsuit - Auth - 1 instance",
+      "OraclePath": "page_data[0].response_data.crawler.source_name",
+      "MatchedChunkId": "f171d401-84c4-4632-809a-b8417c54ba6e:steps",
+      "MatchedSource": "lawsuit:steps",
+      "Rank": 1,
+      "Status": "HIT"
+    }
+  ]
+}
