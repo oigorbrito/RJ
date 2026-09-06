@@ -1,0 +1,19 @@
+{
+  "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+  "inclusion_date": "2026-09-06",
+  "included_fixtures": [
+    {
+      "path": "tests/fixtures/rj/response_60031603620268160021_1.json",
+      "role": "REAL_LEGAL_RESPONSE_FIXTURE",
+      "sha256": "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+      "provenance": "external attachment from user message",
+      "corpus_type": "legal_response",
+      "observed_response_types": ["lawsuit", "summary"],
+      "limitations": [
+        "Only one real legal response fixture available in this wave.",
+        "Empty arrays remain structurally observed but internally unverified.",
+        "iaSummary literal not observed."
+      ]
+    }
+  ]
+}
