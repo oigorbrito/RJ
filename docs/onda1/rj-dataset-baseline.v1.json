@@ -1,0 +1,40 @@
+{
+  "dataset_version": "rj-oab-bench-and-rulingbr-2026-09-06",
+  "included_fixtures": [
+    {
+      "path": "oab-bench/data/oab_bench/question.jsonl",
+      "role": "question",
+      "sha256": "4e58e63f0f9c8d46fc4d1b9b6a3d9f1b2cf1b2d6ff5d8e531bf9dd16b8dcd8be",
+      "added_on": "2026-09-06",
+      "limitations": ["No process-style response fields observed"]
+    },
+    {
+      "path": "oab-bench/data/oab_bench/reference_answer/guidelines.jsonl",
+      "role": "reference_answer",
+      "sha256": "8e18a6b6d4e6f9dbb4f7fd1c14b4c5f7e9b01f2a1ce1d58d2f1f918646d3fd60",
+      "added_on": "2026-09-06",
+      "limitations": ["Oracle-style guidance only; not raw user response"]
+    },
+    {
+      "path": "oab-bench/data/oab_bench/model_answer/gpt-5.2.jsonl",
+      "role": "model_response",
+      "sha256": "9f580eb4949a15a2e36e6f7efce51aff9aff8309c33b9132c87e43bb5cd0223e",
+      "added_on": "2026-09-06",
+      "limitations": ["Model outputs from multiple providers; heterogeneous answer payloads"]
+    },
+    {
+      "path": "oab-bench/data/oab_bench/model_judgment/gpt-5.2_single.jsonl",
+      "role": "judge_response",
+      "sha256": "54ab8b53630ab9dad5dd336d50f5d752d773097e6ff48a15e3d9b58ff6dd6df9",
+      "added_on": "2026-09-06",
+      "limitations": ["Structured and non-structured judge outputs mixed"]
+    },
+    {
+      "path": "rulingbr/sample-5.json",
+      "role": "legal_judgment_text_sample",
+      "sha256": "57fba57291d189ac277552c00f997dc2fba29fe167506b491705f3d445a0aaca",
+      "added_on": "2026-09-06",
+      "limitations": ["Only one sample inspected; archives not exploded"]
+    }
+  ]
+}

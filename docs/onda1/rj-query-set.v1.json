@@ -1,0 +1,50 @@
+{
+  "query_set_version": "rj-oab-bench-query-set-v1",
+  "dataset_version": "rj-oab-bench-and-rulingbr-2026-09-06",
+  "queries": [
+    {
+      "query_id": "q-001",
+      "question": "Qual é o question_id do primeiro registro observado?",
+      "fixture_reference": "oab-bench/data/oab_bench/question.jsonl",
+      "answer_path": "question_id",
+      "expected_answer": "39_direito_administrativo_peca_profissional",
+      "evidence_type": "OBSERVED"
+    },
+    {
+      "query_id": "q-002",
+      "question": "Qual é a category do primeiro registro observado?",
+      "fixture_reference": "oab-bench/data/oab_bench/question.jsonl",
+      "answer_path": "category",
+      "expected_answer": "39_direito_administrativo",
+      "evidence_type": "OBSERVED"
+    },
+    {
+      "query_id": "q-003",
+      "question": "Qual campo contém o enunciado textual principal do corpus observado?",
+      "fixture_reference": "oab-bench/data/oab_bench/question.jsonl",
+      "answer_path": "statement",
+      "expected_answer": "statement",
+      "evidence_type": "OBSERVED"
+    },
+    {
+      "query_id": "q-004",
+      "question": "Existe um campo literal iaSummary no corpus observado?",
+      "fixture_reference": "workspace search over oab-bench and rulingbr",
+      "answer_path": "iaSummary",
+      "expected_answer": "not observed",
+      "evidence_type": "UNVERIFIED"
+    },
+    {
+      "query_id": "q-005",
+      "question": "Há algum fixture observado com process number, parties, tribunal/comarca, value, assunto, classificação ou última movimentação preenchidos?",
+      "fixture_reference": "oab-bench and rulingbr sample fixtures",
+      "answer_path": "process metadata",
+      "expected_answer": "not observed",
+      "evidence_type": "UNVERIFIED"
+    }
+  ],
+  "baseline_limitations": [
+    "The current corpus does not provide a filled process-style response fixture for the requested process identification, parties, tribunal/comarca, value, assunto, classificação, last movement, hearing date or attachment metadata queries.",
+    "Queries q-004 and q-005 remain blocked by missing observed samples rather than by test failure."
+  ]
+}
