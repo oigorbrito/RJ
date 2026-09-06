@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using RJ.Application.Benchmarking;
 using RJ.Application.Generation;
 
 namespace RJ.BenchmarkCli;
@@ -13,7 +14,9 @@ public sealed class OpenAiGenerationModel : IGenerationModel
     public const string ProviderEnvironmentVariable = "RJ_GENERATION_PROVIDER";
     public const string ModelEnvironmentVariable = "RJ_GENERATION_MODEL";
     public const string ApiKeyEnvironmentVariable = "OPENAI_API_KEY";
+    public const string DiagnosticsEnvironmentVariable = "RJ_BENCHMARK_DIAGNOSTICS";
 
+    private const string ResponseFormatName = "rj_generation_response";
     private static readonly Uri DefaultBaseUri = new("https://api.openai.com/v1/");
     private readonly HttpClient _httpClient;
     private readonly string _modelId;
@@ -74,14 +77,57 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(_timeout);
 
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
-        var responseText = await response.Content.ReadAsStringAsync(timeoutCts.Token);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            throw new InvalidOperationException($"OpenAI request failed with status code {(int)response.StatusCode}.");
+            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw Fail("HTTP", new TimeoutException("OpenAI request timed out."));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw Fail("HTTP", exception);
         }
 
-        return ParseResponse(responseText, context);
+        using (response)
+        {
+            string responseText;
+            try
+            {
+                responseText = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw Fail("HTTP", new TimeoutException("OpenAI response read timed out."), response.StatusCode);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw Fail("HTTP", exception, response.StatusCode);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var providerError = ParseProviderError(responseText);
+                throw Fail(
+                    "HTTP",
+                    new InvalidOperationException($"OpenAI request failed with status code {(int)response.StatusCode}."),
+                    response.StatusCode,
+                    providerError.Code,
+                    providerError.Message);
+            }
+
+            return ParseResponse(responseText, context);
+        }
     }
 
     private static string GetApiKey() =>
@@ -94,51 +140,54 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         {
             model = _modelId,
             temperature = 0,
-            seed = 0,
             text = new
             {
                 format = new
                 {
                     type = "json_schema",
-                    json_schema = new
+                    name = ResponseFormatName,
+                    strict = true,
+                    schema = new
                     {
-                        name = "rj_generation_output",
-                        strict = true,
-                        schema = new
+                        type = "object",
+                        additionalProperties = false,
+                        required = new[] { "abstained", "abstention_reason", "claims" },
+                        properties = new
                         {
-                            type = "object",
-                            additionalProperties = false,
-                            required = new[] { "abstained", "abstention_reason", "claims" },
-                            properties = new
+                            abstained = new { type = "boolean" },
+                            abstention_reason = new
                             {
-                                abstained = new { type = "boolean" },
-                                abstention_reason = new[] { "string", "null" },
-                                claims = new
+                                anyOf = new object[]
                                 {
-                                    type = "array",
-                                    items = new
+                                    new { type = "string" },
+                                    new { type = "null" }
+                                }
+                            },
+                            claims = new
+                            {
+                                type = "array",
+                                items = new
+                                {
+                                    type = "object",
+                                    additionalProperties = false,
+                                    required = new[] { "text", "citations" },
+                                    properties = new
                                     {
-                                        type = "object",
-                                        additionalProperties = false,
-                                        required = new[] { "text", "citations" },
-                                        properties = new
+                                        text = new { type = "string" },
+                                        citations = new
                                         {
-                                            text = new { type = "string" },
-                                            citations = new
+                                            type = "array",
+                                            items = new
                                             {
-                                                type = "array",
-                                                items = new
+                                                type = "object",
+                                                additionalProperties = false,
+                                                required = new[] { "documentId", "contentSha256", "startOffset", "length" },
+                                                properties = new
                                                 {
-                                                    type = "object",
-                                                    additionalProperties = false,
-                                                    required = new[] { "documentId", "contentSha256", "startOffset", "length" },
-                                                    properties = new
-                                                    {
-                                                        documentId = new { type = "string" },
-                                                        contentSha256 = new { type = "string" },
-                                                        startOffset = new { type = "integer" },
-                                                        length = new { type = "integer" }
-                                                    }
+                                                    documentId = new { type = "string" },
+                                                    contentSha256 = new { type = "string" },
+                                                    startOffset = new { type = "integer" },
+                                                    length = new { type = "integer" }
                                                 }
                                             }
                                         }
@@ -196,60 +245,269 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         return builder.ToString();
     }
 
-    private static GenerationModelOutput ParseResponse(string responseText, GenerationContext context)
+    private GenerationModelOutput ParseResponse(string responseText, GenerationContext context)
     {
-        using var document = JsonDocument.Parse(responseText);
-        var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object)
+        JsonDocument document;
+        try
         {
-            throw new InvalidOperationException("OpenAI response was not a JSON object.");
+            document = JsonDocument.Parse(responseText);
+        }
+        catch (Exception exception)
+        {
+            throw Fail("RESPONSE_PARSE", exception);
         }
 
-        var output = root.TryGetProperty("output_text", out var outputTextElement)
-            ? outputTextElement.GetString()
-            : root.GetProperty("text").GetString();
-
-        if (string.IsNullOrWhiteSpace(output))
+        using (document)
         {
-            throw new InvalidOperationException("OpenAI response did not contain structured text output.");
-        }
-
-        using var modelJson = JsonDocument.Parse(output);
-        var modelRoot = modelJson.RootElement;
-        var abstained = modelRoot.GetProperty("abstained").GetBoolean();
-        var abstentionReason = modelRoot.TryGetProperty("abstention_reason", out var abstentionReasonElement) && abstentionReasonElement.ValueKind != JsonValueKind.Null
-            ? abstentionReasonElement.GetString()
-            : null;
-
-        var claims = new List<GenerationClaim>();
-        foreach (var claimElement in modelRoot.GetProperty("claims").EnumerateArray())
-        {
-            var text = claimElement.GetProperty("text").GetString() ?? string.Empty;
-            var citations = new List<GenerationCitation>();
-            foreach (var citationElement in claimElement.GetProperty("citations").EnumerateArray())
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
             {
-                var citation = new GenerationCitation(
-                    citationElement.GetProperty("documentId").GetString() ?? string.Empty,
-                    citationElement.GetProperty("contentSha256").GetString() ?? string.Empty,
-                    citationElement.GetProperty("startOffset").GetInt32(),
-                    citationElement.GetProperty("length").GetInt32());
-
-                if (!context.Items.Any(item =>
-                        StringComparer.Ordinal.Equals(item.DocumentId, citation.DocumentId)
-                        && StringComparer.Ordinal.Equals(item.ContentSha256, citation.ContentSha256)
-                        && item.Position.StartOffset == citation.StartOffset
-                        && item.Position.Length == citation.Length))
-                {
-                    throw new InvalidOperationException("OpenAI response cited evidence outside the supplied generation context.");
-                }
-
-                citations.Add(citation);
+                throw Fail("RESPONSE_PARSE", new InvalidOperationException("OpenAI response was not a JSON object."));
             }
 
-            claims.Add(new GenerationClaim(text, citations));
+            string structuredText;
+            ResponseStructure structure;
+            try
+            {
+                (structuredText, structure) = ExtractStructuredText(root);
+            }
+            catch (Exception exception) when (exception is not OpenAiAdapterException)
+            {
+                throw Fail("STRUCTURED_OUTPUT_EXTRACTION", exception, structure: DescribeStructure(root));
+            }
+
+            JsonDocument modelJson;
+            try
+            {
+                modelJson = JsonDocument.Parse(structuredText);
+            }
+            catch (Exception exception)
+            {
+                throw Fail("JSON_DESERIALIZATION", exception, structure: structure);
+            }
+
+            using (modelJson)
+            {
+                var modelRoot = modelJson.RootElement;
+                bool abstained;
+                string? abstentionReason;
+                List<(string Text, List<GenerationCitation> Citations)> claimData;
+
+                try
+                {
+                    abstained = modelRoot.GetProperty("abstained").GetBoolean();
+                    abstentionReason = modelRoot.TryGetProperty("abstention_reason", out var abstentionReasonElement)
+                        && abstentionReasonElement.ValueKind != JsonValueKind.Null
+                        ? abstentionReasonElement.GetString()
+                        : null;
+
+                    claimData = new List<(string Text, List<GenerationCitation> Citations)>();
+                    foreach (var claimElement in modelRoot.GetProperty("claims").EnumerateArray())
+                    {
+                        var text = claimElement.GetProperty("text").GetString() ?? string.Empty;
+                        var citations = new List<GenerationCitation>();
+                        foreach (var citationElement in claimElement.GetProperty("citations").EnumerateArray())
+                        {
+                            var citation = new GenerationCitation(
+                                citationElement.GetProperty("documentId").GetString() ?? string.Empty,
+                                citationElement.GetProperty("contentSha256").GetString() ?? string.Empty,
+                                citationElement.GetProperty("startOffset").GetInt32(),
+                                citationElement.GetProperty("length").GetInt32());
+
+                            if (!context.Items.Any(item =>
+                                    StringComparer.Ordinal.Equals(item.DocumentId, citation.DocumentId)
+                                    && StringComparer.Ordinal.Equals(item.ContentSha256, citation.ContentSha256)
+                                    && item.Position.StartOffset == citation.StartOffset
+                                    && item.Position.Length == citation.Length))
+                            {
+                                throw new InvalidOperationException("OpenAI response cited evidence outside the supplied generation context.");
+                            }
+
+                            citations.Add(citation);
+                        }
+
+                        claimData.Add((text, citations));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    throw Fail("LOCAL_VALIDATION", exception, structure: structure);
+                }
+
+                try
+                {
+                    var claims = claimData
+                        .Select(item => new GenerationClaim(item.Text, item.Citations))
+                        .ToArray();
+                    return new GenerationModelOutput(abstained, abstentionReason, claims);
+                }
+                catch (Exception exception)
+                {
+                    throw Fail("RESULT_CONSTRUCTION", exception, structure: structure);
+                }
+            }
+        }
+    }
+
+    private static (string Text, ResponseStructure Structure) ExtractStructuredText(JsonElement root)
+    {
+        var structure = DescribeStructure(root);
+        if (!root.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("OpenAI response did not contain an output array.");
         }
 
-        return new GenerationModelOutput(abstained, abstentionReason, claims);
+        foreach (var outputItem in output.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var contentItem in content.EnumerateArray())
+            {
+                if (!contentItem.TryGetProperty("type", out var type)
+                    || !StringComparer.Ordinal.Equals(type.GetString(), "output_text")
+                    || !contentItem.TryGetProperty("text", out var text))
+                {
+                    continue;
+                }
+
+                var value = text.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return (value, structure);
+                }
+            }
+        }
+
+        throw new InvalidOperationException("OpenAI response did not contain structured output_text content.");
+    }
+
+    private static ResponseStructure DescribeStructure(JsonElement root)
+    {
+        if (!root.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)
+        {
+            return new ResponseStructure(root.ValueKind.ToString(), 0, string.Empty, false);
+        }
+
+        var contentTypes = new List<string>();
+        var hasOutputText = false;
+        foreach (var outputItem in output.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var contentItem in content.EnumerateArray())
+            {
+                if (!contentItem.TryGetProperty("type", out var type))
+                {
+                    continue;
+                }
+
+                var value = type.GetString();
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                contentTypes.Add(value);
+                hasOutputText |= StringComparer.Ordinal.Equals(value, "output_text");
+            }
+        }
+
+        return new ResponseStructure(
+            root.ValueKind.ToString(),
+            output.GetArrayLength(),
+            string.Join(',', contentTypes.Distinct(StringComparer.Ordinal)),
+            hasOutputText);
+    }
+
+    private OpenAiAdapterException Fail(
+        string stage,
+        Exception exception,
+        HttpStatusCode? statusCode = null,
+        string? providerErrorCode = null,
+        string? providerErrorMessage = null,
+        ResponseStructure? structure = null)
+    {
+        WriteDiagnostic(stage, exception, statusCode, providerErrorCode, providerErrorMessage, structure);
+        return new OpenAiAdapterException("OpenAI generation adapter failed.", exception);
+    }
+
+    private void WriteDiagnostic(
+        string stage,
+        Exception exception,
+        HttpStatusCode? statusCode,
+        string? providerErrorCode,
+        string? providerErrorMessage,
+        ResponseStructure? structure)
+    {
+        if (!StringComparer.Ordinal.Equals(Environment.GetEnvironmentVariable(DiagnosticsEnvironmentVariable), "1"))
+        {
+            return;
+        }
+
+        var endpoint = new Uri(DefaultBaseUri, "responses");
+        var fields = new List<string>
+        {
+            "OPENAI_DIAGNOSTIC",
+            $"stage={Sanitize(stage)}",
+            $"innerExceptionType={Sanitize(exception.GetType().FullName)}",
+            $"httpStatus={(statusCode is null ? string.Empty : ((int)statusCode.Value).ToString())}",
+            $"providerErrorCode={Sanitize(providerErrorCode)}",
+            $"providerErrorMessage={Sanitize(providerErrorMessage)}",
+            $"exceptionMessage={Sanitize(exception.Message)}",
+            $"modelSent={Sanitize(_modelId)}",
+            $"endpoint={Sanitize(endpoint.ToString())}",
+            $"failureClass={Sanitize(exception.GetType().Name)}"
+        };
+
+        if (structure is not null)
+        {
+            fields.Add($"responseObjectType={Sanitize(structure.Value.ObjectType)}");
+            fields.Add($"outputItemCount={structure.Value.OutputItemCount}");
+            fields.Add($"contentItemTypes={Sanitize(structure.Value.ContentItemTypes)}");
+            fields.Add($"hasOutputText={structure.Value.HasOutputText}");
+        }
+
+        Console.Error.WriteLine(string.Join(' ', fields));
+    }
+
+    private static string Sanitize(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value
+            .Replace('\r', ' ')
+            .Replace('\n', ' ')
+            .Replace('\t', ' ')
+            .Trim();
+    }
+
+    private static (string? Code, string? Message) ParseProviderError(string responseText)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseText);
+            if (!document.RootElement.TryGetProperty("error", out var error) || error.ValueKind != JsonValueKind.Object)
+            {
+                return (null, null);
+            }
+
+            var code = error.TryGetProperty("code", out var codeElement) ? codeElement.GetString() : null;
+            var message = error.TryGetProperty("message", out var messageElement) ? messageElement.GetString() : null;
+            return (code, message);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 
     private static HttpClient CreateDefaultClient(string apiKey)
@@ -260,6 +518,12 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         client.Timeout = Timeout.InfiniteTimeSpan;
         return client;
     }
+
+    private readonly record struct ResponseStructure(
+        string ObjectType,
+        int OutputItemCount,
+        string ContentItemTypes,
+        bool HasOutputText);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
