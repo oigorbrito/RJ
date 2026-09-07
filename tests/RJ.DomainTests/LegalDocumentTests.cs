@@ -66,6 +66,29 @@ public sealed class LegalDocumentTests
     public void Identifiers_reject_blank_values(string value)
     {
         Assert.Throws<ArgumentException>(() => new LegalCaseId(value));
+        Assert.Throws<ArgumentException>(() => new LegalCaseCnj(value));
         Assert.Throws<ArgumentException>(() => new LegalDocumentId(value));
+    }
+
+    [Theory]
+    [InlineData("6003160-36.2026.8.16.0021")]
+    [InlineData("60031603620268160021")]
+    [InlineData(" 6003160-36.2026.8.16.0021 ")]
+    public void Legal_case_cnj_accepts_valid_process_numbers(string value)
+    {
+        var cnj = new LegalCaseCnj(value);
+
+        Assert.Equal("6003160-36.2026.8.16.0021", cnj.Value);
+        Assert.Equal("60031603620268160021", cnj.Digits);
+        Assert.Equal(cnj.Value, cnj.ToString());
+    }
+
+    [Theory]
+    [InlineData("6003160-00.2026.8.16.0021")]
+    [InlineData("6003160-36.2026.8.16")]
+    [InlineData("6003160-36.2026.8.16.A021")]
+    public void Legal_case_cnj_rejects_invalid_process_numbers(string value)
+    {
+        Assert.Throws<ArgumentException>(() => new LegalCaseCnj(value));
     }
 }

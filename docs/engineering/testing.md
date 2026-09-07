@@ -14,7 +14,10 @@ Coverage percentage is diagnostic information only and is not an acceptance crit
 
 ## Local MVP gate
 
+- Gate version: `LOCAL_MVP_GATE_V1`
 - Canonical command: `scripts/test-local-mvp.ps1`
-- Scope: `LocalRagEvaluationTests`, `ResponseFixtureIngestionTests`, `Wave1CorpusContractTests`, `CorpusAdmissionServiceTests`
+- Underlying project: `tests/RJ.DomainTests/RJ.DomainTests.csproj`
+- Underlying filter: `LocalRagEvaluationTests`, `ResponseFixtureIngestionTests`, `Wave1CorpusContractTests`, `CorpusAdmissionServiceTests`
 - PASS means the scoped `RJ.DomainTests` execution completed with `exit_code=0` and executed tests greater than zero.
+- The wrapper is intentionally thin: it resolves the repository root and calls `dotnet test` directly on the project above with the fixed filter.
 - Outside the gate: `OabRulingBrAbRunnerTests`, `OpenAiGenerationModelTests`, PostgreSQL integration, remote CI, OpenAI, and new corpus fixtures.
