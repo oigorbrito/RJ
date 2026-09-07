@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using RJ.Application.Generation;
+using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
 
 namespace RJ.DomainTests;
