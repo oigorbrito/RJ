@@ -22,7 +22,7 @@ internal static class LegacyBenchmarkCorpusFixtureInitializer
             Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(referenceAnswer, "guidelines.jsonl"),
-            "{\"question_id\":\"q-1\",\"choices\":[{\"turns\":[\"Qual é a resposta?\"]}]}" + Environment.NewLine,
+            "{\"question_id\":\"q-1\",\"choices\":[{\"turns\":[\"Resposta deliberadamente divergente para preservar o gate-failure esperado.\"]}]}" + Environment.NewLine,
             Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "data", "judge_prompts.jsonl"),
