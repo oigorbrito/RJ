@@ -52,6 +52,11 @@ public sealed class GenerationBenchmarkRunner(
             }
             catch (Exception exception)
             {
+                if (OpenAiBenchmarkDiagnostics.IsEnabled && exception is OpenAiAdapterException openAiException)
+                {
+                    OpenAiBenchmarkDiagnostics.WriteDiagnostic(openAiException.Diagnostic);
+                }
+
                 caseReports.Add(new GenerationBenchmarkCaseReport(
                     evaluationCase.Id,
                     false,
@@ -87,5 +92,29 @@ public sealed class GenerationBenchmarkRunner(
             minimumGroundedness,
             passed,
             caseReports);
+    }
+}
+
+internal static class OpenAiBenchmarkDiagnostics
+{
+    private const string EnvironmentVariable = "RJ_BENCHMARK_DIAGNOSTICS";
+
+    public static bool IsEnabled =>
+        string.Equals(Environment.GetEnvironmentVariable(EnvironmentVariable), "1", StringComparison.Ordinal)
+        || string.Equals(Environment.GetEnvironmentVariable(EnvironmentVariable), "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(Environment.GetEnvironmentVariable(EnvironmentVariable), "yes", StringComparison.OrdinalIgnoreCase);
+
+    public static void WriteDiagnostic(OpenAiAdapterDiagnostic diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(diagnostic);
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC stage={diagnostic.Stage}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC innerExceptionType={diagnostic.InnerExceptionType}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC httpStatus={diagnostic.HttpStatus ?? "n/a"}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC providerErrorCode={diagnostic.ProviderErrorCode ?? "n/a"}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC providerErrorMessage={diagnostic.ProviderErrorMessage}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC exceptionMessage={diagnostic.ExceptionMessage}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC modelSent={diagnostic.ModelSent}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC endpoint={diagnostic.Endpoint}");
+        Console.Error.WriteLine($"OPENAI_DIAGNOSTIC failureClass={diagnostic.FailureClass}");
     }
 }
