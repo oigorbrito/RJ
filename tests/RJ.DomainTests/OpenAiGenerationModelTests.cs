@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using RJ.Application.Generation;
+using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
 
 namespace RJ.DomainTests;
