@@ -11,3 +11,10 @@ For each change, prefer this order:
 Run state must be reported as PASS, FAIL, BLOCKED, NOT_TESTED, or NOT_APPLICABLE. Absence of execution is never PASS.
 
 Coverage percentage is diagnostic information only and is not an acceptance criterion.
+
+## Local MVP gate
+
+- Canonical command: `scripts/test-local-mvp.ps1`
+- Scope: `LocalRagEvaluationTests`, `ResponseFixtureIngestionTests`, `Wave1CorpusContractTests`, `CorpusAdmissionServiceTests`
+- PASS means the scoped `RJ.DomainTests` execution completed with `exit_code=0` and executed tests greater than zero.
+- Outside the gate: `OabRulingBrAbRunnerTests`, `OpenAiGenerationModelTests`, PostgreSQL integration, remote CI, OpenAI, and new corpus fixtures.

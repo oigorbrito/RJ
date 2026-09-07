@@ -1,0 +1,31 @@
+{
+  "validation_version": "rj-local-mvp-gate-operational-v1",
+  "git_commit": "f502e84db609fef06d8340323b5cf855cfd49ffa",
+  "gate_version": "LOCAL_MVP_GATE_V1",
+  "canonical_script": "scripts/test-local-mvp.ps1",
+  "underlying_project": "tests/RJ.DomainTests/RJ.DomainTests.csproj",
+  "underlying_filter": "FullyQualifiedName~LocalRagEvaluationTests|FullyQualifiedName~ResponseFixtureIngestionTests|FullyQualifiedName~Wave1CorpusContractTests|FullyQualifiedName~CorpusAdmissionServiceTests",
+  "run_1_test_count": 20,
+  "run_1_exit_code": 0,
+  "run_2_test_count": 20,
+  "run_2_exit_code": 0,
+  "final_status": "PASS",
+  "blockers": [
+    {
+      "blocker_id": "BLK-CORPUS-REAL-001",
+      "status": "BLOCKED"
+    },
+    {
+      "blocker_id": "BLK-POSTGRES-001",
+      "status": "BLOCKED"
+    }
+  ],
+  "outside_gate": [
+    "OabRulingBrAbRunnerTests",
+    "OpenAiGenerationModelTests",
+    "PostgreSQL integration",
+    "remote CI",
+    "OpenAI",
+    "new corpus fixtures"
+  ]
+}
