@@ -30,19 +30,19 @@ public sealed class OabRulingBrAbRunnerTests
 
             Assert.Equal(0, exit);
             var json = await File.ReadAllTextAsync(report);
-            Assert.Contains("\"a\":", json, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("\"b\":", json, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"A\":", json, StringComparison.Ordinal);
+            Assert.Contains("\"B\":", json, StringComparison.Ordinal);
 
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            Assert.Equal(1, root.GetProperty("a").GetProperty("totalCases").GetInt32());
-            Assert.Equal(1, root.GetProperty("b").GetProperty("totalCases").GetInt32());
-            Assert.Equal(1, root.GetProperty("c").GetProperty("totalCases").GetInt32());
-            Assert.Equal(0, root.GetProperty("a").GetProperty("retrievalCoverageCases").GetInt32());
-            Assert.InRange(root.GetProperty("b").GetProperty("retrievalCoverageCases").GetInt32(), 0, 1);
-            Assert.InRange(root.GetProperty("c").GetProperty("retrievalCoverageCases").GetInt32(), 0, 1);
-            Assert.Equal("abc123", root.GetProperty("repositoryCommit").GetString());
-            Assert.Equal(3, root.GetProperty("topK").GetInt32());
+            Assert.Equal(1, root.GetProperty("A").GetProperty("TotalCases").GetInt32());
+            Assert.Equal(1, root.GetProperty("B").GetProperty("TotalCases").GetInt32());
+            Assert.Equal(1, root.GetProperty("C").GetProperty("TotalCases").GetInt32());
+            Assert.Equal(0, root.GetProperty("A").GetProperty("RetrievalCoverageCases").GetInt32());
+            Assert.InRange(root.GetProperty("B").GetProperty("RetrievalCoverageCases").GetInt32(), 0, 1);
+            Assert.InRange(root.GetProperty("C").GetProperty("RetrievalCoverageCases").GetInt32(), 0, 1);
+            Assert.Equal("abc123", root.GetProperty("RepositoryCommit").GetString());
+            Assert.Equal(3, root.GetProperty("TopK").GetInt32());
         }
         finally
         {
@@ -81,7 +81,9 @@ public sealed class OabRulingBrAbRunnerTests
                 "--report", report2
             ], CancellationToken.None);
 
-            Assert.Equal(await File.ReadAllTextAsync(report1), await File.ReadAllTextAsync(report2));
+            Assert.Equal(
+                NormalizeReportForDeterminism(await File.ReadAllTextAsync(report1)),
+                NormalizeReportForDeterminism(await File.ReadAllTextAsync(report2)));
         }
         finally
         {
@@ -179,6 +181,14 @@ public sealed class OabRulingBrAbRunnerTests
         var context = new GenerationContext("case-1", "tutela", 100, 0, []);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => model.GenerateAsync(context, CancellationToken.None));
+    }
+
+    private static string NormalizeReportForDeterminism(string json)
+    {
+        var properties = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
+            ?? throw new InvalidOperationException("AB report JSON could not be parsed.");
+        properties.Remove("Runtime");
+        return JsonSerializer.Serialize(properties);
     }
 
     private static async Task<string> CreateOabFixtureAsync()
