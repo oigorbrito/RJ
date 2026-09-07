@@ -1,0 +1,101 @@
+{
+  "validation_version": "rj-local-mvp-gate-v1",
+  "git_commit": "e32b2146e5fdf33b78527865d023716b67649c64",
+  "branch": "main",
+  "runtime": {
+    "dotnet": "10.x",
+    "sdk_path": "C:\\Program Files\\dotnet\\dotnet.exe"
+  },
+  "baseline_command": "dotnet test RJ.slnx --filter \"FullyQualifiedName~LocalRagEvaluationTests|FullyQualifiedName~ResponseFixtureIngestionTests|FullyQualifiedName~Wave1CorpusContractTests\"",
+  "baseline_exit_code": 1,
+  "baseline_project_results": [
+    {
+      "project": "RJ.DomainTests",
+      "tests_discovered": 14,
+      "tests_executed": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "project": "RJ.ApiTests",
+      "tests_discovered": 0,
+      "tests_executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 8
+    },
+    {
+      "project": "RJ.ArchitectureTests",
+      "tests_discovered": 0,
+      "tests_executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 8
+    },
+    {
+      "project": "RJ.HttpContractTests",
+      "tests_discovered": 0,
+      "tests_executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 8
+    },
+    {
+      "project": "RJ.IntegrationTests",
+      "tests_discovered": 0,
+      "tests_executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 8
+    }
+  ],
+  "final_gate_command": "dotnet test tests/RJ.DomainTests/RJ.DomainTests.csproj --filter \"FullyQualifiedName~LocalRagEvaluationTests|FullyQualifiedName~ResponseFixtureIngestionTests|FullyQualifiedName~Wave1CorpusContractTests|FullyQualifiedName~CorpusAdmissionServiceTests\"",
+  "final_exit_code": 0,
+  "tests_executed": 20,
+  "gate_status": "PASS",
+  "outside_gate_failures": [
+    {
+      "project": "RJ.DomainTests",
+      "test_class": "OabRulingBrAbRunnerTests",
+      "scope": "OUTSIDE_MVP_GATE"
+    },
+    {
+      "project": "RJ.DomainTests",
+      "test_class": "OpenAiGenerationModelTests",
+      "scope": "OUTSIDE_MVP_GATE"
+    }
+  ],
+  "blockers": [
+    {
+      "blocker_id": "BLK-CORPUS-REAL-001",
+      "status": "BLOCKED"
+    },
+    {
+      "blocker_id": "BLK-POSTGRES-001",
+      "status": "BLOCKED"
+    }
+  ],
+  "reproducibility_notes": [
+    "solution-wide filtered execution produces zero-test non-zero exits in projects outside the scoped test project",
+    "project-scoped execution returns 0 only when the expected MVP tests execute and pass",
+    "a deliberately empty filter on RJ.DomainTests.csproj returns exit_code 8 and zero executed tests"
+  ],
+  "known_failures_outside_gate": [
+    "OabRulingBrAbRunnerTests",
+    "OpenAiGenerationModelTests"
+  ],
+  "threats_to_validity": [
+    "uma única fixture jurídica real",
+    "um único processo real",
+    "um único tribunal observado",
+    "iaSummary não observado em corpus real",
+    "PostgreSQL não validado",
+    "generalização multi-processo não validada"
+  ]
+}
