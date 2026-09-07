@@ -61,6 +61,28 @@ public sealed class GenerationContextBuilderTests
         Assert.Throws<InvalidOperationException>(() => builder.Build("case-1", "abc", 100, [invalid]));
     }
 
+    [Fact]
+    public void Build_masks_tax_ids_in_query_and_evidence_without_changing_source_position_or_budget()
+    {
+        const string excerpt = "CPF 529.982.247-25";
+        var builder = new GenerationContextBuilder();
+        var evidence = Evidence("case-1", "doc-1", excerpt, 7, excerpt.Length, 1f);
+
+        var context = builder.Build(
+            "case-1",
+            "consultar CNPJ 04.252.011/0001-10",
+            100,
+            [evidence]);
+
+        var item = Assert.Single(context.Items);
+        Assert.Equal("consultar CNPJ **.***.***/****-**", context.Query);
+        Assert.Equal("CPF ***.***.***-**", item.Excerpt);
+        Assert.Equal(excerpt.Length, item.Excerpt.Length);
+        Assert.Equal(excerpt.Length, context.UsedCharacters);
+        Assert.Equal(7, item.Position.StartOffset);
+        Assert.Equal(excerpt.Length, item.Position.Length);
+    }
+
     private static LegalEvidenceHit Evidence(
         string caseId,
         string documentId,
