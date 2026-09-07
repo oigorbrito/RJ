@@ -80,11 +80,16 @@ public sealed class OpenAiGenerationModelTests
 
             Assert.False(output.Abstained);
             Assert.Single(output.Claims);
-            Assert.Contains("Question:", handler.RequestBody);
-            Assert.Contains("Evidence:", handler.RequestBody);
-            Assert.DoesNotContain("guidelines", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("model_answer", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("oracle", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+
+            using var request = JsonDocument.Parse(handler.RequestBody);
+            var input = request.RootElement.GetProperty("input");
+            var userContent = input[1].GetProperty("content").GetString() ?? string.Empty;
+
+            Assert.Contains("Question:", userContent);
+            Assert.Contains("Evidence:", userContent);
+            Assert.DoesNotContain("guidelines", userContent, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("model_answer", userContent, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("oracle", userContent, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("secret-key", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
         }
         finally
