@@ -9,7 +9,7 @@
   "hit_at_3": 24,
   "hit_at_5": 24,
   "mrr": 1,
-  "duration_ms": 4.4474,
+  "duration_ms": 2.1935,
   "per_query_results": [
     {
       "QueryId": "q-001",
