@@ -13,26 +13,46 @@ repository:
   working_tree_status: NOT_OBSERVABLE_REMOTE
 runtime:
   target: .NET 10
-  ci_runner: ubuntu-latest
+  observed_ci_sdk: 10.0.400
+  observed_ci_runtime: 10.0.11
+  observed_ci_os: ubuntu-24.04
+  observed_ci_architecture: linux-x64
   ci_postgresql: "18.6"
 verification:
-  source: github_remote_observation
+  source: github_actions_pull_request_run
+  workflow_run_id: 34078511732
+  workflow_run_number: 304
+  pull_request: 14
+  tested_head_commit: fad20ee598a2a62f663060e09adf9b0a28912fb1
+  tested_merge_commit: b5fafed7615993d1acbc7e8c221dc12080f73cd5
+  code_baseline_commit: a09232c5c4bcf09b629fae7b00d0c62573198da6
+  code_delta_from_baseline:
+    functional_code_changed: false
+    documentation_only: true
+    path: docs/rjudi/baselines/BL-001.yaml
+  runner_smoke:
+    status: PASS
   restore:
-    status: NOT_TESTED
-    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+    status: PASS
   build:
-    status: NOT_TESTED
-    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+    status: FAIL
+    error_count: 2
+    warning_count: 0
+    failures:
+      - file: tests/RJ.DomainTests/OpenAiGenerationModelTests.cs
+        line: 149
+        code: CS0103
+        detail: "The name 'SourcePosition' does not exist in the current context."
+      - file: tests/RJ.DomainTests/OabRulingBrAbRunnerTests.cs
+        line: 214
+        code: CS0103
+        detail: "The name 'SourcePosition' does not exist in the current context."
   database_migrator:
     status: NOT_TESTED
-    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+    reason: Skipped because the Release build failed.
   tests:
     status: NOT_TESTED
-    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
-  github_combined_status:
-    status: NO_STATUS_CHECKS
-  github_workflow_runs:
-    status: NONE_FOUND
+    reason: Skipped because the Release build failed.
 ci_contract:
   workflow_path: .github/workflows/ci.yml
   restore_command: dotnet restore RJ.slnx
@@ -43,9 +63,16 @@ ci_contract:
   test_command: dotnet test RJ.slnx --configuration Release --no-build
 status:
   implementation: IMPLEMENTED_IN_RJ
-  verification: NOT_TESTED
-  package: BLOCKED_PENDING_EXECUTION_EVIDENCE
+  verification: FAIL
+  package: BLOCKED_BY_BASELINE_BUILD_FAILURE
+remediation:
+  required: true
+  package_id: PKG-BL-REMED-001
+  scope: Restore the pre-existing baseline build without introducing RJudi DOM-001+ functional work.
 notes:
   - This baseline records only observations demonstrated in the current execution context.
-  - Historical claims of successful restore/build/test are not promoted to PASS without current execution evidence.
-  - The branch used to materialize this file is rjudi/pkg-bl-001-baseline; main was not modified.
+  - Restore is demonstrated PASS by GitHub Actions run 34078511732.
+  - Build is demonstrated FAIL by two CS0103 SourcePosition errors in RJ.DomainTests.
+  - Database migrator and tests remain NOT_TESTED because the workflow skipped them after the build failure.
+  - The CI checkout used the PR merge commit, whose only branch-side change from the audited code baseline was this baseline documentation file.
+  - PKG-DOM-001 remains blocked until PKG-BL-REMED-001 restores build/test execution evidence.
