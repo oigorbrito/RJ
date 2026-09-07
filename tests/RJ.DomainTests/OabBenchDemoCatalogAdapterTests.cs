@@ -35,45 +35,31 @@ public sealed class OabBenchDemoCatalogAdapterTests
     }
 
     [Fact]
-    public async Task BuildAsync_can_map_real_oab_bench_corpus_into_rj_catalog()
+    public async Task BuildAsync_can_map_fixture_oab_bench_corpus_into_rj_catalog()
     {
-        var root = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
-        var info = await OabBenchDemoCatalogAdapter.BuildAsync(root, "abc123", CancellationToken.None);
-        var external = RJ.Application.Benchmarking.ExternalGenerationBenchmarkCatalog.Parse(await File.ReadAllBytesAsync(info.CatalogPath));
-        var catalog = external.ToBenchmarkCatalog();
+        var root = await CreateFixtureAsync();
+        try
+        {
+            var info = await OabBenchDemoCatalogAdapter.BuildAsync(root, "abc123", CancellationToken.None);
+            var external = RJ.Application.Benchmarking.ExternalGenerationBenchmarkCatalog.Parse(await File.ReadAllBytesAsync(info.CatalogPath));
+            var catalog = external.ToBenchmarkCatalog();
 
-        Assert.True(catalog.Cases.Count > 0);
-        Assert.StartsWith("oab-bench-demo-", catalog.Version, StringComparison.Ordinal);
+            Assert.True(catalog.Cases.Count > 0);
+            Assert.StartsWith("oab-bench-demo-", catalog.Version, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]
     public async Task BuildAsync_creates_external_catalog_from_oab_bench_jsonl()
     {
-        var root = Path.Combine(Path.GetTempPath(), $"rj-oab-bench-fixture-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(Path.Combine(root, "data", "oab_bench", "reference_answer"));
-        Directory.CreateDirectory(Path.Combine(root, "data", "oab_bench", "model_answer"));
+        var root = await CreateFixtureAsync();
 
         try
         {
-            await File.WriteAllTextAsync(
-                Path.Combine(root, "data", "oab_bench", "question.jsonl"),
-                """
-                {"question_id":"q-1","category":"cat-1","statement":"Pergunta demo"}
-                """,
-                Encoding.UTF8);
-            await File.WriteAllTextAsync(
-                Path.Combine(root, "data", "oab_bench", "reference_answer", "guidelines.jsonl"),
-                """
-                {"question_id":"q-1","choices":[{"turns":["Resposta demo"]}]}
-                """,
-                Encoding.UTF8);
-            await File.WriteAllTextAsync(
-                Path.Combine(root, "data", "judge_prompts.jsonl"),
-                """
-                {"name":"single-v1","type":"single","system_prompt":"x","prompt_template":"y","description":"z","category":"general","output_format":"[[rating]]"}
-                """,
-                Encoding.UTF8);
-
             var info = await OabBenchDemoCatalogAdapter.BuildAsync(root, "abc123", CancellationToken.None);
 
             Assert.True(File.Exists(info.CatalogPath));
@@ -88,5 +74,31 @@ public sealed class OabBenchDemoCatalogAdapterTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static async Task<string> CreateFixtureAsync()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"rj-oab-bench-fixture-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "data", "oab_bench", "reference_answer"));
+        Directory.CreateDirectory(Path.Combine(root, "data", "oab_bench", "model_answer"));
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "data", "oab_bench", "question.jsonl"),
+            """
+            {"question_id":"q-1","category":"cat-1","statement":"Pergunta demo"}
+            """,
+            Encoding.UTF8);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "data", "oab_bench", "reference_answer", "guidelines.jsonl"),
+            """
+            {"question_id":"q-1","choices":[{"turns":["Resposta demo"]}]}
+            """,
+            Encoding.UTF8);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "data", "judge_prompts.jsonl"),
+            """
+            {"name":"single-v1","type":"single","system_prompt":"x","prompt_template":"y","description":"z","category":"general","output_format":"[[rating]]"}
+            """,
+            Encoding.UTF8);
+        return root;
     }
 }
