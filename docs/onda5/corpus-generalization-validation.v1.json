@@ -1,0 +1,77 @@
+{
+  "validation_version": "rj-corpus-generalization-validation-v1",
+  "git_commit": "ccfe52d01e8e0bec62335d066830fbc95d255046",
+  "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+  "schema_version": "rj-corpus-contract-v2",
+  "query_set_version": "rj-juridical-response-query-set-v2",
+  "fixture_count": 1,
+  "tribunal_count": 1,
+  "response_type_count": 2,
+  "fixtures": [
+    {
+      "fixture_id": "response_60031603620268160021_1",
+      "path": "tests/fixtures/rj/response_60031603620268160021_1.json",
+      "sha256": "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+      "provenance": "workspace real response fixture",
+      "inclusion_date": "2026-09-06",
+      "response_types": ["lawsuit", "summary"],
+      "tribunal": "TJPR",
+      "instance": 1,
+      "process_status": "ATIVO"
+    }
+  ],
+  "structural_differences": [],
+  "per_fixture_results": [
+    {
+      "fixture_id": "response_60031603620268160021_1",
+      "status": "ONLY_REAL_FIXTURE_AVAILABLE",
+      "limitations": [
+        "single fixture",
+        "single process",
+        "single tribunal",
+        "related_lawsuits empty",
+        "phase_history empty",
+        "pipelines empty",
+        "iaSummary not observed in real fixture"
+      ]
+    }
+  ],
+  "cross_process_failures": [],
+  "determinism": {
+    "dataset_version_stable": true,
+    "query_set_version_stable": true,
+    "fixture_hash_stable": true,
+    "chunk_schema_version_stable": true,
+    "retrieval_config_version_stable": true,
+    "seed_stable": true
+  },
+  "blockers": [
+    {
+      "blocker_id": "BLK-CORPUS-REAL-001",
+      "type": "corpus/oracle",
+      "operation_blocked": "validação de generalização em múltiplos responses reais",
+      "evidence": "apenas a fixture jurídica já conhecida está disponível",
+      "impact": "external validity permanece limitada",
+      "objective_condition": "fornecer pelo menos uma nova fixture real independente",
+      "status": "BLOCKED"
+    },
+    {
+      "blocker_id": "BLK-POSTGRES-001",
+      "type": "ambiente/credencial",
+      "operation_blocked": "persistência/reload real em PostgreSQL",
+      "status": "BLOCKED"
+    }
+  ],
+  "threats_to_validity": [
+    "uma única fixture jurídica real",
+    "um único processo jurídico real",
+    "apenas TJPR observado",
+    "iaSummary não observado em fixture real",
+    "related_lawsuits vazio",
+    "phase_history vazio",
+    "pipelines vazio",
+    "generalização entre tribunais não comprovada",
+    "generalização para corpus grande não comprovada",
+    "PostgreSQL não validado"
+  ]
+}
