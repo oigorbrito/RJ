@@ -1,3 +1,4 @@
+using RJ.Application.Privacy;
 using RJ.Application.Retrieval;
 
 namespace RJ.Application.Generation;
@@ -29,7 +30,7 @@ public sealed class GenerationContextBuilder
         ArgumentNullException.ThrowIfNull(evidence);
 
         var normalizedCaseId = caseId.Trim();
-        var normalizedQuery = query.Trim();
+        var normalizedQuery = BrazilianTaxIdMasker.Mask(query.Trim());
 
         var ordered = evidence
             .Where(item => StringComparer.Ordinal.Equals(item.CaseId, normalizedCaseId))
@@ -68,12 +69,18 @@ public sealed class GenerationContextBuilder
                 continue;
             }
 
+            var maskedExcerpt = BrazilianTaxIdMasker.Mask(item.Excerpt);
+            if (maskedExcerpt.Length != item.Excerpt.Length)
+            {
+                throw new InvalidOperationException("PII masking must preserve evidence length and source offsets.");
+            }
+
             items.Add(new GenerationContextItem(
                 item.CaseId,
                 item.DocumentId,
                 item.SourceName,
                 item.ContentSha256,
-                item.Excerpt,
+                maskedExcerpt,
                 item.Position,
                 item.Rank));
             usedCharacters += item.Excerpt.Length;
