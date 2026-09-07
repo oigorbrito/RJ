@@ -10,7 +10,30 @@ repository:
   audited_commit_sha: a09232c5c4bcf09b629fae7b00d0c62573198da6
   audited_commit_message: Add OpenAI generation adapter
   audited_commit_created_at_utc: 2026-09-05T20:43:49Z
+  promotion_base_commit_sha: eb58888f4c198ff41cf77b3be19bd81ae3479ecd
   working_tree_status: NOT_OBSERVABLE_REMOTE
+main_drift:
+  detected: true
+  base_commit: a09232c5c4bcf09b629fae7b00d0c62573198da6
+  promotion_base_commit: eb58888f4c198ff41cf77b3be19bd81ae3479ecd
+  ahead_by_commits: 5
+  classification: FUNCTIONAL_AND_DOCUMENTATION_DRIFT
+  changed_areas:
+    - docs/onda1 corpus/query baseline artifacts
+    - docs/onda3 RAG evaluation artifact
+    - docs/onda4 local MVP validation artifact
+    - src/RJ.Application/Rag/LocalRagChunk.cs
+    - src/RJ.Application/Rag/LocalRagChunker.cs
+    - src/RJ.Application/Rag/LocalRagEvaluationResult.cs
+    - src/RJ.Application/Rag/LocalRagEvaluator.cs
+    - src/RJ.Application/Rag/LocalRagIndex.cs
+    - tests/RJ.DomainTests/LocalRagEvaluationTests.cs
+    - tests/RJ.DomainTests/ResponseFixtureIngestionTests.cs
+    - tests/RJ.DomainTests/Wave1CorpusContractTests.cs
+    - tests/fixtures/rj/response_60031603620268160021_1.json
+  m1_domain_id_overlap_detected: false
+  handling: VERIFY_PRESERVE
+  note: New LocalRag and fixture capabilities are existing HEAD drift and must be audited/preserved; they are not evidence of selected RJudi vector/hybrid/reranker treatments.
 runtime:
   target: .NET 10
   observed_ci_sdk: 10.0.400
@@ -50,7 +73,7 @@ remediation:
   packages:
     - PKG-BL-REMED-001
     - PKG-BL-REMED-002
-  head_commit: a955e35080c0c3903dc8ab43581295af18bda93b
+  verified_head_before_promotion_rebase: a955e35080c0c3903dc8ab43581295af18bda93b
   verification:
     source: github_actions_pull_request_run
     workflow_run_id: 34139497037
@@ -78,6 +101,12 @@ remediation:
     - preserve benchmark semantics while excluding volatile runtime metadata from determinism comparison
     - correct stale test fixtures and expectations
   production_domain_logic_changed: false
+final_promotion:
+  pull_request: 18
+  base_commit: eb58888f4c198ff41cf77b3be19bd81ae3479ecd
+  head_branch: rjudi/pkg-bl-remed-002
+  status: PENDING_EXECUTION_EVIDENCE
+  requirement: The exact PR merge candidate against current main must pass runner-smoke, restore, Release build, database migrator twice, and the complete test suite.
 ci_contract:
   workflow_path: .github/workflows/ci.yml
   restore_command: dotnet restore RJ.slnx
@@ -89,9 +118,11 @@ ci_contract:
 status:
   original_audited_commit_verification: FAIL
   remediated_candidate_verification: PASS
-  package: READY_FOR_FINAL_BASELINE_PR
+  final_current_main_candidate_verification: NOT_TESTED
+  package: IN_PROGRESS
 notes:
   - The original audited commit is not retroactively relabeled PASS; its failed build remains historical execution evidence.
   - The remediated candidate has independent execution evidence showing restore, Release build, database migrator twice, and all 150 tests PASS.
-  - Final PKG-BL-001 completion requires a consolidated PR against main so the exact promotion candidate is re-executed as one unit.
-  - PKG-DOM-001 remains blocked until that consolidated baseline PR is green.
+  - Current main advanced by five commits during remediation; old evidence is not automatically promoted to that new HEAD.
+  - PR 18 is the consolidated promotion candidate and must generate fresh execution evidence against current main.
+  - PKG-DOM-001 remains blocked until PR 18 is green and BL-001 is finalized.
