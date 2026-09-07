@@ -5,15 +5,16 @@ namespace RJ.DomainTests;
 public sealed class BrazilianTaxIdMaskerTests
 {
     [Theory]
-    [InlineData("CPF 529.982.247-25", "CPF [CPF_REDACTED]")]
-    [InlineData("CPF 52998224725", "CPF [CPF_REDACTED]")]
-    [InlineData("CNPJ 04.252.011/0001-10", "CNPJ [CNPJ_REDACTED]")]
-    [InlineData("CNPJ 04252011000110", "CNPJ [CNPJ_REDACTED]")]
-    public void Mask_redacts_valid_brazilian_tax_ids(string input, string expected)
+    [InlineData("CPF 529.982.247-25", "CPF ***.***.***-**")]
+    [InlineData("CPF 52998224725", "CPF ***********")]
+    [InlineData("CNPJ 04.252.011/0001-10", "CNPJ **.***.***/****-**")]
+    [InlineData("CNPJ 04252011000110", "CNPJ **************")]
+    public void Mask_redacts_valid_brazilian_tax_ids_without_changing_length(string input, string expected)
     {
         var result = BrazilianTaxIdMasker.Mask(input);
 
         Assert.Equal(expected, result);
+        Assert.Equal(input.Length, result.Length);
     }
 
     [Theory]
@@ -39,13 +40,14 @@ public sealed class BrazilianTaxIdMaskerTests
     }
 
     [Fact]
-    public void Mask_redacts_multiple_tax_ids_without_changing_surrounding_text()
+    public void Mask_redacts_multiple_tax_ids_without_changing_surrounding_text_or_length()
     {
         const string input = "Autor CPF 529.982.247-25; empresa CNPJ 04.252.011/0001-10.";
 
         var result = BrazilianTaxIdMasker.Mask(input);
 
-        Assert.Equal("Autor CPF [CPF_REDACTED]; empresa CNPJ [CNPJ_REDACTED].", result);
+        Assert.Equal("Autor CPF ***.***.***-**; empresa CNPJ **.***.***/****-**.", result);
+        Assert.Equal(input.Length, result.Length);
     }
 
     [Fact]
