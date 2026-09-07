@@ -1,0 +1,51 @@
+baseline_id: BL-001
+project: RJudi
+specification:
+  document_id: RJUDI-SRDS
+  version: 0.1.0-draft
+repository:
+  full_name: oigorbrito/RJ
+  default_branch: main
+  audited_branch: main
+  commit_sha: a09232c5c4bcf09b629fae7b00d0c62573198da6
+  commit_message: Add OpenAI generation adapter
+  commit_created_at_utc: 2026-09-05T20:43:49Z
+  working_tree_status: NOT_OBSERVABLE_REMOTE
+runtime:
+  target: .NET 10
+  ci_runner: ubuntu-latest
+  ci_postgresql: "18.6"
+verification:
+  source: github_remote_observation
+  restore:
+    status: NOT_TESTED
+    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+  build:
+    status: NOT_TESTED
+    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+  database_migrator:
+    status: NOT_TESTED
+    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+  tests:
+    status: NOT_TESTED
+    reason: No workflow run or executable local checkout was available for the audited commit in this execution context.
+  github_combined_status:
+    status: NO_STATUS_CHECKS
+  github_workflow_runs:
+    status: NONE_FOUND
+ci_contract:
+  workflow_path: .github/workflows/ci.yml
+  restore_command: dotnet restore RJ.slnx
+  build_command: dotnet build RJ.slnx --configuration Release --no-restore
+  database_migrator_commands:
+    - dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
+    - dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
+  test_command: dotnet test RJ.slnx --configuration Release --no-build
+status:
+  implementation: IMPLEMENTED_IN_RJ
+  verification: NOT_TESTED
+  package: BLOCKED_PENDING_EXECUTION_EVIDENCE
+notes:
+  - This baseline records only observations demonstrated in the current execution context.
+  - Historical claims of successful restore/build/test are not promoted to PASS without current execution evidence.
+  - The branch used to materialize this file is rjudi/pkg-bl-001-baseline; main was not modified.
