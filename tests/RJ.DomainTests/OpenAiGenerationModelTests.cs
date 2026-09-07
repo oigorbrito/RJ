@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using RJ.Application.Generation;
 using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
@@ -62,7 +63,7 @@ public sealed class OpenAiGenerationModelTests
         {
             Content = new StringContent("""
             {
-              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":32}]}]}"
+              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":22}]}]}"
             }
             """, Encoding.UTF8, "application/json")
         });
@@ -108,7 +109,7 @@ public sealed class OpenAiGenerationModelTests
         {
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => model.GenerateAsync(context, CancellationToken.None));
+            await Assert.ThrowsAnyAsync<JsonException>(() => model.GenerateAsync(context, CancellationToken.None));
         }
         finally
         {
