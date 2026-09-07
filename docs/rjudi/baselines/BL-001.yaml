@@ -1,0 +1,97 @@
+baseline_id: BL-001
+project: RJudi
+specification:
+  document_id: RJUDI-SRDS
+  version: 0.1.0-draft
+repository:
+  full_name: oigorbrito/RJ
+  default_branch: main
+  audited_branch: main
+  audited_commit_sha: a09232c5c4bcf09b629fae7b00d0c62573198da6
+  audited_commit_message: Add OpenAI generation adapter
+  audited_commit_created_at_utc: 2026-09-05T20:43:49Z
+  working_tree_status: NOT_OBSERVABLE_REMOTE
+runtime:
+  target: .NET 10
+  observed_ci_sdk: 10.0.400
+  observed_ci_runtime: 10.0.11
+  observed_ci_os: ubuntu-24.04
+  observed_ci_architecture: linux-x64
+  ci_postgresql: "18.6"
+original_baseline_execution:
+  source: github_actions_pull_request_run
+  workflow_run_id: 34078511732
+  workflow_run_number: 304
+  pull_request: 14
+  tested_head_commit: fad20ee598a2a62f663060e09adf9b0a28912fb1
+  code_baseline_commit: a09232c5c4bcf09b629fae7b00d0c62573198da6
+  code_delta_from_baseline:
+    functional_code_changed: false
+    documentation_only: true
+  runner_smoke: PASS
+  restore: PASS
+  build:
+    status: FAIL
+    error_count: 2
+    warning_count: 0
+    failures:
+      - file: tests/RJ.DomainTests/OpenAiGenerationModelTests.cs
+        line: 149
+        code: CS0103
+        detail: "The name 'SourcePosition' does not exist in the current context."
+      - file: tests/RJ.DomainTests/OabRulingBrAbRunnerTests.cs
+        line: 214
+        code: CS0103
+        detail: "The name 'SourcePosition' does not exist in the current context."
+  database_migrator: NOT_TESTED
+  tests: NOT_TESTED
+remediation:
+  required: true
+  packages:
+    - PKG-BL-REMED-001
+    - PKG-BL-REMED-002
+  head_commit: a955e35080c0c3903dc8ab43581295af18bda93b
+  verification:
+    source: github_actions_pull_request_run
+    workflow_run_id: 34139497037
+    workflow_run_number: 314
+    runner_smoke: PASS
+    restore: PASS
+    build:
+      status: PASS
+      warning_count: 0
+      error_count: 0
+    database_migrator:
+      status: PASS
+      executions: 2
+      schema_version: 3
+    tests:
+      status: PASS
+      total: 150
+      passed: 150
+      failed: 0
+      skipped: 0
+  scope:
+    - restore missing test namespace imports
+    - make legacy benchmark tests hermetic/cross-platform
+    - preserve exact citation validation
+    - preserve benchmark semantics while excluding volatile runtime metadata from determinism comparison
+    - correct stale test fixtures and expectations
+  production_domain_logic_changed: false
+ci_contract:
+  workflow_path: .github/workflows/ci.yml
+  restore_command: dotnet restore RJ.slnx
+  build_command: dotnet build RJ.slnx --configuration Release --no-restore
+  database_migrator_commands:
+    - dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
+    - dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
+  test_command: dotnet test RJ.slnx --configuration Release --no-build
+status:
+  original_audited_commit_verification: FAIL
+  remediated_candidate_verification: PASS
+  package: READY_FOR_FINAL_BASELINE_PR
+notes:
+  - The original audited commit is not retroactively relabeled PASS; its failed build remains historical execution evidence.
+  - The remediated candidate has independent execution evidence showing restore, Release build, database migrator twice, and all 150 tests PASS.
+  - Final PKG-BL-001 completion requires a consolidated PR against main so the exact promotion candidate is re-executed as one unit.
+  - PKG-DOM-001 remains blocked until that consolidated baseline PR is green.
