@@ -4,20 +4,31 @@ namespace RJ.Application.Privacy;
 
 public static partial class BrazilianTaxIdMasker
 {
-    public const string MaskedCpf = "[CPF_REDACTED]";
-    public const string MaskedCnpj = "[CNPJ_REDACTED]";
-
     public static string Mask(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var withoutCnpj = CnpjPattern().Replace(
             value,
-            static match => IsValidCnpj(match.Value) ? MaskedCnpj : match.Value);
+            static match => IsValidCnpj(match.Value) ? MaskDigits(match.Value) : match.Value);
 
         return CpfPattern().Replace(
             withoutCnpj,
-            static match => IsValidCpf(match.Value) ? MaskedCpf : match.Value);
+            static match => IsValidCpf(match.Value) ? MaskDigits(match.Value) : match.Value);
+    }
+
+    private static string MaskDigits(string value)
+    {
+        var buffer = value.ToCharArray();
+        for (var index = 0; index < buffer.Length; index++)
+        {
+            if (char.IsAsciiDigit(buffer[index]))
+            {
+                buffer[index] = '*';
+            }
+        }
+
+        return new string(buffer);
     }
 
     private static bool IsValidCpf(string value)
