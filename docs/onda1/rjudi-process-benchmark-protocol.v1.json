@@ -1,0 +1,63 @@
+{
+  "protocol_version": "rjudi-process-benchmark-protocol-v1",
+  "scope": "single-case deterministic process-summary qualification",
+  "corpus": {
+    "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+    "case_id": "response_60031603620268160021_1",
+    "cnj": "6003160-36.2026.8.16.0021",
+    "fixture": "tests/fixtures/rj/response_60031603620268160021_1.json",
+    "fixture_sha256": "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+    "oracle": "docs/onda1/rj-process-oracle.v1.json",
+    "oracle_sha256": "a1f3830168e6994bc42dff924b024971ff39e9695e808c11cbe856024f9f00ce"
+  },
+  "treatment_identity": {
+    "candidate_id": "deterministic-process-summary-v1",
+    "prompt_id": "rjudi-process-summary",
+    "prompt_version": "rjudi-process-summary-v1",
+    "model_family": "deterministic-test-double",
+    "retrieval_mode": "disabled-for-case-001",
+    "retrieval_calls": 0
+  },
+  "paired_comparison": {
+    "required": true,
+    "comparison_unit": "same case, same oracle, same fixture bytes, same prompt version",
+    "baseline": "deterministic-process-summary-v1",
+    "challenger_required_before_promotion": true
+  },
+  "failure_retention": {
+    "enabled": true,
+    "retain_failed_cases": true,
+    "retain_fields": [
+      "case_id",
+      "cnj",
+      "fixture_sha256",
+      "oracle_sha256",
+      "candidate_id",
+      "prompt_version",
+      "summary_version",
+      "validator_failures",
+      "created_at",
+      "validated_at"
+    ]
+  },
+  "non_compensable_gates": [
+    "exact_citations",
+    "no_raw_pii",
+    "no_oracle_leakage",
+    "no_attachment_content_invention",
+    "process_validator_pass",
+    "generation_context_authorized",
+    "retrieval_calls_zero_case_001",
+    "all_13_steps_inline",
+    "deterministic_inconsistencies_retained"
+  ],
+  "decision_rules": [
+    "non_compensable_gates_must_pass",
+    "failed_case_cannot_be_averaged_away",
+    "fixture_sha256_mismatch_blocks_run",
+    "oracle_sha256_mismatch_blocks_run",
+    "prompt_version_change_requires_new_protocol_version",
+    "candidate_promotion_requires_paired_artifact"
+  ],
+  "status": "formal_protocol_only_no_external_model_promotion"
+}

@@ -29,6 +29,18 @@ dotnet build RJ.slnx --configuration Release --no-restore
 dotnet test RJ.slnx --configuration Release --no-build
 ```
 
+## Local MVP validation
+
+The canonical local MVP gate is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-local-mvp.ps1
+```
+
+It runs `LOCAL_MVP_GATE_V1` against `tests/RJ.DomainTests/RJ.DomainTests.csproj` using the fixed local MVP filter.
+
+See `docs/engineering/testing.md` for scope, exclusions, and acceptance criteria.
+
 ## Acceptance rule
 
 A change is accepted only with the smallest test set sufficient for its risk. Coverage percentage alone is not an acceptance criterion.

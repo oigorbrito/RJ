@@ -201,11 +201,11 @@ public sealed class LocalRagEvaluationTests
             hit_at_3 = result.HitAt3,
             hit_at_5 = result.HitAt5,
             mrr = result.Mrr,
-            duration_ms = result.Duration.TotalMilliseconds,
+            duration_ms = 0,
             per_query_results = result.PerQueryResults
         };
 
-        File.WriteAllText(outputPath, JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions));
+        File.WriteAllText(outputPath, JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions) + Environment.NewLine);
         Assert.True(File.Exists(outputPath));
     }
 
@@ -254,7 +254,7 @@ public sealed class LocalRagEvaluationTests
             }
         };
 
-        File.WriteAllText(outputPath, JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions));
+        File.WriteAllText(outputPath, JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions) + Environment.NewLine);
         Assert.True(File.Exists(outputPath));
     }
 

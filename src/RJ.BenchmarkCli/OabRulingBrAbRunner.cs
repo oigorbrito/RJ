@@ -54,7 +54,7 @@ public static class OabRulingBrAbRunner
                 c,
                 c.TotalCases > 0 ? (double)c.RetrievalCoverageCases / c.TotalCases : 0.0,
                 c.ZeroEvidenceCases,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UnixEpoch);
 
             await AtomicTextFileWriter.WriteAsync(options.ReportPath, JsonSerializer.Serialize(report, JsonOptions), cancellationToken);
             return 0;
@@ -295,6 +295,7 @@ public static class OabRulingBrAbRunner
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true
     };
 }

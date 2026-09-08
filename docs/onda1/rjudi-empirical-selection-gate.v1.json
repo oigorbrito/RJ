@@ -1,0 +1,42 @@
+{
+  "gate_version": "rjudi-empirical-selection-gate-v1",
+  "scope": "retrieval and generation provider selection",
+  "status": "BLOCKED",
+  "blocked_by": [
+    {
+      "blocker_id": "RJ-BLK-003",
+      "source": "docs/engineering/blockers.md",
+      "reason": "No authorized 30-50 legal-process corpus with independently reviewed oracle artifacts is available."
+    }
+  ],
+  "required_before_selection": [
+    "30_50_admitted_legal_process_corpus",
+    "reviewed_oracle_artifacts",
+    "catalog_sha256_verified",
+    "paired_candidate_reports",
+    "failure_retention_artifacts",
+    "non_compensable_gate_pass",
+    "retrieval_latency_cost_privacy_measurements",
+    "generation_latency_cost_privacy_measurements"
+  ],
+  "currently_allowed": [
+    "local_deterministic_core_validation",
+    "benchmark_harness_validation",
+    "single_case_fixture_validation",
+    "self_test_or_deterministic_fake_execution"
+  ],
+  "forbidden_conclusions": [
+    "retrieval_provider_selected",
+    "generation_provider_selected",
+    "vector_search_required",
+    "hybrid_reranker_promoted",
+    "openai_promoted_to_production",
+    "production_ready"
+  ],
+  "local_evidence_that_does_not_unblock": [
+    "rjudi-m1-gate-v1",
+    "rjudi-process-benchmark-protocol-v1",
+    "rjudi-process-generation-benchmark-v1",
+    "rj-local-mvp-gate-operational-v1"
+  ]
+}
