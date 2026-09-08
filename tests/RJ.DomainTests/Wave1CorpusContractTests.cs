@@ -170,7 +170,11 @@ public sealed class Wave1CorpusContractTests
 
         var requiredEvidence = root.GetProperty("required_evidence").EnumerateArray().Select(item => item.GetString()).ToArray();
         Assert.Contains("retrieval_calls_zero_for_case_001", requiredEvidence);
+        Assert.Contains("legal_case_cnj_ascii_digits_only", requiredEvidence);
+        Assert.Contains("legal_case_amount_non_negative", requiredEvidence);
+        Assert.Contains("legal_case_attachments_reference_observed_steps", requiredEvidence);
         Assert.Contains("process_validator_pass", requiredEvidence);
+        Assert.Contains("process_validator_rejects_abstention_with_available_evidence", requiredEvidence);
         Assert.Contains("corrective_retry_bounded", requiredEvidence);
         Assert.Contains("evidence_source_authorization", requiredEvidence);
         Assert.Contains("job_tracking_history", requiredEvidence);
@@ -178,6 +182,26 @@ public sealed class Wave1CorpusContractTests
         Assert.Contains("invalid_job_id_requests_sanitized", requiredEvidence);
         Assert.Contains("request_attachment_content_admission", requiredEvidence);
         Assert.Contains("sanitized_request_parse_errors", requiredEvidence);
+        Assert.Contains("process_validator_rejects_uncited_factual_claims", requiredEvidence);
+        Assert.Contains("process_validator_rejects_missing_required_sections", requiredEvidence);
+        Assert.Contains("process_validator_requires_court_and_amount_coverage", requiredEvidence);
+        Assert.Contains("process_validator_requires_lawyer_coverage", requiredEvidence);
+        Assert.Contains("canonical_secrecy_level_preserved", requiredEvidence);
+        Assert.Contains("deterministic_secrecy_level_inconsistencies", requiredEvidence);
+        Assert.Contains("process_validator_requires_secrecy_level_coverage", requiredEvidence);
+        Assert.Contains("malformed_raw_json_errors_sanitized", requiredEvidence);
+        Assert.Contains("malformed_process_source_schema_errors_sanitized", requiredEvidence);
+        Assert.Contains("missing_lawsuit_process_source_page_sanitized", requiredEvidence);
+        Assert.Contains("missing_required_process_source_fields_sanitized", requiredEvidence);
+        Assert.Contains("non_array_process_source_pages_sanitized", requiredEvidence);
+        Assert.Contains("non_object_process_source_page_items_sanitized", requiredEvidence);
+        Assert.Contains("non_object_process_source_response_sanitized", requiredEvidence);
+        Assert.Contains("non_array_required_process_source_collections_sanitized", requiredEvidence);
+        Assert.Contains("invalid_process_source_amount_type_sanitized", requiredEvidence);
+        Assert.Contains("invalid_process_source_secrecy_level_type_sanitized", requiredEvidence);
+        Assert.Contains("invalid_process_source_step_date_sanitized", requiredEvidence);
+        Assert.Contains("invalid_process_source_attachment_date_sanitized", requiredEvidence);
+        Assert.Contains("unknown_source_system_errors_sanitized", requiredEvidence);
         Assert.Contains("null_request_payloads_sanitized", requiredEvidence);
         Assert.Contains("bounded_process_summary_payloads", requiredEvidence);
         Assert.Contains("hashed_caller_observability", requiredEvidence);

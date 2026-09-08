@@ -57,13 +57,14 @@ public sealed class ProcessGenerationContextComposerTests
             legalCase.Court,
             legalCase.Phase,
             legalCase.Status,
+            legalCase.SecrecyLevel,
             legalCase.Amount,
             legalCase.Parties,
             legalCase.Lawyers,
             legalCase.Classifications,
             legalCase.Subjects,
             manySteps,
-            legalCase.Attachments,
+            Array.Empty<LegalCaseAttachment>(),
             legalCase.Provenance);
 
         var evidence = ProcessGenerationContextComposer.BuildEvidence(expanded);
@@ -101,6 +102,7 @@ public sealed class ProcessGenerationContextComposerTests
             legalCase.Court,
             legalCase.Phase,
             "BAIXADO",
+            legalCase.SecrecyLevel,
             legalCase.Amount,
             legalCase.Parties,
             legalCase.Lawyers,

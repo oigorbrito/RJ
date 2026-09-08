@@ -16,6 +16,7 @@ public sealed class LegalCaseTests
         Assert.Equal("JUIZO DA 3 JUIZADO ESPECIAL CIVEL, CRIMINAL E DA FAZENDA PUBLICA DE CASCAVEL", legalCase.Court);
         Assert.Equal("INICIAL", legalCase.Phase);
         Assert.Equal("ATIVO", legalCase.Status);
+        Assert.Equal(0, legalCase.SecrecyLevel);
         Assert.Equal(30000m, legalCase.Amount);
         Assert.Equal(4, legalCase.Parties.Count);
         Assert.Single(legalCase.Lawyers);
@@ -38,6 +39,7 @@ public sealed class LegalCaseTests
             "court",
             "phase",
             "status",
+            0,
             null,
             Array.Empty<LegalCaseParty>(),
             Array.Empty<LegalCaseLawyer>(),
@@ -58,6 +60,7 @@ public sealed class LegalCaseTests
             "court",
             "phase",
             "status",
+            0,
             null,
             new[] { new LegalCaseParty("party", "Active", "AUTOR", null) },
             Array.Empty<LegalCaseLawyer>(),
@@ -66,6 +69,78 @@ public sealed class LegalCaseTests
             new[] { new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture), "content", "source") },
             Array.Empty<LegalCaseAttachment>(),
             Array.Empty<LegalCaseFieldProvenance>()));
+    }
+
+    [Fact]
+    public void Constructor_rejects_negative_process_amount()
+    {
+        Assert.Throws<ArgumentException>(() => new LegalCase(
+            new LegalCaseId("case-1"),
+            new LegalCaseCnj("6003160-36.2026.8.16.0021"),
+            "case name",
+            "court",
+            "phase",
+            "status",
+            0,
+            -1m,
+            new[] { new LegalCaseParty("party", "Active", "AUTOR", null) },
+            Array.Empty<LegalCaseLawyer>(),
+            new[] { new LegalCaseClassification("436", "classification") },
+            new[] { new LegalCaseSubject("899", "subject") },
+            new[] { new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture), "content", "source") },
+            Array.Empty<LegalCaseAttachment>(),
+            new[] { Provenance("cnj", "page_data[0].response_data.code") }));
+    }
+
+    [Fact]
+    public void Constructor_rejects_negative_secrecy_level()
+    {
+        Assert.Throws<ArgumentException>(() => new LegalCase(
+            new LegalCaseId("case-1"),
+            new LegalCaseCnj("6003160-36.2026.8.16.0021"),
+            "case name",
+            "court",
+            "phase",
+            "status",
+            -1,
+            null,
+            new[] { new LegalCaseParty("party", "Active", "AUTOR", null) },
+            Array.Empty<LegalCaseLawyer>(),
+            new[] { new LegalCaseClassification("436", "classification") },
+            new[] { new LegalCaseSubject("899", "subject") },
+            new[] { new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture), "content", "source") },
+            Array.Empty<LegalCaseAttachment>(),
+            new[] { Provenance("cnj", "page_data[0].response_data.code") }));
+    }
+
+    [Fact]
+    public void Constructor_rejects_attachment_referencing_unobserved_process_step()
+    {
+        Assert.Throws<ArgumentException>(() => new LegalCase(
+            new LegalCaseId("case-1"),
+            new LegalCaseCnj("6003160-36.2026.8.16.0021"),
+            "case name",
+            "court",
+            "phase",
+            "status",
+            0,
+            null,
+            new[] { new LegalCaseParty("party", "Active", "AUTOR", null) },
+            Array.Empty<LegalCaseLawyer>(),
+            new[] { new LegalCaseClassification("436", "classification") },
+            new[] { new LegalCaseSubject("899", "subject") },
+            new[] { new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture), "content", "source") },
+            new[]
+            {
+                new LegalCaseAttachment(
+                    "attachment-1",
+                    "attachment",
+                    "missing-step",
+                    "html",
+                    "pending",
+                    DateTimeOffset.Parse("2026-09-02T15:56:04.000Z", CultureInfo.InvariantCulture))
+            },
+            new[] { Provenance("cnj", "page_data[0].response_data.code") }));
     }
 
     [Fact]
@@ -109,6 +184,7 @@ public sealed class LegalCaseTests
             "JUIZO DA 3 JUIZADO ESPECIAL CIVEL, CRIMINAL E DA FAZENDA PUBLICA DE CASCAVEL",
             "INICIAL",
             "ATIVO",
+            0,
             30000m,
             new[]
             {
@@ -134,7 +210,7 @@ public sealed class LegalCaseTests
             },
             Enumerable.Range(1, 13)
                 .Select(number => new LegalCaseStep(
-                    $"step-{number}",
+                    number == 7 ? "bc3d4178" : number == 12 ? "76960ae6" : $"step-{number}",
                     DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture),
                     $"movement {number}",
                     "JEproc - TJPR - PR - Lawsuit - Auth - 1 instance"))

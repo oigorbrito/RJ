@@ -36,7 +36,7 @@ public sealed record LegalCaseCnj
         var count = 0;
         foreach (var character in value)
         {
-            if (char.IsDigit(character))
+            if (character is >= '0' and <= '9')
             {
                 digits[count] = character;
                 count++;

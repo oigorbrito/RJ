@@ -110,6 +110,7 @@ internal static class LegalCaseBenchmarkTestExtensions
             legalCase.Court,
             legalCase.Phase,
             status,
+            legalCase.SecrecyLevel,
             legalCase.Amount,
             legalCase.Parties,
             legalCase.Lawyers,

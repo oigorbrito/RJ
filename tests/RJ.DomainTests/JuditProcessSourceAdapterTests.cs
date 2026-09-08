@@ -31,6 +31,7 @@ public sealed class JuditProcessSourceAdapterTests
         Assert.Equal("JUIZO DA 3º JUIZADO ESPECIAL CIVEL, CRIMINAL E DA FAZENDA PUBLICA DE CASCAVEL", RemoveAccents(legalCase.Court));
         Assert.Equal("INICIAL", legalCase.Phase);
         Assert.Equal("ATIVO", legalCase.Status);
+        Assert.Equal(0, legalCase.SecrecyLevel);
         Assert.Equal(30000m, legalCase.Amount);
         Assert.Equal(4, legalCase.Parties.Count);
         Assert.Equal("***.271.359-**", legalCase.Parties[0].MainDocument);
@@ -46,6 +47,7 @@ public sealed class JuditProcessSourceAdapterTests
         Assert.Equal(2, legalCase.Attachments.Count);
         Assert.Equal("411788364428621657023616086781", legalCase.Attachments[0].Id);
         Assert.Contains(legalCase.Provenance, item => item.FieldPath == "cnj" && item.ObservedPath == "page_data[0].response_data.code");
+        Assert.Contains(legalCase.Provenance, item => item.FieldPath == "secrecy_level" && item.ObservedPath == "page_data[0].response_data.secrecy_level");
         Assert.All(legalCase.Provenance, item => Assert.Equal("b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa", item.SourceSha256));
     }
 

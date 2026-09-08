@@ -114,6 +114,7 @@ public sealed class ProcessGenerationContextComposer(GenerationContextBuilder bu
         yield return new ProcessEvidenceSection($"Juizo: {legalCase.Court}");
         yield return new ProcessEvidenceSection($"Fase: {legalCase.Phase}");
         yield return new ProcessEvidenceSection($"Status: {legalCase.Status}");
+        yield return new ProcessEvidenceSection($"Sigilo: {legalCase.SecrecyLevel}");
 
         if (legalCase.Amount.HasValue)
         {

@@ -17,11 +17,15 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
         ArgumentNullException.ThrowIfNull(source);
 
         using var document = JsonDocument.Parse(source.RawContent);
-        var lawsuitPage = document.RootElement.GetProperty("page_data")
-            .EnumerateArray()
-            .First(page => StringComparer.Ordinal.Equals(page.GetProperty("response_type").GetString(), "lawsuit"));
+        var lawsuitPage = RequiredArray(document.RootElement, "page_data")
+            .FirstOrDefault(page => StringComparer.Ordinal.Equals(OptionalString(page, "response_type"), "lawsuit"));
 
-        var response = lawsuitPage.GetProperty("response_data");
+        if (lawsuitPage.ValueKind is JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("Judit process source schema is invalid.", nameof(source));
+        }
+
+        var response = RequiredObject(lawsuitPage, "response_data");
         var sourceSha256 = ComputeSha256(source.RawContent);
         var sourceName = GetCrawlerSourceName(response) ?? source.SourceName;
 
@@ -32,7 +36,8 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
             GetCourt(response),
             RequiredString(response, "phase"),
             RequiredString(response, "status"),
-            response.TryGetProperty("amount", out var amount) ? amount.GetDecimal() : null,
+            RequiredInt32(response, "secrecy_level"),
+            OptionalDecimal(response, "amount"),
             BuildParties(response),
             BuildLawyers(response),
             BuildClassifications(response),
@@ -43,8 +48,7 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
     }
 
     private static LegalCaseParty[] BuildParties(JsonElement response) =>
-        response.GetProperty("parties")
-            .EnumerateArray()
+        RequiredArray(response, "parties")
             .Select(party => new LegalCaseParty(
                 RequiredString(party, "name"),
                 RequiredString(party, "side"),
@@ -56,32 +60,40 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
     {
         var lawyers = new Dictionary<string, LegalCaseLawyer>(StringComparer.Ordinal);
 
-        foreach (var party in response.GetProperty("parties").EnumerateArray())
+        foreach (var party in RequiredArray(response, "parties"))
         {
-            AddLawyerDocuments(lawyers, OptionalString(party, "name"), party.TryGetProperty("documents", out var partyDocuments) ? partyDocuments : default);
+            AddLawyerDocuments(
+                lawyers,
+                OptionalString(party, "name"),
+                party.TryGetProperty("documents", out var partyDocuments) && partyDocuments.ValueKind == JsonValueKind.Array
+                    ? partyDocuments.EnumerateArray()
+                    : []);
 
             if (!party.TryGetProperty("lawyers", out var partyLawyers))
             {
                 continue;
             }
 
-            foreach (var lawyer in partyLawyers.EnumerateArray())
+            foreach (var lawyer in RequiredArray(party, "lawyers"))
             {
-                AddLawyerDocuments(lawyers, RequiredString(lawyer, "name"), lawyer.GetProperty("documents"));
+                AddLawyerDocuments(lawyers, RequiredString(lawyer, "name"), RequiredArray(lawyer, "documents"));
             }
         }
 
         return lawyers.Values.ToArray();
     }
 
-    private static void AddLawyerDocuments(Dictionary<string, LegalCaseLawyer> lawyers, string? lawyerName, JsonElement documents)
+    private static void AddLawyerDocuments(
+        Dictionary<string, LegalCaseLawyer> lawyers,
+        string? lawyerName,
+        IEnumerable<JsonElement> documents)
     {
-        if (string.IsNullOrWhiteSpace(lawyerName) || documents.ValueKind != JsonValueKind.Array)
+        if (string.IsNullOrWhiteSpace(lawyerName))
         {
             return;
         }
 
-        foreach (var document in documents.EnumerateArray())
+        foreach (var document in documents)
         {
             if (!StringComparer.OrdinalIgnoreCase.Equals(OptionalString(document, "document_type"), "oab"))
             {
@@ -94,20 +106,17 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
     }
 
     private static LegalCaseClassification[] BuildClassifications(JsonElement response) =>
-        response.GetProperty("classifications")
-            .EnumerateArray()
+        RequiredArray(response, "classifications")
             .Select(item => new LegalCaseClassification(RequiredString(item, "code"), RequiredString(item, "name")))
             .ToArray();
 
     private static LegalCaseSubject[] BuildSubjects(JsonElement response) =>
-        response.GetProperty("subjects")
-            .EnumerateArray()
+        RequiredArray(response, "subjects")
             .Select(item => new LegalCaseSubject(RequiredString(item, "code"), RequiredString(item, "name")))
             .ToArray();
 
     private static LegalCaseStep[] BuildSteps(JsonElement response) =>
-        response.GetProperty("steps")
-            .EnumerateArray()
+        RequiredArray(response, "steps")
             .Select(step => new LegalCaseStep(
                 RequiredString(step, "step_id"),
                 ParseDateTimeOffset(RequiredString(step, "step_date")),
@@ -116,8 +125,7 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
             .ToArray();
 
     private static LegalCaseAttachment[] BuildAttachments(JsonElement response) =>
-        response.GetProperty("attachments")
-            .EnumerateArray()
+        RequiredArray(response, "attachments")
             .Select(attachment => new LegalCaseAttachment(
                 RequiredString(attachment, "attachment_id"),
                 RequiredString(attachment, "attachment_name"),
@@ -134,6 +142,7 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
         Provenance("court", "page_data[0].response_data.courts", source, sourceName, sourceSha256),
         Provenance("phase", "page_data[0].response_data.phase", source, sourceName, sourceSha256),
         Provenance("status", "page_data[0].response_data.status", source, sourceName, sourceSha256),
+        Provenance("secrecy_level", "page_data[0].response_data.secrecy_level", source, sourceName, sourceSha256),
         Provenance("amount", "page_data[0].response_data.amount", source, sourceName, sourceSha256),
         Provenance("parties", "page_data[0].response_data.parties", source, sourceName, sourceSha256),
         Provenance("lawyers", "page_data[0].response_data.parties[].lawyers", source, sourceName, sourceSha256),
@@ -153,7 +162,7 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
 
     private static string GetCourt(JsonElement response)
     {
-        var courts = response.GetProperty("courts").EnumerateArray().ToArray();
+        var courts = RequiredArray(response, "courts").ToArray();
         return courts.Length > 0
             ? RequiredString(courts[0], "name")
             : RequiredString(response, "county");
@@ -162,12 +171,32 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
     private static string? GetCrawlerSourceName(JsonElement response) =>
         response.TryGetProperty("crawler", out var crawler) ? OptionalString(crawler, "source_name") : null;
 
+    private static JsonElement RequiredObject(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.Object)
+        {
+            throw InvalidSchema(propertyName);
+        }
+
+        return value;
+    }
+
+    private static JsonElement.ArrayEnumerator RequiredArray(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.Array)
+        {
+            throw InvalidSchema(propertyName);
+        }
+
+        return value.EnumerateArray();
+    }
+
     private static string RequiredString(JsonElement element, string propertyName)
     {
         var value = OptionalString(element, propertyName);
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new InvalidOperationException($"Judit process field '{propertyName}' is required.");
+            throw InvalidSchema(propertyName);
         }
 
         return value;
@@ -175,13 +204,53 @@ public sealed class JuditProcessSourceAdapter : IProcessSourceAdapter
 
     private static string? OptionalString(JsonElement element, string propertyName)
     {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw InvalidSchema(propertyName);
+        }
+
         if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return null;
         }
 
+        if (value.ValueKind != JsonValueKind.String)
+        {
+            throw InvalidSchema(propertyName);
+        }
+
         return value.GetString()?.Trim();
     }
+
+    private static decimal? OptionalDecimal(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out var amount))
+        {
+            throw InvalidSchema(propertyName);
+        }
+
+        return amount;
+    }
+
+    private static int RequiredInt32(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value)
+            || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetInt32(out var result))
+        {
+            throw InvalidSchema(propertyName);
+        }
+
+        return result;
+    }
+
+    private static ArgumentException InvalidSchema(string propertyName) =>
+        new("Judit process source schema is invalid.", propertyName);
 
     private static DateTimeOffset ParseDateTimeOffset(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);

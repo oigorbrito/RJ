@@ -9,6 +9,7 @@ public sealed class LegalCase
         string court,
         string phase,
         string status,
+        int secrecyLevel,
         decimal? amount,
         IReadOnlyList<LegalCaseParty> parties,
         IReadOnlyList<LegalCaseLawyer> lawyers,
@@ -27,13 +28,15 @@ public sealed class LegalCase
         Court = Required(court, nameof(court));
         Phase = Required(phase, nameof(phase));
         Status = Required(status, nameof(status));
-        Amount = amount;
+        SecrecyLevel = RequireNonNegativeSecrecyLevel(secrecyLevel);
+        Amount = RequireNonNegativeAmount(amount);
         Parties = RequireItems(parties, nameof(parties));
         Lawyers = RequireList(lawyers, nameof(lawyers));
         Classifications = RequireItems(classifications, nameof(classifications));
         Subjects = RequireItems(subjects, nameof(subjects));
         Steps = RequireItems(steps, nameof(steps));
         Attachments = RequireList(attachments, nameof(attachments));
+        RequireAttachmentsReferenceObservedSteps(Steps, Attachments);
         Provenance = RequireItems(provenance, nameof(provenance));
     }
 
@@ -48,6 +51,8 @@ public sealed class LegalCase
     public string Phase { get; }
 
     public string Status { get; }
+
+    public int SecrecyLevel { get; }
 
     public decimal? Amount { get; }
 
@@ -90,6 +95,37 @@ public sealed class LegalCase
     {
         ArgumentNullException.ThrowIfNull(items, parameterName);
         return items.ToArray();
+    }
+
+    private static decimal? RequireNonNegativeAmount(decimal? amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentException("Legal case amount cannot be negative.", nameof(amount));
+        }
+
+        return amount;
+    }
+
+    private static int RequireNonNegativeSecrecyLevel(int secrecyLevel)
+    {
+        if (secrecyLevel < 0)
+        {
+            throw new ArgumentException("Legal case secrecy level cannot be negative.", nameof(secrecyLevel));
+        }
+
+        return secrecyLevel;
+    }
+
+    private static void RequireAttachmentsReferenceObservedSteps(
+        IReadOnlyList<LegalCaseStep> steps,
+        IReadOnlyList<LegalCaseAttachment> attachments)
+    {
+        var stepIds = steps.Select(step => step.Id).ToHashSet(StringComparer.Ordinal);
+        if (attachments.Any(attachment => !stepIds.Contains(attachment.StepId)))
+        {
+            throw new ArgumentException("Legal case attachment must reference an observed process step.", nameof(attachments));
+        }
     }
 }
 

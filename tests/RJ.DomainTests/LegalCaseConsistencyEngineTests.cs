@@ -8,6 +8,7 @@ public sealed class LegalCaseConsistencyEngineTests
 {
     private static readonly string[] ExpectedStatusValues = ["ATIVO", "BAIXADO"];
     private static readonly string[] ExpectedStatusSources = ["Judit", "DataJud"];
+    private static readonly string[] ExpectedSecrecyValues = ["0", "1"];
 
     private static readonly DateTimeOffset ObservedAt =
         DateTimeOffset.Parse("2026-09-02T18:51:04.800Z", CultureInfo.InvariantCulture);
@@ -16,7 +17,7 @@ public sealed class LegalCaseConsistencyEngineTests
     public void Analyze_reports_deterministic_field_inconsistencies_without_merging_values()
     {
         var judit = Case("judit-id", "Judit", "ATIVO", "INICIAL", "page_data[0].response_data.status");
-        var dataJud = Case("datajud-id", "DataJud", "BAIXADO", "INICIAL", "items[0].status");
+        var dataJud = Case("datajud-id", "DataJud", "BAIXADO", "INICIAL", "items[0].status", secrecyLevel: 1);
 
         var first = LegalCaseConsistencyEngine.Analyze(new[] { judit, dataJud });
         var second = LegalCaseConsistencyEngine.Analyze(new[] { dataJud, judit });
@@ -29,6 +30,10 @@ public sealed class LegalCaseConsistencyEngineTests
         Assert.Equal(LegalCaseConsistencyStatus.Inconsistent, status.Status);
         Assert.Equal(ExpectedStatusValues, status.Observations.Select(item => item.Value));
         Assert.Equal(ExpectedStatusSources, status.Observations.Select(item => item.SourceName));
+
+        var secrecy = Assert.Single(first.Inconsistencies, item => item.FieldPath == "secrecy_level");
+        Assert.Equal(LegalCaseConsistencyStatus.Inconsistent, secrecy.Status);
+        Assert.Equal(ExpectedSecrecyValues, secrecy.Observations.Select(item => item.Value));
 
         Assert.Contains(first.Findings, item => item.FieldPath == "phase" && item.Status == LegalCaseConsistencyStatus.Consistent);
     }
@@ -48,7 +53,8 @@ public sealed class LegalCaseConsistencyEngineTests
         string status,
         string phase,
         string observedPath,
-        string cnj = "6003160-36.2026.8.16.0021") =>
+        string cnj = "6003160-36.2026.8.16.0021",
+        int secrecyLevel = 0) =>
         new(
             new LegalCaseId(id),
             new LegalCaseCnj(cnj),
@@ -56,6 +62,7 @@ public sealed class LegalCaseConsistencyEngineTests
             "CASCAVEL - VARA DA FAZENDA PUBLICA",
             phase,
             status,
+            secrecyLevel,
             30000m,
             new[] { new LegalCaseParty("GISELE DE OLIVEIRA GALLI", "Active", "AUTOR", "***.271.359-**") },
             Array.Empty<LegalCaseLawyer>(),
@@ -78,6 +85,13 @@ public sealed class LegalCaseConsistencyEngineTests
                     $"{id}.json",
                     "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
                     "phase",
+                    ObservedAt),
+                new LegalCaseFieldProvenance(
+                    "secrecy_level",
+                    sourceName,
+                    $"{id}.json",
+                    "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+                    "secrecy_level",
                     ObservedAt)
             });
 }

@@ -20,7 +20,7 @@ public sealed class ProcessSourceCanonicalizationService
 
         if (!adapters.TryGetValue(source.SourceSystem, out var adapter))
         {
-            throw new InvalidOperationException($"No process source adapter is registered for '{source.SourceSystem}'.");
+            throw new InvalidOperationException("No process source adapter is registered for the requested source system.");
         }
 
         return adapter.Canonicalize(source);

@@ -317,6 +317,264 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
+    public async Task Submit_sanitizes_malformed_raw_json_errors()
+    {
+        const string sensitiveRawContent = "{ \"cpf\": \"02727135971\", ";
+        var service = CreateService();
+        var request = Request("idem-malformed-json", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("cpf", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_malformed_process_source_schema_errors()
+    {
+        const string sensitiveRawContent = "{ \"cpf\": \"02727135971\" }";
+        var service = CreateService();
+        var request = Request("idem-malformed-schema", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("page_data", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_missing_required_process_source_fields()
+    {
+        const string sensitiveRawContent = """
+            {
+              "page_data": [
+                {
+                  "response_type": "lawsuit",
+                  "response_data": {
+                    "name": "case with cpf 02727135971"
+                  }
+                }
+              ]
+            }
+            """;
+        var service = CreateService();
+        var request = Request("idem-missing-required-source-field", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("code", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_missing_lawsuit_process_source_page()
+    {
+        const string sensitiveRawContent = """
+            {
+              "page_data": [
+                {
+                  "response_type": "summary",
+                  "response_data": {
+                    "iaSummary": "resumo com cpf 02727135971"
+                  }
+                }
+              ]
+            }
+            """;
+        var service = CreateService();
+        var request = Request("idem-missing-lawsuit-source-page", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("iaSummary", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_non_array_process_source_pages()
+    {
+        const string sensitiveRawContent = """
+            {
+              "page_data": {
+                "cpf": "02727135971"
+              }
+            }
+            """;
+        var service = CreateService();
+        var request = Request("idem-non-array-source-pages", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("page_data", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_non_object_process_source_page_items()
+    {
+        const string sensitiveRawContent = """
+            {
+              "page_data": [
+                "cpf 02727135971"
+              ]
+            }
+            """;
+        var service = CreateService();
+        var request = Request("idem-non-object-source-page-item", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("response_type", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_non_object_process_source_response()
+    {
+        const string sensitiveRawContent = """
+            {
+              "page_data": [
+                {
+                  "response_type": "lawsuit",
+                  "response_data": "cpf 02727135971"
+                }
+              ]
+            }
+            """;
+        var service = CreateService();
+        var request = Request("idem-non-object-source-response", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("response_data", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_non_array_required_process_source_collections()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"parties\":[", "\"parties\":{\"cpf\":\"02727135971\",\"items\":[", StringComparison.Ordinal)
+            .Replace("\"courts\":[", "]} ,\"courts\":[", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-non-array-source-collection", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("parties", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_invalid_process_source_amount_type()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"amount\":30000", "\"amount\":\"30000 with cpf 02727135971\"", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-invalid-source-amount-type", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("amount", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_invalid_process_source_secrecy_level_type()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"secrecy_level\":0", "\"secrecy_level\":\"0 with cpf 02727135971\"", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-invalid-source-secrecy-level-type", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("secrecy_level", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_negative_process_source_secrecy_level()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"secrecy_level\":0", "\"secrecy_level\":-1", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-negative-source-secrecy-level", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("Legal case secrecy level cannot be negative", error.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secrecy", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_invalid_process_source_step_date()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"step_date\":\"2026-09-02T16:09:16.000Z\"", "\"step_date\":\"not-a-date with cpf 02727135971\"", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-invalid-source-step-date", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("step_date", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_invalid_process_source_attachment_date()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"attachment_date\":\"2026-09-02T15:56:04.000Z\"", "\"attachment_date\":\"not-a-date with cpf 02727135971\"", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-invalid-source-attachment-date", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("attachment_date", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Submit_sanitizes_null_request_errors()
     {
         var result = await ProcessSummaryEndpoint.SubmitAsync(null!, CreateService(), CancellationToken.None);

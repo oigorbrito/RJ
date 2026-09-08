@@ -18,12 +18,18 @@ public sealed class ProcessSummaryValidatorTests
             false,
             null,
             [
-                new GenerationClaim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**", []),
-                new GenerationClaim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA", []),
-                new GenerationClaim("Fase: INICIAL", []),
-                new GenerationClaim("Status: ATIVO", []),
-                new GenerationClaim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**", []),
-                new GenerationClaim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)", [])
+                Claim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**"),
+                Claim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA"),
+                Claim("Juizo: CASCAVEL - VARA DA FAZENDA PUBLICA"),
+                Claim("Fase: INICIAL"),
+                Claim("Status: ATIVO"),
+                Claim("Sigilo: 0"),
+                Claim("Valor da causa: 30000"),
+                Claim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**"),
+                Claim("Advogado: ANDREIA BELO ROSSO; OAB: PR0035553"),
+                Claim("Classe: 436 - PROCEDIMENTO DO JUIZADO ESPECIAL CIVEL"),
+                Claim("Assunto: 899 - DIREITO CIVIL"),
+                Claim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)")
             ]);
 
         var result = ProcessSummaryValidator.Validate(legalCase, output);
@@ -40,8 +46,8 @@ public sealed class ProcessSummaryValidatorTests
             false,
             null,
             [
-                new GenerationClaim("CPF: 027.271.359-71", []),
-                new GenerationClaim("CNPJ: 10.172.255/0001-95", [])
+                Claim("CPF: 027.271.359-71"),
+                Claim("CNPJ: 10.172.255/0001-95")
             ]);
 
         var result = ProcessSummaryValidator.Validate(legalCase, output);
@@ -58,9 +64,9 @@ public sealed class ProcessSummaryValidatorTests
             false,
             null,
             [
-                new GenerationClaim("CNJ relacionado 5003160-53.2026.8.16.0021", []),
-                new GenerationClaim("A parte provavelmente deve ganhar.", []),
-                new GenerationClaim("O anexo comprova o pedido inicial.", [])
+                Claim("CNJ relacionado 5003160-53.2026.8.16.0021"),
+                Claim("A parte provavelmente deve ganhar."),
+                Claim("O anexo comprova o pedido inicial.")
             ]);
 
         var result = ProcessSummaryValidator.Validate(legalCase, output);
@@ -72,23 +78,123 @@ public sealed class ProcessSummaryValidatorTests
     }
 
     [Fact]
+    public void Validate_rejects_abstention_when_canonical_process_evidence_is_available()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(true, "insufficient evidence", []);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Process summary abstained despite available canonical process evidence.", result.Errors);
+    }
+
+    [Fact]
+    public void Validate_rejects_uncited_factual_claims()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(
+            false,
+            null,
+            [
+                new GenerationClaim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**", []),
+                Claim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA"),
+                Claim("Juizo: CASCAVEL - VARA DA FAZENDA PUBLICA"),
+                Claim("Fase: INICIAL"),
+                Claim("Status: ATIVO"),
+                Claim("Sigilo: 0"),
+                Claim("Valor da causa: 30000"),
+                Claim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**"),
+                Claim("Advogado: ANDREIA BELO ROSSO; OAB: PR0035553"),
+                Claim("Classe: 436 - PROCEDIMENTO DO JUIZADO ESPECIAL CIVEL"),
+                Claim("Assunto: 899 - DIREITO CIVIL"),
+                Claim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)")
+            ]);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Summary contains an uncited factual claim.", result.Errors);
+    }
+
+    [Fact]
     public void Validate_rejects_missing_canonical_process_coverage()
     {
         var legalCase = Case();
         var output = new GenerationModelOutput(
             false,
             null,
-            [new GenerationClaim("CNJ: 6003160-36.2026.8.16.0021", [])]);
+            [Claim("CNJ: 6003160-36.2026.8.16.0021")]);
 
         var result = ProcessSummaryValidator.Validate(legalCase, output);
 
         Assert.False(result.IsValid);
         Assert.Contains("Summary does not mention the canonical case name.", result.Errors);
+        Assert.Contains("Summary does not mention the canonical court.", result.Errors);
         Assert.Contains("Summary does not mention the canonical phase.", result.Errors);
         Assert.Contains("Summary does not mention the canonical status.", result.Errors);
+        Assert.Contains("Summary does not mention the canonical secrecy level.", result.Errors);
         Assert.Contains("Summary does not mention every canonical party name.", result.Errors);
+        Assert.Contains("Summary does not mention the canonical amount.", result.Errors);
+        Assert.Contains("Summary does not mention every canonical lawyer.", result.Errors);
+        Assert.Contains("Summary does not mention every canonical classification.", result.Errors);
+        Assert.Contains("Summary does not mention every canonical subject.", result.Errors);
         Assert.Contains("Summary movement claim count does not match the canonical inline movement count.", result.Errors);
         Assert.Contains("Summary does not mention every canonical movement date.", result.Errors);
+    }
+
+    [Fact]
+    public void Validate_rejects_missing_required_classification_and_subject_sections()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(
+            false,
+            null,
+            [
+                Claim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**"),
+                Claim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA"),
+                Claim("Juizo: CASCAVEL - VARA DA FAZENDA PUBLICA"),
+                Claim("Fase: INICIAL"),
+                Claim("Status: ATIVO"),
+                Claim("Sigilo: 0"),
+                Claim("Valor da causa: 30000"),
+                Claim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**"),
+                Claim("Advogado: ANDREIA BELO ROSSO; OAB: PR0035553"),
+                Claim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)")
+            ]);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Summary does not mention every canonical classification.", result.Errors);
+        Assert.Contains("Summary does not mention every canonical subject.", result.Errors);
+    }
+
+    [Fact]
+    public void Validate_rejects_missing_required_lawyer_section()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(
+            false,
+            null,
+            [
+                Claim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**"),
+                Claim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA"),
+                Claim("Juizo: CASCAVEL - VARA DA FAZENDA PUBLICA"),
+                Claim("Fase: INICIAL"),
+                Claim("Status: ATIVO"),
+                Claim("Sigilo: 0"),
+                Claim("Valor da causa: 30000"),
+                Claim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**"),
+                Claim("Classe: 436 - PROCEDIMENTO DO JUIZADO ESPECIAL CIVEL"),
+                Claim("Assunto: 899 - DIREITO CIVIL"),
+                Claim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)")
+            ]);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Summary does not mention every canonical lawyer.", result.Errors);
     }
 
     [Fact]
@@ -110,12 +216,18 @@ public sealed class ProcessSummaryValidatorTests
             false,
             null,
             [
-                new GenerationClaim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**", []),
-                new GenerationClaim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA", []),
-                new GenerationClaim("Fase: INICIAL", []),
-                new GenerationClaim("Status: ATIVO", []),
-                new GenerationClaim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**", []),
-                new GenerationClaim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)", [])
+                Claim("CNJ: 6003160-36.2026.8.16.0021; documento: ***.271.359-**"),
+                Claim("Nome: GISELE DE OLIVEIRA GALLI X CASIO BRASIL COMERCIO DE PRODUTOS ELETRONICOS LTDA"),
+                Claim("Juizo: CASCAVEL - VARA DA FAZENDA PUBLICA"),
+                Claim("Fase: INICIAL"),
+                Claim("Status: ATIVO"),
+                Claim("Sigilo: 0"),
+                Claim("Valor da causa: 30000"),
+                Claim("Parte: GISELE DE OLIVEIRA GALLI; polo: Active; tipo: AUTOR; documento: ***.271.359-**"),
+                Claim("Advogado: ANDREIA BELO ROSSO; OAB: PR0035553"),
+                Claim("Classe: 436 - PROCEDIMENTO DO JUIZADO ESPECIAL CIVEL"),
+                Claim("Assunto: 899 - DIREITO CIVIL"),
+                Claim("Movimentacao: 02/09/2026 15:51; id: 66b03cfa; 1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)")
             ]);
 
         var result = ProcessSummaryValidator.Validate(legalCase, output, consistency);
@@ -132,9 +244,10 @@ public sealed class ProcessSummaryValidatorTests
             "CASCAVEL - VARA DA FAZENDA PUBLICA",
             "INICIAL",
             "ATIVO",
+            0,
             30000m,
             new[] { new LegalCaseParty("GISELE DE OLIVEIRA GALLI", "Active", "AUTOR", "***.271.359-**") },
-            Array.Empty<LegalCaseLawyer>(),
+            new[] { new LegalCaseLawyer("ANDREIA BELO ROSSO", "PR0035553") },
             new[] { new LegalCaseClassification("436", "PROCEDIMENTO DO JUIZADO ESPECIAL CIVEL") },
             new[] { new LegalCaseSubject("899", "DIREITO CIVIL") },
             new[] { new LegalCaseStep("66b03cfa", ObservedAt, "1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)", "source") },
@@ -149,4 +262,7 @@ public sealed class ProcessSummaryValidatorTests
                     "page_data[0].response_data.code",
                     ObservedAt)
             });
+
+    private static GenerationClaim Claim(string text) =>
+        new(text, [new GenerationCitation("doc-1", new string('a', 64), 0, text.Length)]);
 }

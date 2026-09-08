@@ -47,6 +47,7 @@ public static class LegalCaseMergeService
             primary.Court,
             primary.Phase,
             primary.Status,
+            primary.SecrecyLevel,
             primary.Amount,
             primary.Parties,
             primary.Lawyers,

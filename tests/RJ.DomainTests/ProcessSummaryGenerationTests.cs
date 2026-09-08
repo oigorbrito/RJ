@@ -40,6 +40,10 @@ public sealed class ProcessSummaryGenerationTests
             first.Claims.SelectMany(claim => claim.Citations),
             second.Claims.SelectMany(claim => claim.Citations));
         Assert.Contains(first.Claims, claim => claim.Text.StartsWith("CNJ:", StringComparison.Ordinal));
+        Assert.Contains(first.Claims, claim => claim.Text.StartsWith("Juizo:", StringComparison.Ordinal));
+        Assert.Contains(first.Claims, claim => claim.Text.StartsWith("Valor da causa:", StringComparison.Ordinal));
+        Assert.Contains(first.Claims, claim => claim.Text.StartsWith("Advogado:", StringComparison.Ordinal));
+        Assert.Contains(first.Claims, claim => claim.Text.StartsWith("Sigilo:", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -90,6 +94,7 @@ public sealed class ProcessSummaryGenerationTests
             legalCase.Court,
             legalCase.Phase,
             "BAIXADO",
+            legalCase.SecrecyLevel,
             legalCase.Amount,
             legalCase.Parties,
             legalCase.Lawyers,

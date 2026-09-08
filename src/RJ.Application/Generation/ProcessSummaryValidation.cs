@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using RJ.Application.Sources;
 using RJ.Domain.Cases;
@@ -23,6 +24,7 @@ public static partial class ProcessSummaryValidator
 
         if (output.Abstained)
         {
+            errors.Add("Process summary abstained despite available canonical process evidence.");
             return new ProcessSummaryValidationResult(errors.Count == 0, errors);
         }
 
@@ -30,6 +32,11 @@ public static partial class ProcessSummaryValidator
 
         foreach (var claim in output.Claims)
         {
+            if (claim.Citations is null || claim.Citations.Count == 0)
+            {
+                errors.Add("Summary contains an uncited factual claim.");
+            }
+
             if (!claim.Text.Contains(legalCase.Cnj.Value, StringComparison.Ordinal)
                 && CnjPattern().IsMatch(claim.Text))
             {
@@ -71,6 +78,11 @@ public static partial class ProcessSummaryValidator
             errors.Add("Summary does not mention the canonical case name.");
         }
 
+        if (!ContainsClaim(output, legalCase.Court))
+        {
+            errors.Add("Summary does not mention the canonical court.");
+        }
+
         if (!ContainsClaim(output, legalCase.Phase))
         {
             errors.Add("Summary does not mention the canonical phase.");
@@ -81,11 +93,49 @@ public static partial class ProcessSummaryValidator
             errors.Add("Summary does not mention the canonical status.");
         }
 
+        if (!ContainsClaim(output, $"Sigilo: {legalCase.SecrecyLevel.ToString(CultureInfo.InvariantCulture)}"))
+        {
+            errors.Add("Summary does not mention the canonical secrecy level.");
+        }
+
         foreach (var party in legalCase.Parties)
         {
             if (!ContainsClaim(output, party.Name))
             {
                 errors.Add("Summary does not mention every canonical party name.");
+                break;
+            }
+        }
+
+        if (legalCase.Amount.HasValue
+            && !ContainsClaim(output, legalCase.Amount.Value.ToString("0.##", CultureInfo.InvariantCulture)))
+        {
+            errors.Add("Summary does not mention the canonical amount.");
+        }
+
+        foreach (var lawyer in legalCase.Lawyers)
+        {
+            if (!ContainsClaim(output, lawyer.Name) || !ContainsClaim(output, lawyer.Oab))
+            {
+                errors.Add("Summary does not mention every canonical lawyer.");
+                break;
+            }
+        }
+
+        foreach (var classification in legalCase.Classifications)
+        {
+            if (!ContainsClaim(output, classification.Name))
+            {
+                errors.Add("Summary does not mention every canonical classification.");
+                break;
+            }
+        }
+
+        foreach (var subject in legalCase.Subjects)
+        {
+            if (!ContainsClaim(output, subject.Name))
+            {
+                errors.Add("Summary does not mention every canonical subject.");
                 break;
             }
         }

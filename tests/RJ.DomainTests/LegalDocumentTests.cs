@@ -87,6 +87,7 @@ public sealed class LegalDocumentTests
     [InlineData("6003160-00.2026.8.16.0021")]
     [InlineData("6003160-36.2026.8.16")]
     [InlineData("6003160-36.2026.8.16.A021")]
+    [InlineData("\uFF16\uFF10\uFF10\uFF13\uFF11\uFF16\uFF10\uFF13\uFF16\uFF12\uFF10\uFF12\uFF16\uFF18\uFF11\uFF16\uFF10\uFF10\uFF12\uFF11")]
     public void Legal_case_cnj_rejects_invalid_process_numbers(string value)
     {
         Assert.Throws<ArgumentException>(() => new LegalCaseCnj(value));

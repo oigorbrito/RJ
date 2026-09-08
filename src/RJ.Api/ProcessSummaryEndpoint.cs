@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using RJ.Application.Generation;
 using RJ.Application.Security;
 using RJ.Application.Sources;
@@ -73,6 +74,14 @@ public static class ProcessSummaryEndpoint
             return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
         }
         catch (FormatException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
+        }
+        catch (KeyNotFoundException)
         {
             return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
         }

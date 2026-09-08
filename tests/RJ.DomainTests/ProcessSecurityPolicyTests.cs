@@ -72,6 +72,7 @@ public sealed class ProcessSecurityPolicyTests
             "CASCAVEL - VARA DA FAZENDA PUBLICA",
             "INICIAL",
             "ATIVO",
+            sealedCase ? 1 : 0,
             30000m,
             new[] { new LegalCaseParty("GISELE DE OLIVEIRA GALLI", "Active", "AUTOR", "***.271.359-**") },
             Array.Empty<LegalCaseLawyer>(),

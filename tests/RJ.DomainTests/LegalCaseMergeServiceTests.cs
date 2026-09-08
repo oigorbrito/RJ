@@ -62,6 +62,7 @@ public sealed class LegalCaseMergeServiceTests
             "CASCAVEL - VARA DA FAZENDA PUBLICA",
             "INICIAL",
             status,
+            0,
             30000m,
             new[] { new LegalCaseParty("GISELE DE OLIVEIRA GALLI", "Active", "AUTOR", "***.271.359-**") },
             Array.Empty<LegalCaseLawyer>(),

@@ -41,7 +41,10 @@ public sealed class ProcessSourceCanonicalizationServiceTests
             "{}",
             ObservedAt);
 
-        Assert.Throws<InvalidOperationException>(() => service.Canonicalize(source));
+        var exception = Assert.Throws<InvalidOperationException>(() => service.Canonicalize(source));
+
+        Assert.Equal("No process source adapter is registered for the requested source system.", exception.Message);
+        Assert.DoesNotContain("other-source", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -71,6 +74,7 @@ public sealed class ProcessSourceCanonicalizationServiceTests
                 "CASCAVEL - VARA DA FAZENDA PUBLICA",
                 "INICIAL",
                 "ATIVO",
+                0,
                 30000m,
                 new[] { new LegalCaseParty("GISELE DE OLIVEIRA GALLI", "Active", "AUTOR", "02727135971") },
                 Array.Empty<LegalCaseLawyer>(),

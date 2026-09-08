@@ -30,10 +30,7 @@ public static class ProcessSecurityPolicy
     public static ProcessRetentionPolicy DefaultRetentionPolicy() =>
         new("rjudi-process-summary-v1", TimeSpan.FromDays(90), TimeSpan.FromDays(30));
 
-    private static bool IsSealed(LegalCase legalCase) =>
-        legalCase.Provenance.Any(item =>
-            item.FieldPath.Equals("secrecy", StringComparison.OrdinalIgnoreCase)
-            || item.FieldPath.Equals("secrecy_level", StringComparison.OrdinalIgnoreCase));
+    private static bool IsSealed(LegalCase legalCase) => legalCase.SecrecyLevel > 0;
 }
 
 public sealed record ProcessSecurityDecision(bool IsAllowed, string? DenialReason)

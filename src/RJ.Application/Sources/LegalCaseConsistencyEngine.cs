@@ -28,6 +28,7 @@ public static class LegalCaseConsistencyEngine
             Check(cases, "court", legalCase => legalCase.Court),
             Check(cases, "phase", legalCase => legalCase.Phase),
             Check(cases, "status", legalCase => legalCase.Status),
+            Check(cases, "secrecy_level", legalCase => legalCase.SecrecyLevel.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             Check(cases, "amount", legalCase => legalCase.Amount?.ToString("0.#############################", System.Globalization.CultureInfo.InvariantCulture) ?? "NAO OBSERVADO"),
             Check(cases, "parties", legalCase => Join(legalCase.Parties.Select(item => $"{item.Name}|{item.Side}|{item.PersonType}|{item.MainDocument ?? string.Empty}"))),
             Check(cases, "lawyers", legalCase => Join(legalCase.Lawyers.Select(item => $"{item.Name}|{item.Oab}"))),
