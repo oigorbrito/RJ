@@ -1,6 +1,9 @@
 {
   "protocol_version": "rjudi-process-benchmark-protocol-v1",
   "scope": "single-case deterministic process-summary qualification",
+  "research_question": "Under identical admitted case evidence, oracle, prompt version and execution configuration, does a challenger satisfy every non-compensable RJudi safety/correctness gate and improve one or more pre-specified measured outcomes without worsening another outcome enough to make the comparison inconclusive?",
+  "experimental_unit": "one admitted legal process case evaluated against its independently versioned structured oracle",
+  "population_scope": "claims are limited to the admitted cases, source artifacts, environments and treatments actually executed; single-case evidence does not establish cross-case, cross-tribunal or production generalization",
   "corpus": {
     "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
     "case_id": "response_60031603620268160021_1",
@@ -23,6 +26,33 @@
     "comparison_unit": "same case, same oracle, same fixture bytes, same prompt version",
     "baseline": "deterministic-process-summary-v1",
     "challenger_required_before_promotion": true
+  },
+  "pre_specified_measurements": [
+    "non_compensable_gate_results_by_case",
+    "validator_failure_codes_by_case",
+    "exact_citation_gate_result",
+    "raw_pii_gate_result",
+    "oracle_leakage_gate_result",
+    "attachment_content_invention_gate_result",
+    "retrieval_call_count",
+    "generation_latency_when_applicable",
+    "retrieval_latency_when_applicable",
+    "provider_cost_when_applicable",
+    "privacy_boundary_result"
+  ],
+  "measurement_rules": [
+    "measurements_are_retained_per_case_before_any_aggregation",
+    "not_executed_measurement_is_NOT_TESTED_not_PASS",
+    "environment_or_external_dependency_failure_is_reported_separately_from_treatment_failure",
+    "no_post_hoc_metric_can_become_an_acceptance_rule_for_this_protocol_version"
+  ],
+  "run_configuration": {
+    "seed": "record_when_treatment_uses_randomness_otherwise_NOT_APPLICABLE",
+    "runtime": "record_exact_runtime_and_sdk_version",
+    "dependencies": "record_resolved_dependency_versions",
+    "git_commit": "record_exact_executed_commit",
+    "commands": "record_exact_commands_and_exit_codes",
+    "raw_artifacts": "retain raw logs/results and protocol deviations"
   },
   "failure_retention": {
     "enabled": true,
@@ -57,7 +87,15 @@
     "fixture_sha256_mismatch_blocks_run",
     "oracle_sha256_mismatch_blocks_run",
     "prompt_version_change_requires_new_protocol_version",
-    "candidate_promotion_requires_paired_artifact"
+    "candidate_promotion_requires_paired_artifact",
+    "if_pre_specified_measurements_do_not_distinguish_candidates_without_tradeoff_the_result_is_NO_CLEAR_WINNER"
+  ],
+  "validity_threats": [
+    "current protocol contains one real legal process fixture and one tribunal",
+    "the deterministic fake is a control treatment and does not demonstrate external model quality",
+    "attachment binary acquisition parser and OCR are not demonstrated by metadata-only fixture evidence",
+    "external provider latency cost and privacy measurements remain NOT_TESTED until their treatments are admitted and executed",
+    "results must not be generalized beyond admitted population treatments measurements and environments"
   ],
   "status": "formal_protocol_only_no_external_model_promotion"
 }

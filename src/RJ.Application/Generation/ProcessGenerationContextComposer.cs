@@ -182,7 +182,11 @@ public sealed class ProcessGenerationContextComposer(GenerationContextBuilder bu
                 throw new InvalidOperationException("Attachment content must reference an observed attachment metadata record.");
             }
 
-            yield return new ProcessEvidenceSection($"Anexo conteudo observado: id: {content.AttachmentId}; sha256: {content.ContentSha256}; texto: {ProcessNormalization.NormalizeStepContent(content.ExtractedText)}");
+            foreach (var chunk in ProcessAttachmentChunker.Chunk(content))
+            {
+                yield return new ProcessEvidenceSection(
+                    $"Anexo conteudo observado: id: {chunk.AttachmentId}; sha256: {chunk.ContentSha256}; chunk: {chunk.ChunkIndex}; token_start: {chunk.TokenStart}; token_count: {chunk.TokenCount}; texto: {ProcessNormalization.NormalizeStepContent(chunk.Text)}");
+            }
         }
     }
 

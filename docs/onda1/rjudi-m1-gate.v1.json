@@ -11,7 +11,7 @@
   "process_oracle": "docs/onda1/rj-process-oracle.v1.json",
   "process_oracle_sha256": "a1f3830168e6994bc42dff924b024971ff39e9695e808c11cbe856024f9f00ce",
   "benchmark_protocol": "docs/onda1/rjudi-process-benchmark-protocol.v1.json",
-  "benchmark_protocol_sha256": "a73a760fc355834d3a7e82356e7e540f275ac66e8638f45af20e8d7f43ba437a",
+  "benchmark_protocol_sha256": "d21c0f671a922b1803ab600c225d52f9050583f61ed55ed0137fdca7202cd9fa",
   "required_evidence": [
     "current_mvp_preserved",
     "case_001_canonicalized",
