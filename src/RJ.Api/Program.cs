@@ -36,7 +36,6 @@ builder.Services.AddSingleton<LegalDocumentQueryService>();
 builder.Services.AddSingleton<GenerationContextBuilder>();
 builder.Services.AddSingleton<GenerationContextService>();
 builder.Services.AddSingleton<IProcessSourceAdapter, JuditProcessSourceAdapter>();
-builder.Services.AddSingleton<IProcessSourceAdapter, DataJudProcessSourceAdapter>();
 builder.Services.AddSingleton<ProcessSourceCanonicalizationService>();
 builder.Services.AddSingleton<ProcessGenerationContextComposer>();
 builder.Services.AddSingleton<IGenerationModel, DeterministicProcessSummaryModel>();

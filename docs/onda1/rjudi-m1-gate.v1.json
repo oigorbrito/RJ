@@ -74,7 +74,7 @@
     "Wave1CorpusContractTests",
     "ProcessSourceCanonicalizationServiceTests",
     "JuditProcessSourceAdapterTests",
-    "DataJudProcessSourceAdapterTests",
+
     "ProcessNormalizationTests",
     "LegalCaseMergeServiceTests",
     "LegalCaseConsistencyEngineTests",
