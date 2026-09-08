@@ -15,6 +15,13 @@ public static class ProcessSummaryEndpoint
     {
         try
         {
+            ArgumentNullException.ThrowIfNull(request);
+
+            if (request.AttachmentContents.Any(item => item is null))
+            {
+                return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
+            }
+
             if (Encoding.UTF8.GetByteCount(request.RawContent) > IngestionLimits.MaxRawContentBytes)
             {
                 return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
@@ -57,6 +64,10 @@ public static class ProcessSummaryEndpoint
                 cancellationToken);
             return Results.Accepted($"/api/process-summaries/jobs/{job.JobId}", ToResponse(job));
         }
+        catch (ArgumentNullException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
+        }
         catch (ArgumentException)
         {
             return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
@@ -67,7 +78,7 @@ public static class ProcessSummaryEndpoint
         }
         catch (InvalidOperationException exception)
         {
-            return Results.Conflict(new ProcessSummaryError(exception.Message));
+            return Results.Conflict(new ProcessSummaryError(ToPublicConflictError(exception)));
         }
         catch (UnauthorizedAccessException)
         {
@@ -77,14 +88,28 @@ public static class ProcessSummaryEndpoint
 
     public static IResult GetJob(string jobId, ProcessSummaryJobService service)
     {
-        var job = service.GetJob(jobId);
-        return job is null ? Results.NotFound() : Results.Ok(ToResponse(job));
+        try
+        {
+            var job = service.GetJob(jobId);
+            return job is null ? Results.NotFound() : Results.Ok(ToResponse(job));
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+        }
     }
 
     public static IResult GetValidatedSummary(string jobId, ProcessSummaryJobService service)
     {
-        var output = service.GetValidatedSummary(jobId);
-        return output is null ? Results.NotFound() : Results.Ok(output);
+        try
+        {
+            var output = service.GetValidatedSummary(jobId);
+            return output is null ? Results.NotFound() : Results.Ok(output);
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+        }
     }
 
     public static IResult GetRefreshPlan(
@@ -94,6 +119,7 @@ public static class ProcessSummaryEndpoint
     {
         try
         {
+            ArgumentNullException.ThrowIfNull(request);
             var plan = service.GetRefreshPlan(jobId, request.CurrentSnapshotSha256, request.CurrentSummaryVersion);
             return plan is null
                 ? Results.NotFound()
@@ -101,6 +127,10 @@ public static class ProcessSummaryEndpoint
                     plan.Action.ToString(),
                     plan.Reason,
                     plan.RequiresScheduler));
+        }
+        catch (ArgumentNullException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary refresh plan request."));
         }
         catch (ArgumentException)
         {
@@ -122,11 +152,23 @@ public static class ProcessSummaryEndpoint
         job.ValidatedAt,
         job.Status.ToString(),
         job.Validation.IsValid,
-        job.Validation.Errors,
+        ToPublicValidationErrors(job),
         job.History.Select(item => new ProcessSummaryJobEventResponse(
             item.Status.ToString(),
             item.ObservedAt,
             item.Reason)).ToArray());
+
+    private static IReadOnlyList<string> ToPublicValidationErrors(ProcessSummaryJob job) =>
+        job.Validation.IsValid ? [] : ["process_summary_validation_failed"];
+
+    private static string ToPublicConflictError(InvalidOperationException exception) =>
+        exception.Message switch
+        {
+            "Idempotency key is already bound to a different process snapshot." => exception.Message,
+            "Attachment content must belong to the canonical legal case." => exception.Message,
+            "Attachment content must reference observed attachment metadata." => exception.Message,
+            _ => "Process summary request could not be completed."
+        };
 }
 
 public sealed record ProcessSummaryRequest(

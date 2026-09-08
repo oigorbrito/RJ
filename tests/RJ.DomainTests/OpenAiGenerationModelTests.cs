@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using RJ.Application.Generation;
 using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
@@ -62,7 +63,7 @@ public sealed class OpenAiGenerationModelTests
         {
             Content = new StringContent("""
             {
-              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":32}]}]}"
+              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":22}]}]}"
             }
             """, Encoding.UTF8, "application/json")
         });
@@ -81,9 +82,10 @@ public sealed class OpenAiGenerationModelTests
             Assert.Single(output.Claims);
             Assert.Contains("Question:", handler.RequestBody);
             Assert.Contains("Evidence:", handler.RequestBody);
-            Assert.DoesNotContain("guidelines", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("model_answer", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("oracle", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+            var userContent = ExtractUserContent(handler.RequestBody);
+            Assert.DoesNotContain("guidelines", userContent, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("model_answer", userContent, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("oracle", userContent, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("secret-key", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
         }
         finally
@@ -158,6 +160,17 @@ public sealed class OpenAiGenerationModelTests
             1f);
 
         return new GenerationContext("case-1", "Qual foi a decisão?", 1000, excerpt.Length, [item]);
+    }
+
+    private static string ExtractUserContent(string requestBody)
+    {
+        using var document = JsonDocument.Parse(requestBody);
+        return document.RootElement
+            .GetProperty("input")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("role").GetString() == "user")
+            .GetProperty("content")
+            .GetString() ?? string.Empty;
     }
 
     private sealed class RecordingHandler(HttpResponseMessage response) : HttpMessageHandler

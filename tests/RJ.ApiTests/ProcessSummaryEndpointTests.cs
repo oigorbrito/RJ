@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RJ.Api;
@@ -55,6 +56,72 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
+    public async Task Get_validated_summary_returns_not_found_for_failed_validation_job()
+    {
+        var service = CreateService(new IncompleteProcessSummaryModel());
+        var submit = await ProcessSummaryEndpoint.SubmitAsync(
+            Request("idem-failed-validation", File.ReadAllText(FixturePath)),
+            service,
+            CancellationToken.None);
+        var job = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)submit).Value);
+
+        Assert.Equal(StatusCodes.Status202Accepted, ((IStatusCodeHttpResult)submit).StatusCode);
+        Assert.Equal("Failed", job.Status);
+        Assert.False(job.IsValid);
+
+        var result = ProcessSummaryEndpoint.GetValidatedSummary(job.JobId, service);
+
+        Assert.Equal(StatusCodes.Status404NotFound, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_failed_validation_response()
+    {
+        const string rawCpf = "027.271.359-71";
+        var service = CreateService(new RawPiiProcessSummaryModel(rawCpf));
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(
+            Request("idem-failed-validation-pii", File.ReadAllText(FixturePath)),
+            service,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status202Accepted, ((IStatusCodeHttpResult)result).StatusCode);
+        var response = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)result).Value);
+        Assert.Equal("Failed", response.Status);
+        Assert.False(response.IsValid);
+        Assert.Equal(["process_summary_validation_failed"], response.Errors);
+        Assert.DoesNotContain("Summary contains an unmasked CPF or CNPJ.", response.Errors);
+        Assert.DoesNotContain(rawCpf, JsonSerializer.Serialize(response), StringComparison.Ordinal);
+        Assert.DoesNotContain("02727135971", JsonSerializer.Serialize(response), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Get_job_sanitizes_failed_validation_response()
+    {
+        const string rawCpf = "027.271.359-71";
+        var service = CreateService(new RawPiiProcessSummaryModel(rawCpf));
+        var submit = await ProcessSummaryEndpoint.SubmitAsync(
+            Request("idem-failed-validation-pii-get", File.ReadAllText(FixturePath)),
+            service,
+            CancellationToken.None);
+        var submitted = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)submit).Value);
+
+        var result = ProcessSummaryEndpoint.GetJob(submitted.JobId, service);
+
+        Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
+        var response = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)result).Value);
+        Assert.Equal(submitted.JobId, response.JobId);
+        Assert.Equal(submitted.SnapshotSha256, response.SnapshotSha256);
+        Assert.Equal(submitted.SummaryVersion, response.SummaryVersion);
+        Assert.Equal("Failed", response.Status);
+        Assert.False(response.IsValid);
+        Assert.Equal(["process_summary_validation_failed"], response.Errors);
+        Assert.Equal(submitted.Errors, response.Errors);
+        Assert.DoesNotContain(rawCpf, JsonSerializer.Serialize(response), StringComparison.Ordinal);
+        Assert.DoesNotContain("02727135971", JsonSerializer.Serialize(response), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Submit_is_idempotent_for_same_key_and_same_snapshot()
     {
         var service = CreateService();
@@ -91,6 +158,28 @@ public sealed class ProcessSummaryEndpointTests
         var result = ProcessSummaryEndpoint.GetJob("missing", CreateService());
 
         Assert.Equal(StatusCodes.Status404NotFound, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [Fact]
+    public void Get_job_sanitizes_invalid_job_id()
+    {
+        var result = ProcessSummaryEndpoint.GetJob(" ", CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary job request.", error.Error);
+        Assert.DoesNotContain("Value cannot be empty", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Get_validated_summary_sanitizes_invalid_job_id()
+    {
+        var result = ProcessSummaryEndpoint.GetValidatedSummary(" ", CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary job request.", error.Error);
+        Assert.DoesNotContain("Value cannot be empty", error.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -170,11 +259,39 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
+    public async Task Submit_rejects_unknown_request_attachment_content_with_fixed_conflict()
+    {
+        const string sensitiveAttachmentText = "ATO ORDINATORIO OBSERVADO com cpf 02727135971";
+        var service = CreateService();
+        var request = Request(
+            "idem-8",
+            File.ReadAllText(FixturePath),
+            attachmentContents:
+            [
+                new ProcessAttachmentContentRequest(
+                    "response_60031603620268160021_1",
+                    "unknown-attachment",
+                    "attachment-extractor",
+                    "attachments/unknown.html",
+                    sensitiveAttachmentText,
+                    "2026-09-07T20:00:00.000Z")
+            ]);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status409Conflict, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Attachment content must reference observed attachment metadata.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(sensitiveAttachmentText, error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Submit_sanitizes_invalid_date_parse_errors()
     {
         const string sensitiveDate = "not-a-date with cpf 02727135971 and path C:/secret/source.json";
         var service = CreateService();
-        var request = Request("idem-8", File.ReadAllText(FixturePath)) with { ObservedAt = sensitiveDate };
+        var request = Request("idem-9", File.ReadAllText(FixturePath)) with { ObservedAt = sensitiveDate };
 
         var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
 
@@ -186,10 +303,92 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
+    public async Task Submit_sanitizes_null_raw_content_errors()
+    {
+        var service = CreateService();
+        var request = Request("idem-10", null!);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("Value cannot be null", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_null_request_errors()
+    {
+        var result = await ProcessSummaryEndpoint.SubmitAsync(null!, CreateService(), CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("Value cannot be null", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_null_attachment_content_items()
+    {
+        var request = Request(
+            "idem-11",
+            File.ReadAllText(FixturePath),
+            attachmentContents: [null!]);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, CreateService(), CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_null_attachment_text_errors()
+    {
+        var service = CreateService();
+        var request = Request(
+            "idem-12",
+            File.ReadAllText(FixturePath),
+            attachmentContents:
+            [
+                new ProcessAttachmentContentRequest(
+                    "response_60031603620268160021_1",
+                    "411788364428621657023616086781",
+                    "attachment-extractor",
+                    "attachments/411788364428621657023616086781.html",
+                    null!,
+                    "2026-09-07T20:00:00.000Z")
+            ]);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("ExtractedText", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_unexpected_conflict_messages()
+    {
+        const string sensitiveSourceSystem = "unknown-source-with-cpf-02727135971";
+        var service = CreateService();
+        var request = Request("idem-13", File.ReadAllText(FixturePath)) with { SourceSystem = sensitiveSourceSystem };
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status409Conflict, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Process summary request could not be completed.", error.Error);
+        Assert.DoesNotContain(sensitiveSourceSystem, error.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Submit_rejects_oversized_raw_content_before_canonicalization()
     {
         var service = CreateService();
-        var request = Request("idem-9", new string('x', IngestionLimits.MaxRawContentBytes + 1));
+        var request = Request("idem-14", new string('x', IngestionLimits.MaxRawContentBytes + 1));
 
         var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
 
@@ -201,7 +400,7 @@ public sealed class ProcessSummaryEndpointTests
     {
         var service = CreateService();
         var request = Request(
-            "idem-10",
+            "idem-15",
             File.ReadAllText(FixturePath),
             attachmentContents:
             [
@@ -233,7 +432,7 @@ public sealed class ProcessSummaryEndpointTests
                 "2026-09-07T20:00:00.000Z"))
             .ToArray();
         var request = Request(
-            "idem-11",
+            "idem-16",
             File.ReadAllText(FixturePath),
             attachmentContents: attachmentContents);
 
@@ -243,12 +442,17 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
-    public void Refresh_plan_sanitizes_invalid_request_errors()
+    public async Task Refresh_plan_sanitizes_invalid_request_errors()
     {
         var service = CreateService();
+        var submit = await ProcessSummaryEndpoint.SubmitAsync(
+            Request("idem-17", File.ReadAllText(FixturePath)),
+            service,
+            CancellationToken.None);
+        var job = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)submit).Value);
 
         var result = ProcessSummaryEndpoint.GetRefreshPlan(
-            "missing",
+            job.JobId,
             new ProcessSummaryRefreshPlanRequest(" ", "version with cpf 02727135971"),
             service);
 
@@ -256,6 +460,79 @@ public sealed class ProcessSummaryEndpointTests
         var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
         Assert.Equal("Invalid process summary refresh plan request.", error.Error);
         Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refresh_plan_sanitizes_invalid_request_before_missing_job()
+    {
+        var result = ProcessSummaryEndpoint.GetRefreshPlan(
+            "missing",
+            new ProcessSummaryRefreshPlanRequest(" ", "version with cpf 02727135971"),
+            CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary refresh plan request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refresh_plan_sanitizes_invalid_version_before_missing_job()
+    {
+        var result = ProcessSummaryEndpoint.GetRefreshPlan(
+            "missing",
+            new ProcessSummaryRefreshPlanRequest(new string('a', 64), " "),
+            CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary refresh plan request.", error.Error);
+    }
+
+    [Fact]
+    public void Refresh_plan_sanitizes_malformed_snapshot_hash_before_missing_job()
+    {
+        var result = ProcessSummaryEndpoint.GetRefreshPlan(
+            "missing",
+            new ProcessSummaryRefreshPlanRequest("not-a-sha256-with-cpf-02727135971", ProcessSummaryPrompt.PromptVersion),
+            CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary refresh plan request.", error.Error);
+        Assert.DoesNotContain("02727135971", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refresh_plan_sanitizes_invalid_job_id()
+    {
+        var result = ProcessSummaryEndpoint.GetRefreshPlan(
+            " ",
+            new ProcessSummaryRefreshPlanRequest(new string('a', 64), ProcessSummaryPrompt.PromptVersion),
+            CreateService());
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary refresh plan request.", error.Error);
+        Assert.DoesNotContain("Value cannot be empty", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Refresh_plan_sanitizes_null_request_errors()
+    {
+        var service = CreateService();
+        var submit = await ProcessSummaryEndpoint.SubmitAsync(
+            Request("idem-18", File.ReadAllText(FixturePath)),
+            service,
+            CancellationToken.None);
+        var job = Assert.IsType<ProcessSummaryJobResponse>(((IValueHttpResult)submit).Value);
+
+        var result = ProcessSummaryEndpoint.GetRefreshPlan(job.JobId, null!, service);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary refresh plan request.", error.Error);
+        Assert.DoesNotContain("Value cannot be null", error.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ProcessSummaryRequest Request(
@@ -279,11 +556,11 @@ public sealed class ProcessSummaryEndpointTests
             authorizedEvidenceSourceNames,
             attachmentContents);
 
-    private static ProcessSummaryJobService CreateService()
+    private static ProcessSummaryJobService CreateService(IGenerationModel? model = null)
     {
         var canonicalization = new ProcessSourceCanonicalizationService(new[] { new JuditProcessSourceAdapter() });
         var composer = new ProcessGenerationContextComposer(new GenerationContextBuilder());
-        var generation = new GenerationService(new DeterministicProcessSummaryModel());
+        var generation = new GenerationService(model ?? new DeterministicProcessSummaryModel());
         return new ProcessSummaryJobService(
             canonicalization,
             composer,
@@ -291,6 +568,44 @@ public sealed class ProcessSummaryEndpointTests
             new FixedClock(SubmittedAt),
             new NoopProcessSummaryTelemetry(),
             new EmptyProcessAttachmentContentStore());
+    }
+
+    private sealed class IncompleteProcessSummaryModel : IGenerationModel
+    {
+        public Task<GenerationModelOutput> GenerateAsync(
+            GenerationContext context,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = context.Items.First(item => item.Excerpt.StartsWith("CNJ:", StringComparison.Ordinal));
+            return Task.FromResult(new GenerationModelOutput(
+                false,
+                null,
+                [
+                    new GenerationClaim(
+                        item.Excerpt,
+                        [new GenerationCitation(item.DocumentId, item.ContentSha256, item.Position.StartOffset, item.Position.Length)])
+                ]));
+        }
+    }
+
+    private sealed class RawPiiProcessSummaryModel(string rawCpf) : IGenerationModel
+    {
+        public Task<GenerationModelOutput> GenerateAsync(
+            GenerationContext context,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = context.Items.First(item => item.Excerpt.StartsWith("CNJ:", StringComparison.Ordinal));
+            return Task.FromResult(new GenerationModelOutput(
+                false,
+                null,
+                [
+                    new GenerationClaim(
+                        $"{item.Excerpt}; CPF observado {rawCpf}",
+                        [new GenerationCitation(item.DocumentId, item.ContentSha256, item.Position.StartOffset, item.Position.Length)])
+                ]));
+        }
     }
 
     private sealed class FixedClock(DateTimeOffset utcNow) : IProcessSummaryClock

@@ -33,13 +33,51 @@ public sealed class ProcessSummaryObservabilityCatalogTests
             Assert.Contains(catalog.Metrics, item => item.Name == metric);
         }
 
+        Assert.Contains(catalog.Metrics, item =>
+            item.Name == "process_summary_duration_ms"
+            && item.Description.Contains("end-to-end", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.submitted"
+            && item.Attributes.Contains("retrieval_calls"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.idempotent_replay"
+            && item.Attributes.Contains("job_id"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.idempotency_conflict"
+            && item.Attributes.Contains("snapshot_sha256"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.forbidden"
+            && item.Attributes.Contains("tenant_id_hash"));
         Assert.Contains(catalog.Traces, item =>
             item.Name == "process_summary.submit"
             && item.Attributes.Contains("snapshot_sha256")
             && item.Attributes.Contains("retrieval_calls"));
         Assert.Contains(catalog.Traces, item =>
             item.Name == "process_summary.refresh_plan"
+            && item.Attributes.Contains("job_id")
+            && item.Attributes.Contains("snapshot_sha256")
+            && item.Attributes.Contains("summary_version")
+            && item.Attributes.Contains("decision")
+            && item.Attributes.Contains("action")
+            && item.Attributes.Contains("reason")
             && item.Attributes.Contains("requires_scheduler"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.freshness"
+            && item.Attributes.Contains("job_id")
+            && item.Attributes.Contains("decision"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.validate"
+            && item.Attributes.Contains("attempts")
+            && item.Attributes.Contains("duration_ms")
+            && item.Attributes.Contains("retried")
+            && item.Attributes.Contains("validation_error_count")
+            && item.Attributes.Contains("validation_error_reason"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.validated"
+            && item.Attributes.Contains("validator_status"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.failed"
+            && item.Attributes.Contains("validation_error_reason"));
         Assert.Contains(catalog.Slos, item => item.Name == "no_sensitive_observability_payload");
         Assert.All(catalog.Slos, item => Assert.Contains("Local contract", item.Scope, StringComparison.Ordinal));
     }

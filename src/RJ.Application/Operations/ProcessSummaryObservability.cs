@@ -77,5 +77,7 @@ public enum ProcessSummaryJobTelemetryStatus
     IdempotencyConflict,
     Forbidden,
     Validated,
-    Failed
+    Failed,
+    Freshness,
+    RefreshPlan
 }

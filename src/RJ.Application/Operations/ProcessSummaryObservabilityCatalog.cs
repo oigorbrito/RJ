@@ -39,14 +39,42 @@ public static class ProcessSummaryObservabilityCatalog
                     "process_summary.submit",
                     ["tenant_id_hash", "subject_id_hash", "case_id", "cnj", "snapshot_sha256", "summary_version", "retrieval_calls"]),
                 new ProcessSummaryTraceDefinition(
+                    "process_summary.submitted",
+                    ["tenant_id_hash", "subject_id_hash", "case_id", "cnj", "snapshot_sha256", "summary_version", "retrieval_calls"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.idempotent_replay",
+                    ["tenant_id_hash", "subject_id_hash", "job_id", "case_id", "cnj", "snapshot_sha256", "summary_version"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.idempotency_conflict",
+                    ["tenant_id_hash", "subject_id_hash", "snapshot_sha256"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.forbidden",
+                    ["tenant_id_hash", "subject_id_hash", "case_id", "cnj", "snapshot_sha256", "summary_version"]),
+                new ProcessSummaryTraceDefinition(
                     "process_summary.validate",
-                    ["case_id", "cnj", "summary_version", "validator_status"]),
+                    [
+                        "case_id",
+                        "cnj",
+                        "summary_version",
+                        "validator_status",
+                        "attempts",
+                        "duration_ms",
+                        "retried",
+                        "validation_error_count",
+                        "validation_error_reason"
+                    ]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.validated",
+                    ["tenant_id_hash", "subject_id_hash", "job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "validator_status", "attempts", "duration_ms", "retried"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.failed",
+                    ["tenant_id_hash", "subject_id_hash", "job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "validator_status", "attempts", "duration_ms", "retried", "validation_error_count", "validation_error_reason"]),
                 new ProcessSummaryTraceDefinition(
                     "process_summary.freshness",
-                    ["case_id", "cnj", "snapshot_sha256", "summary_version", "decision"]),
+                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision"]),
                 new ProcessSummaryTraceDefinition(
                     "process_summary.refresh_plan",
-                    ["case_id", "cnj", "action", "reason", "requires_scheduler"])
+                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision", "action", "reason", "requires_scheduler"])
             ],
             [
                 new ProcessSummarySloDefinition(
