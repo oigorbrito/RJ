@@ -31,18 +31,14 @@ public static class ProcessAttachmentChunker
             throw new InvalidOperationException("Observed attachment content must contain at least one token.");
         }
 
-        var chunks = new List<ProcessAttachmentChunk>();
+        var tokenCounts = PlanTokenCounts(tokens.Count);
+        var chunks = new List<ProcessAttachmentChunk>(tokenCounts.Count);
         var start = 0;
-        var index = 0;
 
-        while (start < tokens.Count)
+        for (var index = 0; index < tokenCounts.Count; index++)
         {
-            var endExclusive = Math.Min(start + TargetTokenCount, tokens.Count);
-            if (start == 0 && tokens.Count <= MaximumTokenCount)
-            {
-                endExclusive = tokens.Count;
-            }
-
+            var tokenCount = tokenCounts[index];
+            var endExclusive = start + tokenCount;
             var first = tokens[start];
             var last = tokens[endExclusive - 1];
             var textStart = first.Index;
@@ -54,22 +50,64 @@ public static class ProcessAttachmentChunker
                 content.AttachmentId,
                 index,
                 start,
-                endExclusive - start,
+                tokenCount,
                 text,
                 content.SourceName,
                 content.SourceReference,
                 content.ContentSha256,
                 content.ObservedAt));
 
-            if (endExclusive == tokens.Count)
+            start = endExclusive - OverlapTokenCount;
+        }
+
+        return chunks;
+    }
+
+    private static IReadOnlyList<int> PlanTokenCounts(int totalTokens)
+    {
+        if (totalTokens <= MaximumTokenCount)
+        {
+            return [totalTokens];
+        }
+
+        for (var chunkCount = 2; chunkCount <= totalTokens; chunkCount++)
+        {
+            var totalMemberships = totalTokens + (OverlapTokenCount * (chunkCount - 1));
+            if (totalMemberships < MinimumTokenCount * chunkCount)
+            {
+                continue;
+            }
+
+            if (totalMemberships > MaximumTokenCount * chunkCount)
+            {
+                continue;
+            }
+
+            var baseSize = totalMemberships / chunkCount;
+            var remainder = totalMemberships % chunkCount;
+            var planned = new int[chunkCount];
+            for (var index = 0; index < chunkCount; index++)
+            {
+                planned[index] = baseSize + (index < remainder ? 1 : 0);
+            }
+
+            return planned;
+        }
+
+        var fallback = new List<int>();
+        var start = 0;
+        while (start < totalTokens)
+        {
+            var count = Math.Min(TargetTokenCount, totalTokens - start);
+            fallback.Add(count);
+            if (start + count >= totalTokens)
             {
                 break;
             }
 
-            start = endExclusive - OverlapTokenCount;
-            index++;
+            start += count - OverlapTokenCount;
         }
 
-        return chunks;
+        return fallback;
     }
 }
