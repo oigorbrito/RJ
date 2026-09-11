@@ -2,12 +2,15 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RJ.Api;
+using RJ.Application.Operations;
 using RJ.Application.Security;
 
 namespace RJ.ApiTests;
 
 public sealed class ProcessSummarySecurityBoundaryTests
 {
+    private static readonly DateTimeOffset ObservedAt = DateTimeOffset.Parse("2026-09-11T00:00:00Z");
+
     [Fact]
     public void Resolver_rejects_unauthenticated_principal()
     {
@@ -23,8 +26,7 @@ public sealed class ProcessSummarySecurityBoundaryTests
     public void Resolver_rejects_authenticated_principal_without_required_identity_claims()
     {
         var resolver = new ClaimsProcessSummaryCallerContextResolver();
-        var principal = Principal(
-            new Claim(ClaimTypes.NameIdentifier, "subject-1"));
+        var principal = Principal(new Claim(ClaimTypes.NameIdentifier, "subject-1"));
 
         var resolved = resolver.TryResolve(principal, out var caller);
 
@@ -93,22 +95,31 @@ public sealed class ProcessSummarySecurityBoundaryTests
     }
 
     [Fact]
-    public async Task Submit_boundary_returns_401_before_processing_for_unauthenticated_caller()
+    public async Task Submit_boundary_returns_401_and_audits_before_processing_for_unauthenticated_caller()
     {
         var context = new DefaultHttpContext();
+        var audit = new InMemoryProcessSummaryAuditSink();
         var result = await ProcessSummaryEndpoint.SubmitAuthenticatedAsync(
             context,
             null!,
             new ClaimsProcessSummaryCallerContextResolver(),
             new InMemoryProcessSummaryJobAccessStore(),
+            audit,
+            new FixedClock(ObservedAt),
             null!,
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedHttpResult>(result);
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("process_summary.submit", auditEvent.EventName);
+        Assert.Equal("unauthenticated", auditEvent.Decision);
+        Assert.Equal(ObservedAt, auditEvent.ObservedAt);
+        Assert.Null(auditEvent.TenantIdHash);
+        Assert.Null(auditEvent.SubjectIdHash);
     }
 
     [Fact]
-    public void Read_boundary_hides_unbound_job_from_authenticated_caller()
+    public void Read_boundary_hides_unbound_job_and_audits_denial_for_authenticated_caller()
     {
         var context = new DefaultHttpContext
         {
@@ -118,15 +129,32 @@ public sealed class ProcessSummarySecurityBoundaryTests
                 new Claim(ClaimsProcessSummaryCallerContextResolver.CaseIdClaim, "case-1"),
                 new Claim(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "Judit"))
         };
+        var audit = new InMemoryProcessSummaryAuditSink();
 
         var result = ProcessSummaryEndpoint.GetJobAuthenticated(
             context,
             "job-missing",
             new ClaimsProcessSummaryCallerContextResolver(),
             new InMemoryProcessSummaryJobAccessStore(),
+            audit,
+            new FixedClock(ObservedAt),
             null!);
 
         Assert.IsType<NotFound>(result);
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("process_summary.job.read", auditEvent.EventName);
+        Assert.Equal("not_found_or_denied", auditEvent.Decision);
+        Assert.Equal(64, auditEvent.TenantIdHash!.Length);
+        Assert.Equal(64, auditEvent.SubjectIdHash!.Length);
+        Assert.DoesNotContain("tenant-1", auditEvent.TenantIdHash, StringComparison.Ordinal);
+        Assert.DoesNotContain("subject-1", auditEvent.SubjectIdHash, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Audit_and_telemetry_are_distinct_contracts()
+    {
+        Assert.False(typeof(IProcessSummaryAuditSink).IsAssignableFrom(typeof(IProcessSummaryTelemetry)));
+        Assert.NotEqual(typeof(ProcessSummaryAuditEvent), typeof(ProcessSummaryTelemetryEvent));
     }
 
     private static ClaimsPrincipal Principal(params Claim[] claims) =>
@@ -134,4 +162,9 @@ public sealed class ProcessSummarySecurityBoundaryTests
 
     private static CallerContext Caller(string tenantId, string subjectId, string caseId) =>
         new(tenantId, subjectId, [caseId], false, ["Judit"]);
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : IProcessSummaryClock
+    {
+        public DateTimeOffset UtcNow { get; } = utcNow;
+    }
 }
