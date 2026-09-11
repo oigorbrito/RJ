@@ -7,6 +7,8 @@ public sealed record GenerationEmpiricalObservationPolicy(
     string TreatmentId,
     string ModelId,
     string ModelConfiguration,
+    string ConfigurationReference,
+    string ConfigurationSha256,
     string ClaimRecallMetricId,
     string CitationValidityMetricId,
     string GroundednessMetricId,
@@ -15,6 +17,8 @@ public sealed record GenerationEmpiricalObservationPolicy(
     public string TreatmentId { get; } = EmpiricalTreatmentDefinition.Require(TreatmentId, nameof(TreatmentId));
     public string ModelId { get; } = EmpiricalTreatmentDefinition.Require(ModelId, nameof(ModelId));
     public string ModelConfiguration { get; } = EmpiricalTreatmentDefinition.Require(ModelConfiguration, nameof(ModelConfiguration));
+    public string ConfigurationReference { get; } = EmpiricalTreatmentDefinition.Require(ConfigurationReference, nameof(ConfigurationReference));
+    public string ConfigurationSha256 { get; } = EmpiricalTreatmentDefinition.RequireSha256(ConfigurationSha256, nameof(ConfigurationSha256));
     public string ClaimRecallMetricId { get; } = EmpiricalTreatmentDefinition.Require(ClaimRecallMetricId, nameof(ClaimRecallMetricId));
     public string CitationValidityMetricId { get; } = EmpiricalTreatmentDefinition.Require(CitationValidityMetricId, nameof(CitationValidityMetricId));
     public string GroundednessMetricId { get; } = EmpiricalTreatmentDefinition.Require(GroundednessMetricId, nameof(GroundednessMetricId));
@@ -42,6 +46,19 @@ public sealed record GenerationEmpiricalObservationPolicy(
         {
             throw new InvalidOperationException(
                 $"Generation treatment '{TreatmentId}' policy does not match benchmark model/configuration.");
+        }
+    }
+
+    public void RequireMatches(EmpiricalTreatmentDefinition treatment)
+    {
+        ArgumentNullException.ThrowIfNull(treatment);
+        if (treatment.Kind != EmpiricalTreatmentKind.Generation
+            || !StringComparer.Ordinal.Equals(TreatmentId, treatment.TreatmentId)
+            || !StringComparer.Ordinal.Equals(ConfigurationReference, treatment.ConfigurationReference)
+            || !StringComparer.Ordinal.Equals(ConfigurationSha256, treatment.ConfigurationSha256))
+        {
+            throw new InvalidOperationException(
+                $"Generation materialization policy does not match empirical treatment '{treatment.TreatmentId}'.");
         }
     }
 }
