@@ -9,6 +9,22 @@ public interface IAttachmentArtifactReader
     Task<ReadOnlyMemory<byte>> ReadAsync(string artifactReference, CancellationToken cancellationToken);
 }
 
+public sealed record AttachmentDerivationProvenance(
+    string CaseId,
+    string AttachmentId,
+    string BinarySourceReference,
+    string BinarySha256,
+    string ExtractorId,
+    string ExtractorVersion,
+    string ExtractionMethod,
+    string ExtractedTextReference,
+    string ExtractedTextSha256,
+    DateTimeOffset AcquiredAt,
+    DateTimeOffset ExtractedAt,
+    bool OcrUsed,
+    string? OcrEngineId,
+    string? OcrEngineVersion);
+
 public sealed record AttachmentAdmissionReport(
     string CaseId,
     string AttachmentId,
@@ -17,7 +33,8 @@ public sealed record AttachmentAdmissionReport(
     bool MetadataMatched,
     bool Passed,
     IReadOnlyList<string> Failures,
-    ProcessAttachmentContent? AdmittedContent);
+    ProcessAttachmentContent? AdmittedContent,
+    AttachmentDerivationProvenance? Derivation);
 
 public sealed class AttachmentAdmissionService(IAttachmentArtifactReader artifactReader)
 {
@@ -43,6 +60,7 @@ public sealed class AttachmentAdmissionService(IAttachmentArtifactReader artifac
         var extractedTextVerified = text is not null;
 
         ProcessAttachmentContent? admitted = null;
+        AttachmentDerivationProvenance? derivation = null;
         if (metadataMatched && binaryVerified && extractedTextVerified)
         {
             admitted = new ProcessAttachmentContent(
@@ -60,6 +78,24 @@ public sealed class AttachmentAdmissionService(IAttachmentArtifactReader artifac
                 admitted = null;
                 extractedTextVerified = false;
             }
+            else
+            {
+                derivation = new AttachmentDerivationProvenance(
+                    binary.CaseId,
+                    binary.AttachmentId,
+                    binary.SourceReference,
+                    binary.Sha256.ToLowerInvariant(),
+                    extraction.ExtractorId,
+                    extraction.ExtractorVersion,
+                    extraction.Method,
+                    extraction.ExtractedTextReference,
+                    extraction.ExtractedTextSha256.ToLowerInvariant(),
+                    binary.AcquiredAt,
+                    extraction.ExtractedAt,
+                    extraction.OcrUsed,
+                    extraction.OcrEngineId,
+                    extraction.OcrEngineVersion);
+            }
         }
 
         return new AttachmentAdmissionReport(
@@ -68,9 +104,10 @@ public sealed class AttachmentAdmissionService(IAttachmentArtifactReader artifac
             binaryVerified,
             extractedTextVerified,
             metadataMatched,
-            failures.Count == 0 && admitted is not null,
+            failures.Count == 0 && admitted is not null && derivation is not null,
             failures,
-            admitted);
+            admitted,
+            derivation);
     }
 
     private static bool ValidateMetadata(
