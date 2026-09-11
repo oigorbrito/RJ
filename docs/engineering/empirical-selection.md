@@ -20,7 +20,7 @@ Retrieval identities are semantic experiment labels, not claims that all candida
 Generation identities:
 
 - `G0`: deterministic process-summary fake; implemented control, not a production model;
-- `Gx`: an externally supplied challenger whose exact provider/model/runtime configuration is frozen by SHA-256 before execution.
+- `Gx`: an externally supplied challenger whose exact provider/model/runtime configuration is frozen before execution.
 
 `R1-R3` and `Gx` remain `EMPIRICAL_DECISION_PENDING`. Their labels do not authorize implementation or promotion.
 
@@ -31,11 +31,11 @@ Before observing candidate results, the selection manifest must freeze:
 - research question;
 - EVAL-010 corpus manifest reference and SHA-256;
 - exact baseline and challenger IDs;
-- SHA-256 for each treatment configuration;
+- immutable configuration artifact reference + SHA-256 for both treatments;
 - required metric IDs and direction (`HigherIsBetter` or `LowerIsBetter`);
 - non-compensable gate IDs;
 - exact git commit;
-- runtime;
+- exact `.NET` runtime description;
 - dependency evidence reference + SHA-256;
 - command evidence reference + SHA-256;
 - one raw observation artifact reference + SHA-256 per case/treatment.
@@ -47,9 +47,19 @@ The entire selection manifest is itself verified by SHA-256 before the decision 
 `EmpiricalCaseObservation` retains, per case and treatment:
 
 - execution status: `Pass`, `Fail`, `Blocked`, or `NotTested`;
-- raw pre-specified measurements;
+- pre-specified measurements;
 - failed non-compensable gates;
 - immutable raw artifact reference and SHA-256.
+
+The referenced raw artifact is typed as `rjudi-empirical-raw-observation-v1`. The verifier parses it and requires exact agreement with the manifest for:
+
+- case id;
+- treatment id;
+- execution status;
+- every measurement key/value;
+- failed non-compensable gates.
+
+Therefore a valid file hash alone is insufficient if the manifest copied different metrics from that file.
 
 `NotTested` and `Blocked` are never interpreted as `Pass`.
 
@@ -100,26 +110,34 @@ Tool:
 dotnet run --project tools/RJ.EmpiricalSelectionVerifier/RJ.EmpiricalSelectionVerifier.csproj -- `
   <selection-manifest.json> `
   <expected-selection-manifest-sha256> `
-  <artifact-root>
+  <artifact-root> `
+  <executed-git-commit>
 ```
+
+The canonical Wave I gate supplies `<executed-git-commit>` from `git rev-parse HEAD`.
 
 The verifier checks:
 
-1. exact manifest SHA-256;
+1. exact selection-manifest SHA-256;
 2. manifest schema/invariants;
-3. EVAL-010 corpus manifest artifact hash;
-4. dependency-evidence artifact hash;
-5. command-evidence artifact hash;
-6. every raw observation artifact hash;
-7. paired case set and required metric completeness;
-8. non-compensable gates;
-9. Pareto decision.
+3. manifest git commit equals the actually executed commit;
+4. manifest runtime equals `RuntimeInformation.FrameworkDescription` of the verifier process;
+5. EVAL-010 corpus manifest artifact hash;
+6. baseline configuration artifact hash;
+7. challenger configuration artifact hash;
+8. dependency-evidence artifact hash;
+9. command-evidence artifact hash;
+10. every raw observation artifact hash;
+11. raw observation contents exactly match the manifest observation;
+12. paired case set and required metric completeness;
+13. non-compensable gates;
+14. Pareto decision.
 
 Exit codes:
 
 - `0`: a complete decision artifact was produced (`SelectChallenger`, `KeepBaseline`, or `NoClearWinner`);
 - `2`: comparison is `Blocked` or required external inputs are unavailable;
-- `3`: manifest/integrity/schema evidence is invalid.
+- `3`: manifest/integrity/schema/runtime/commit evidence is invalid.
 
 A verifier exit `0` with `NoClearWinner` is a valid empirical result and must not be converted into a winner by manual weighting.
 
@@ -136,7 +154,9 @@ The gate runs executable local work first:
 1. solution build;
 2. `EmpiricalSelectionServiceTests`;
 3. `EmpiricalSelectionManifestTests`;
-4. `git diff --check`.
+4. `EmpiricalRawObservationArtifactTests`;
+5. `git diff --check`;
+6. resolve exact `git rev-parse HEAD`.
 
 Only after those steps does it require external selection evidence through:
 
@@ -149,7 +169,9 @@ If external evidence is absent, the gate returns `BLOCKED RJ-BLK-003` with exit 
 ## Reproducibility classification
 
 - paired same-case comparison: `REPRODUCIBILITY_SUPPORTED`;
-- immutable hashes for corpus/config/observations/commands/dependencies: `REPRODUCIBILITY_SUPPORTED`;
+- immutable references + hashes for corpus/config/observations/commands/dependencies: `REPRODUCIBILITY_SUPPORTED`;
+- manifest commit/runtime verification against the executing environment: `REPRODUCIBILITY_SUPPORTED`;
+- raw observation → manifest content binding: `REPRODUCIBILITY_SUPPORTED`;
 - pre-specification of metrics and hard gates: `EMPIRICALLY_SUPPORTED` / `REPRODUCIBILITY_SUPPORTED`;
 - prohibition on post-hoc acceptance metrics: `DERIVED_FROM_METHOD`;
 - strict case×metric Pareto rule: `PROJECT_DECISION` chosen to avoid unsupported weighting;
