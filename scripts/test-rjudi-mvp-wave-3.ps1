@@ -48,18 +48,22 @@ $previousUrls = $env:ASPNETCORE_URLS
 $previousDemoMode = $env:RJUDI_DEMO_MODE
 
 try {
+    Write-Host "[wave3] build"
     & dotnet build RJ.slnx --configuration Release
     if ($LASTEXITCODE -ne 0) { Fail "Build failed." }
     $steps.Add([pscustomobject]@{ name = "build"; status = "PASS"; exitCode = 0 })
 
+    Write-Host "[wave3] api tests"
     & dotnet test .\tests\RJ.ApiTests\RJ.ApiTests.csproj --configuration Release --no-build
     if ($LASTEXITCODE -ne 0) { Fail "RJ.ApiTests failed." }
     $steps.Add([pscustomobject]@{ name = "api-tests"; status = "PASS"; exitCode = 0 })
 
+    Write-Host "[wave3] migration"
     & dotnet run --project .\tools\RJ.DatabaseMigrator\RJ.DatabaseMigrator.csproj
     if ($LASTEXITCODE -ne 0) { Fail "Database migration failed." }
     $steps.Add([pscustomobject]@{ name = "migration"; status = "PASS"; exitCode = 0 })
 
+    Write-Host "[wave3] seed"
     & dotnet run --project .\tools\RJ.DemoSeeder\RJ.DemoSeeder.csproj -- (Join-Path $repoRoot "demo-data\processes.json")
     if ($LASTEXITCODE -ne 0) { Fail "Demo seed failed." }
     $steps.Add([pscustomobject]@{ name = "seed"; status = "PASS"; exitCode = 0 })
@@ -75,6 +79,7 @@ try {
     $env:RJUDI_DEMO_MODE = "true"
     $env:ASPNETCORE_URLS = $ApiUrl
 
+    Write-Host "[wave3] starting API provider=openai model=$env:RJ_GENERATION_MODEL url=$ApiUrl"
     $apiProcess = Start-Process dotnet `
         -ArgumentList @("run", "--project", ".\src\RJ.Api\RJ.Api.csproj", "--no-build") `
         -WorkingDirectory $repoRoot `
@@ -99,7 +104,8 @@ try {
             Start-Sleep -Milliseconds 500
         }
     }
-    if (-not $healthy) { Fail "API did not become healthy within the startup window." }
+    if (-not $healthy) { Fail "API did not become healthy within the startup window. See $apiErr" }
+    Write-Host "[wave3] API healthy"
     $steps.Add([pscustomobject]@{ name = "api-health-openai"; status = "PASS"; exitCode = 0 })
 
     $rawProcess = Get-Content $fixtureFullPath -Raw
@@ -114,11 +120,22 @@ try {
     }
     $body = $request | ConvertTo-Json -Depth 20
 
-    $submission = Invoke-RestMethod `
-        -Method Post `
-        -Uri "$ApiUrl/api/process-summaries/jobs" `
-        -ContentType "application/json" `
-        -Body $body
+    Write-Host "[wave3] submitting live OpenAI process summary (bounded request timeout: 90s)"
+    try {
+        $submission = Invoke-RestMethod `
+            -Method Post `
+            -Uri "$ApiUrl/api/process-summaries/jobs" `
+            -ContentType "application/json" `
+            -Body $body `
+            -TimeoutSec 90
+    }
+    catch {
+        Write-Host "[wave3] submission failed or timed out. API stderr: $apiErr"
+        if (Test-Path $apiErr) { Get-Content $apiErr -Tail 80 }
+        Write-Host "[wave3] API stdout: $apiOut"
+        if (Test-Path $apiOut) { Get-Content $apiOut -Tail 80 }
+        throw
+    }
 
     if ([string]::IsNullOrWhiteSpace($submission.jobId)) {
         Fail "Process-summary submission did not return jobId."
@@ -130,8 +147,10 @@ try {
         Fail "Live OpenAI process summary was not validated. status=$($submission.status) isValid=$($submission.isValid)"
     }
 
+    Write-Host "[wave3] reading validated summary"
     $validated = Invoke-RestMethod `
-        -Uri "$ApiUrl/api/process-summaries/jobs/$($submission.jobId)/validated-summary"
+        -Uri "$ApiUrl/api/process-summaries/jobs/$($submission.jobId)/validated-summary" `
+        -TimeoutSec 30
 
     $claims = @($validated.claims)
     if ($claims.Count -lt 1) {
