@@ -29,7 +29,8 @@ builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
 builder.Services.AddSingleton<IReadinessProbe, PostgresReadinessProbe>();
 builder.Services.AddSingleton<IProcessSummaryClock, SystemProcessSummaryClock>();
-builder.Services.AddSingleton<IProcessSummaryTelemetry, NoopProcessSummaryTelemetry>();
+builder.Services.AddSingleton<IProcessSummaryTelemetry, LoggingProcessSummaryTelemetry>();
+builder.Services.AddSingleton<IProcessSummaryAuditSink, LoggingProcessSummaryAuditSink>();
 builder.Services.AddSingleton<IProcessSummaryCallerContextResolver, ClaimsProcessSummaryCallerContextResolver>();
 builder.Services.AddSingleton<IProcessSummaryJobAccessStore, InMemoryProcessSummaryJobAccessStore>();
 builder.Services.AddSingleton<IProcessAttachmentContentStore, EmptyProcessAttachmentContentStore>();
