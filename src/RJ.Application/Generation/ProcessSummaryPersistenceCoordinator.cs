@@ -61,7 +61,7 @@ public sealed class ProcessSummaryPersistenceCoordinator(
 
         telemetry.Record(Event(
             result.Created ? "process_summary.persisted" : "process_summary.persistence_race_replay",
-            result.Created ? ProcessSummaryJobTelemetryStatus.Validated : ProcessSummaryJobTelemetryStatus.IdempotentReplay,
+            result.Created ? ToTelemetryStatus(result.Job.Status) : ProcessSummaryJobTelemetryStatus.IdempotentReplay,
             result.Job,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -136,6 +136,14 @@ public sealed class ProcessSummaryPersistenceCoordinator(
             status,
             clock.UtcNow,
             tags);
+
+    private static ProcessSummaryJobTelemetryStatus ToTelemetryStatus(ProcessSummaryJobStatus status) =>
+        status switch
+        {
+            ProcessSummaryJobStatus.Validated => ProcessSummaryJobTelemetryStatus.Validated,
+            ProcessSummaryJobStatus.Failed => ProcessSummaryJobTelemetryStatus.Failed,
+            _ => ProcessSummaryJobTelemetryStatus.Submitted
+        };
 
     private static string Require(string value, string parameterName)
     {
