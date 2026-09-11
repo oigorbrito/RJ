@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 
 namespace RJ.Application.Attachments;
@@ -42,6 +41,14 @@ public sealed record AttachmentAdmissionManifest(
         ArgumentNullException.ThrowIfNull(Extraction);
         Binary.Validate();
         Extraction.Validate();
+
+        var canonicalCaseId = Path.GetFileNameWithoutExtension(CanonicalSourceReference);
+        if (!StringComparer.Ordinal.Equals(canonicalCaseId, Binary.CaseId))
+        {
+            throw new InvalidOperationException(
+                "Canonical source reference file name must derive the same case id as the attachment binary evidence.");
+        }
+
         return this;
     }
 
