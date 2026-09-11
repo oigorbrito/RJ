@@ -84,6 +84,12 @@ try
         var raw = EmpiricalRawObservationArtifact.Parse(rawBytes).Validate();
         raw.RequireMatches(observation);
 
+        var treatment = StringComparer.Ordinal.Equals(raw.TreatmentId, manifest.Baseline.TreatmentId)
+            ? manifest.Baseline
+            : StringComparer.Ordinal.Equals(raw.TreatmentId, manifest.Challenger.TreatmentId)
+                ? manifest.Challenger
+                : throw new InvalidOperationException($"Unknown observation treatment '{raw.TreatmentId}'.");
+
         var sourceBytes = await VerifyArtifactAsync(
             artifactRoot,
             raw.SourceArtifactReference,
@@ -95,11 +101,11 @@ try
             raw.MaterializationPolicySha256,
             $"materialization policy for observation {observation.CaseId}/{observation.TreatmentId}");
 
-        byte[] expectedBytes = manifest.Baseline.Kind switch
+        byte[] expectedBytes = treatment.Kind switch
         {
-            EmpiricalTreatmentKind.Generation => RematerializeGeneration(raw, sourceBytes, policyBytes, policyJsonOptions),
-            EmpiricalTreatmentKind.Retrieval => RematerializeRetrieval(raw, sourceBytes, policyBytes, policyJsonOptions),
-            _ => throw new InvalidOperationException($"Unsupported empirical treatment kind '{manifest.Baseline.Kind}'.")
+            EmpiricalTreatmentKind.Generation => RematerializeGeneration(raw, sourceBytes, policyBytes, treatment, policyJsonOptions),
+            EmpiricalTreatmentKind.Retrieval => RematerializeRetrieval(raw, sourceBytes, policyBytes, treatment, policyJsonOptions),
+            _ => throw new InvalidOperationException($"Unsupported empirical treatment kind '{treatment.Kind}'.")
         };
 
         if (!rawBytes.AsSpan().SequenceEqual(expectedBytes))
@@ -154,17 +160,14 @@ static byte[] RematerializeGeneration(
     EmpiricalRawObservationArtifact raw,
     byte[] sourceBytes,
     byte[] policyBytes,
+    EmpiricalTreatmentDefinition treatment,
     JsonSerializerOptions policyJsonOptions)
 {
     var report = GenerationBenchmarkJson.Parse(sourceBytes);
     var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Generation materialization policy produced no document.");
     policy.Validate().RequireMatches(report);
-    if (!StringComparer.Ordinal.Equals(policy.TreatmentId, raw.TreatmentId))
-    {
-        throw new InvalidOperationException(
-            $"Generation materialization policy treatment '{policy.TreatmentId}' does not match raw observation treatment '{raw.TreatmentId}'.");
-    }
+    policy.RequireMatches(treatment);
 
     var rematerialized = new GenerationEmpiricalObservationMaterializer().Materialize(
         report,
@@ -182,17 +185,14 @@ static byte[] RematerializeRetrieval(
     EmpiricalRawObservationArtifact raw,
     byte[] sourceBytes,
     byte[] policyBytes,
+    EmpiricalTreatmentDefinition treatment,
     JsonSerializerOptions policyJsonOptions)
 {
     var report = RetrievalBenchmarkJson.Parse(sourceBytes);
     var policy = JsonSerializer.Deserialize<RetrievalEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Retrieval materialization policy produced no document.");
     policy.Validate().RequireMatches(report);
-    if (!StringComparer.Ordinal.Equals(policy.TreatmentId, raw.TreatmentId))
-    {
-        throw new InvalidOperationException(
-            $"Retrieval materialization policy treatment '{policy.TreatmentId}' does not match raw observation treatment '{raw.TreatmentId}'.");
-    }
+    policy.RequireMatches(treatment);
 
     var rematerialized = new RetrievalEmpiricalObservationMaterializer().Materialize(
         report,
