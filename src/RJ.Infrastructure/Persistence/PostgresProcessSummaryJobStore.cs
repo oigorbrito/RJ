@@ -60,7 +60,7 @@ public sealed class PostgresProcessSummaryJobStore(NpgsqlDataSource dataSource) 
                 created_at,
                 updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
-            ON CONFLICT (scoped_idempotency_key) DO NOTHING
+            ON CONFLICT DO NOTHING
             RETURNING job_json::text;
             """);
         command.Parameters.AddWithValue(Require(job.JobId, nameof(job.JobId)));
