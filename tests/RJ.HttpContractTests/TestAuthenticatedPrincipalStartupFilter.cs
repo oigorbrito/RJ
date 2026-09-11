@@ -8,6 +8,8 @@ namespace RJ.HttpContractTests;
 
 internal sealed class TestAuthenticatedPrincipalStartupFilter : IStartupFilter
 {
+    public const string CaseHeader = "X-RJ-Test-Case-Id";
+
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
     {
         app.Use(async (context, continuation) =>
@@ -20,10 +22,14 @@ internal sealed class TestAuthenticatedPrincipalStartupFilter : IStartupFilter
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "a.txt"),
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "b.txt"),
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "decisao.txt"),
-                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "large.txt")
+                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "large.txt"),
+                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "Judit")
             };
 
-            var caseId = ResolveCaseIdFromPath(context.Request.Path)
+            var caseId = context.Request.Headers.TryGetValue(CaseHeader, out var headerCaseId)
+                ? headerCaseId.FirstOrDefault()
+                : null;
+            caseId ??= ResolveCaseIdFromPath(context.Request.Path)
                 ?? await ResolveCaseIdFromJsonBodyAsync(context.Request);
             if (!string.IsNullOrWhiteSpace(caseId))
             {
