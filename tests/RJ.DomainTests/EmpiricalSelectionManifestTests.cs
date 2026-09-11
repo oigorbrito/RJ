@@ -42,7 +42,7 @@ public sealed class EmpiricalSelectionManifestTests
         {
             Observations =
             [
-                Observation("r0") with { FailedNonCompensableGates = ["undeclared_gate"] },
+                Observation("r0", EmpiricalExecutionStatus.Fail, ["undeclared_gate"]),
                 Observation("r1")
             ]
         };
@@ -105,17 +105,20 @@ public sealed class EmpiricalSelectionManifestTests
     private static EmpiricalTreatmentDefinition Treatment(string id, EmpiricalTreatmentKind kind) =>
         new(id, kind, Sha($"config:{id}"), $"Treatment {id}");
 
-    private static EmpiricalCaseObservation Observation(string treatmentId) =>
+    private static EmpiricalCaseObservation Observation(
+        string treatmentId,
+        EmpiricalExecutionStatus status = EmpiricalExecutionStatus.Pass,
+        IReadOnlyList<string>? failedGates = null) =>
         new(
             "case-1",
             treatmentId,
-            EmpiricalExecutionStatus.Pass,
+            status,
             new Dictionary<string, double>
             {
                 ["quality"] = 0.8,
                 ["latency_ms"] = 100
             },
-            [],
+            failedGates ?? [],
             $"raw/case-1-{treatmentId}.json",
             Sha($"raw:{treatmentId}"));
 
