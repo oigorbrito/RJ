@@ -19,5 +19,6 @@
     <Project Path="tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj" />
     <Project Path="tools/RJ.EmpiricalSelectionVerifier/RJ.EmpiricalSelectionVerifier.csproj" />
     <Project Path="tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csproj" />
+    <Project Path="tools/RJ.GenerationObservationMaterializer/RJ.GenerationObservationMaterializer.csproj" />
   </Folder>
 </Solution>
