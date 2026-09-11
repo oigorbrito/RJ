@@ -82,6 +82,11 @@ try
             $"observation {observation.CaseId}/{observation.TreatmentId}");
         var raw = EmpiricalRawObservationArtifact.Parse(rawBytes).Validate();
         raw.RequireMatches(observation);
+        await VerifyArtifactAsync(
+            artifactRoot,
+            raw.SourceArtifactReference,
+            raw.SourceArtifactSha256,
+            $"source artifact for observation {observation.CaseId}/{observation.TreatmentId}");
     }
 
     var report = new EmpiricalSelectionService().Compare(
