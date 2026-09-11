@@ -12,9 +12,11 @@ public sealed record EmpiricalRawObservationArtifact(
     IReadOnlyList<string> FailedNonCompensableGates,
     DateTimeOffset RecordedAt,
     string SourceArtifactReference,
-    string SourceArtifactSha256)
+    string SourceArtifactSha256,
+    string MaterializationPolicyReference,
+    string MaterializationPolicySha256)
 {
-    public const string SupportedFormatVersion = "rjudi-empirical-raw-observation-v2";
+    public const string SupportedFormatVersion = "rjudi-empirical-raw-observation-v3";
 
     public static EmpiricalRawObservationArtifact Parse(ReadOnlySpan<byte> utf8Json)
     {
@@ -50,6 +52,8 @@ public sealed record EmpiricalRawObservationArtifact(
 
         EmpiricalTreatmentDefinition.Require(SourceArtifactReference, nameof(SourceArtifactReference));
         EmpiricalTreatmentDefinition.RequireSha256(SourceArtifactSha256, nameof(SourceArtifactSha256));
+        EmpiricalTreatmentDefinition.Require(MaterializationPolicyReference, nameof(MaterializationPolicyReference));
+        EmpiricalTreatmentDefinition.RequireSha256(MaterializationPolicySha256, nameof(MaterializationPolicySha256));
 
         if (Measurements.Any(item => string.IsNullOrWhiteSpace(item.Key) || !double.IsFinite(item.Value)))
         {
