@@ -62,11 +62,11 @@ try {
     $apiOut = Join-Path $artifactRoot "$timestamp-api.stdout.log"
     $apiErr = Join-Path $artifactRoot "$timestamp-api.stderr.log"
 
-    $apiProcess = Start-Process dotnet \
-        -ArgumentList @("run", "--project", ".\src\RJ.Api\RJ.Api.csproj") \
-        -WorkingDirectory $repoRoot \
-        -RedirectStandardOutput $apiOut \
-        -RedirectStandardError $apiErr \
+    $apiProcess = Start-Process dotnet `
+        -ArgumentList @("run", "--project", ".\src\RJ.Api\RJ.Api.csproj") `
+        -WorkingDirectory $repoRoot `
+        -RedirectStandardOutput $apiOut `
+        -RedirectStandardError $apiErr `
         -PassThru
 
     $deadline = (Get-Date).AddSeconds(60)
