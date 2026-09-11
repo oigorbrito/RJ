@@ -15,20 +15,16 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             null,
             null));
 
-        var item = new GenerationEmpiricalObservationMaterializer().Materialize(
-            report,
-            "Gx",
-            "reports/gx.json",
-            new string('a', 64),
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
-            Policy()).Single();
+        var item = Materialize(report, Policy()).Single();
 
         Assert.Equal(EmpiricalExecutionStatus.Pass, item.Artifact.Status);
         Assert.Empty(item.Artifact.FailedNonCompensableGates);
         Assert.Equal(0.75, item.Artifact.Measurements["claim_recall"]);
         Assert.Equal(1.0, item.Artifact.Measurements["citation_validity"]);
         Assert.Equal(0.5, item.Artifact.Measurements["groundedness"]);
+        Assert.Equal("Gx", item.Artifact.TreatmentId);
         Assert.Equal("reports/gx.json", item.Artifact.SourceArtifactReference);
+        Assert.Equal("policies/gx.json", item.Artifact.MaterializationPolicyReference);
         Assert.Equal(EmpiricalSelectionManifest.ComputeSha256(item.ArtifactUtf8Json), item.ArtifactSha256);
     }
 
@@ -42,13 +38,7 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             "System.TimeoutException",
             "Candidate execution failed."));
 
-        var item = new GenerationEmpiricalObservationMaterializer().Materialize(
-            report,
-            "Gx",
-            "reports/gx.json",
-            new string('a', 64),
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
-            Policy()).Single();
+        var item = Materialize(report, Policy()).Single();
 
         Assert.Equal(EmpiricalExecutionStatus.Fail, item.Artifact.Status);
         Assert.Empty(item.Artifact.Measurements);
@@ -60,18 +50,45 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
     {
         var report = Report(new GenerationBenchmarkCaseReport("case-1", false, null, null, null));
 
-        Assert.Throws<InvalidOperationException>(() =>
-            new GenerationEmpiricalObservationMaterializer().Materialize(
-                report,
-                "Gx",
-                "reports/gx.json",
-                new string('a', 64),
-                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
-                Policy()));
+        Assert.Throws<InvalidOperationException>(() => Materialize(report, Policy()));
     }
 
+    [Fact]
+    public void Materialize_rejects_treatment_policy_that_does_not_match_report_model_configuration()
+    {
+        var report = Report(new GenerationBenchmarkCaseReport(
+            "case-1",
+            true,
+            new GenerationEvaluationResult("case-1", false, 1, 1, 1.0, 1.0, 1.0, true),
+            null,
+            null));
+        var wrongPolicy = Policy() with { ModelConfiguration = "different-config" };
+
+        var error = Assert.Throws<InvalidOperationException>(() => Materialize(report, wrongPolicy));
+        Assert.Contains("does not match", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
+        GenerationBenchmarkReport report,
+        GenerationEmpiricalObservationPolicy policy) =>
+        new GenerationEmpiricalObservationMaterializer().Materialize(
+            report,
+            "reports/gx.json",
+            new string('a', 64),
+            "policies/gx.json",
+            new string('c', 64),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            policy);
+
     private static GenerationEmpiricalObservationPolicy Policy() =>
-        new("claim_recall", "citation_validity", "groundedness", "candidate_execution_failure");
+        new(
+            "Gx",
+            "model",
+            "config",
+            "claim_recall",
+            "citation_validity",
+            "groundedness",
+            "candidate_execution_failure");
 
     private static GenerationBenchmarkReport Report(GenerationBenchmarkCaseReport item) =>
         new(
