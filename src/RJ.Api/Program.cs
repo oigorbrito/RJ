@@ -55,6 +55,7 @@ builder.Services.AddSingleton<ProcessSummaryJobService>();
 var app = builder.Build();
 
 app.UseMiddleware<JsonInputExceptionMiddleware>();
+app.UseMiddleware<DemoAuthenticationMiddleware>();
 app.Use(async (context, next) =>
 {
     if (HttpMethods.IsPost(context.Request.Method)
