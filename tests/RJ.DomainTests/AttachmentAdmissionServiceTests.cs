@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using RJ.Application.Attachments;
 using RJ.Domain.Cases;
@@ -31,7 +32,7 @@ public sealed class AttachmentAdmissionServiceTests
                 "pdf",
                 binaryHash,
                 binaryBytes.Length,
-                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00")),
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture)),
             new AttachmentExtractionEvidence(
                 "case-001",
                 "att-1",
@@ -42,7 +43,7 @@ public sealed class AttachmentAdmissionServiceTests
                 "text/att-1.txt",
                 textHash,
                 Encoding.UTF8.GetString(textBytes).Length,
-                DateTimeOffset.Parse("2026-09-11T12:01:00-03:00"),
+                DateTimeOffset.Parse("2026-09-11T12:01:00-03:00", CultureInfo.InvariantCulture),
                 false,
                 null,
                 null),
@@ -148,7 +149,7 @@ public sealed class AttachmentAdmissionServiceTests
             "pdf",
             binaryHash,
             byteLength,
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"));
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture));
 
     private static AttachmentExtractionEvidence Extraction(string binaryHash, string textHash, int textLength) =>
         new(
@@ -161,7 +162,7 @@ public sealed class AttachmentAdmissionServiceTests
             "text/att-1.txt",
             textHash,
             textLength,
-            DateTimeOffset.Parse("2026-09-11T12:01:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:01:00-03:00", CultureInfo.InvariantCulture),
             false,
             null,
             null);
@@ -180,15 +181,15 @@ public sealed class AttachmentAdmissionServiceTests
             [],
             [new LegalCaseClassification("1", "Classe")],
             [new LegalCaseSubject("1", "Assunto")],
-            [new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T00:00:00Z"), "Movimento", "source")],
-            [new LegalCaseAttachment("att-1", "att-1.pdf", "step-1", "pdf", "available", DateTimeOffset.Parse("2026-09-01T00:00:00Z"))],
+            [new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T00:00:00Z", CultureInfo.InvariantCulture), "Movimento", "source")],
+            [new LegalCaseAttachment("att-1", "att-1.pdf", "step-1", "pdf", "available", DateTimeOffset.Parse("2026-09-01T00:00:00Z", CultureInfo.InvariantCulture))],
             [new LegalCaseFieldProvenance(
                 "cnj",
                 "source",
                 "case.json",
                 new string('a', 64),
                 "cnj",
-                DateTimeOffset.Parse("2026-09-01T00:00:00Z"))]);
+                DateTimeOffset.Parse("2026-09-01T00:00:00Z", CultureInfo.InvariantCulture))]);
 
     private sealed class DictionaryAttachmentReader(IReadOnlyDictionary<string, byte[]> artifacts) : IAttachmentArtifactReader
     {

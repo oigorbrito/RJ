@@ -72,7 +72,7 @@ public sealed record GenerationEmpiricalObservationMaterialization(
 
 public sealed class GenerationEmpiricalObservationMaterializer
 {
-    public IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
+    public static IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
         GenerationBenchmarkReport report,
         string sourceReportReference,
         string sourceReportSha256,

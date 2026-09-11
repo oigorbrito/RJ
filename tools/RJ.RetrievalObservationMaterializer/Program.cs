@@ -42,7 +42,7 @@ try
     policy.Validate().RequireMatches(report);
     RequireSafeFileToken(policy.TreatmentId, "treatment-id");
 
-    var materialized = new RetrievalEmpiricalObservationMaterializer().Materialize(
+var materialized = RetrievalEmpiricalObservationMaterializer.Materialize(
         report,
         sourceReportReference,
         expectedReportSha,

@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Benchmarking;
 using RJ.Application.Evaluation;
 
@@ -93,13 +94,13 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
     private static IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
         GenerationBenchmarkReport report,
         GenerationEmpiricalObservationPolicy policy) =>
-        new GenerationEmpiricalObservationMaterializer().Materialize(
+        GenerationEmpiricalObservationMaterializer.Materialize(
             report,
             "reports/gx.json",
             new string('a', 64),
             "policies/gx.json",
             new string('c', 64),
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
             policy);
 
     private static GenerationEmpiricalObservationPolicy Policy() =>

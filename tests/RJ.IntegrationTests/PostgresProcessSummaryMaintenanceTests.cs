@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Generation;
 using RJ.Infrastructure.Persistence;
 
@@ -14,16 +15,16 @@ public sealed class PostgresProcessSummaryMaintenanceTests
         var olderExpired = Job(
             "job-expired",
             ProcessSummaryPrompt.PromptVersion,
-            DateTimeOffset.Parse("2026-01-01T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+            DateTimeOffset.Parse("2026-01-01T00:00:00Z", CultureInfo.InvariantCulture));
         var staleVersion = Job(
             "job-stale",
             "old-version",
-            DateTimeOffset.Parse("2026-02-01T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+            DateTimeOffset.Parse("2026-02-01T00:00:00Z", CultureInfo.InvariantCulture));
         var fresh = Job(
             "job-fresh",
             ProcessSummaryPrompt.PromptVersion,
-            DateTimeOffset.Parse("2026-04-01T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
-        var expiredBefore = DateTimeOffset.Parse("2026-03-01T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+            DateTimeOffset.Parse("2026-04-01T00:00:00Z", CultureInfo.InvariantCulture));
+        var expiredBefore = DateTimeOffset.Parse("2026-03-01T00:00:00Z", CultureInfo.InvariantCulture);
 
         await store.TryCreateAsync(Entry(fresh), CancellationToken.None);
         await store.TryCreateAsync(Entry(staleVersion), CancellationToken.None);

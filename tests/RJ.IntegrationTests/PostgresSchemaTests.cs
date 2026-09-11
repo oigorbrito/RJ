@@ -1,3 +1,4 @@
+using System.Globalization;
 using Npgsql;
 using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
@@ -8,7 +9,7 @@ public sealed class PostgresSchemaTests
 {
     private static readonly int RequiredVersion = int.Parse(
         PostgresSchema.Version,
-        System.Globalization.CultureInfo.InvariantCulture);
+        CultureInfo.InvariantCulture);
 
     [Fact]
     public async Task MigrateAsync_is_idempotent_and_records_expected_version()
@@ -250,7 +251,7 @@ public sealed class PostgresSchemaTests
             "SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;");
         return Convert.ToInt32(
             await command.ExecuteScalarAsync(),
-            System.Globalization.CultureInfo.InvariantCulture);
+            CultureInfo.InvariantCulture);
     }
 
     private static async Task<bool> TableExistsAsync(NpgsqlDataSource dataSource, string tableName)
@@ -263,7 +264,7 @@ public sealed class PostgresSchemaTests
                   AND table_name = $1);
             """);
         command.Parameters.AddWithValue(tableName);
-        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
     private static async Task<bool> ConstraintExistsAsync(
@@ -285,7 +286,7 @@ public sealed class PostgresSchemaTests
         command.Parameters.AddWithValue(tableName);
         command.Parameters.AddWithValue(constraintName);
         command.Parameters.AddWithValue(constraintType);
-        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
     private static async Task<bool> IndexExistsAsync(NpgsqlDataSource dataSource, string indexName)
@@ -303,6 +304,6 @@ public sealed class PostgresSchemaTests
                   AND i.indislive);
             """);
         command.Parameters.AddWithValue(indexName);
-        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 }

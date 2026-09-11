@@ -1,6 +1,8 @@
 using System.Globalization;
 using RJ.Application.Operations;
 
+#pragma warning disable CA1848, CA1873
+
 namespace RJ.Api;
 
 public sealed record ProcessSummaryMaintenanceOptions(
@@ -62,11 +64,12 @@ public sealed class ProcessSummaryMaintenanceHostedService(
         var options = ProcessSummaryMaintenanceOptions.FromConfiguration(configuration);
         if (!options.Enabled)
         {
-            logger.LogInformation("Process-summary maintenance scheduler is disabled because no cadence is configured.");
+            logger.Log(LogLevel.Information, "Process-summary maintenance scheduler is disabled because no cadence is configured.");
             return;
         }
 
-        logger.LogInformation(
+        logger.Log(
+            LogLevel.Information,
             "Process-summary maintenance scheduler enabled with explicit interval {Interval} and batch size {BatchSize}.",
             options.Interval,
             options.BatchSize);
@@ -74,7 +77,8 @@ public sealed class ProcessSummaryMaintenanceHostedService(
         while (!stoppingToken.IsCancellationRequested)
         {
             var result = await maintenance.RunOnceAsync(options.BatchSize, stoppingToken);
-            logger.LogInformation(
+            logger.Log(
+                LogLevel.Information,
                 "Process-summary maintenance run evaluated {EvaluatedCount} jobs and dispatched {DispatchedCount} work items.",
                 result.EvaluatedCount,
                 result.DispatchedCount);
@@ -103,3 +107,5 @@ public sealed class LoggingProcessSummaryRefreshDispatcher(
         return Task.CompletedTask;
     }
 }
+
+#pragma warning restore CA1848, CA1873

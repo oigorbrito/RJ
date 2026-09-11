@@ -78,7 +78,7 @@ public sealed class PostgresProcessSummaryJobStore(NpgsqlDataSource dataSource) 
         var scopedKey = Require(entry.ScopedIdempotencyKey, nameof(entry.ScopedIdempotencyKey));
         var tenantHash = RequireSha256(entry.TenantIdHash, nameof(entry.TenantIdHash));
         var subjectHash = RequireSha256(entry.SubjectIdHash, nameof(entry.SubjectIdHash));
-        var job = entry.Job ?? throw new ArgumentNullException(nameof(entry.Job));
+        var job = entry.Job ?? throw new ArgumentNullException(nameof(entry));
         var snapshotSha256 = RequireSha256(job.SnapshotSha256, nameof(job.SnapshotSha256));
         var jobJson = JsonSerializer.Serialize(job, JsonOptions);
 

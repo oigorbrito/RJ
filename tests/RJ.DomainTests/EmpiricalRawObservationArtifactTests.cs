@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RJ.Application.Benchmarking;
@@ -6,6 +7,10 @@ namespace RJ.DomainTests;
 
 public sealed class EmpiricalRawObservationArtifactTests
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
     [Fact]
     public void RequireMatches_accepts_exact_manifest_observation()
     {
@@ -30,7 +35,7 @@ public sealed class EmpiricalRawObservationArtifactTests
                 ["latency_ms"] = 100
             },
             [],
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
             "reports/r1-generation.json",
             new string('b', 64),
             "policies/r1.json",
@@ -43,10 +48,7 @@ public sealed class EmpiricalRawObservationArtifactTests
     [Fact]
     public void Parse_preserves_string_execution_status_and_provenance()
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(Raw(), new JsonSerializerOptions
-        {
-            Converters = { new JsonStringEnumConverter() }
-        });
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(Raw(), JsonOptions);
 
         var parsed = EmpiricalRawObservationArtifact.Parse(bytes).Validate();
 
@@ -70,11 +72,11 @@ public sealed class EmpiricalRawObservationArtifactTests
                 EmpiricalExecutionStatus.Pass,
                 new Dictionary<string, double> { ["quality"] = 1.0 },
                 [],
-                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
                 "reports/r1-generation.json",
                 new string('b', 64),
                 "policies/r1.json",
-                "bad-hash"));
+                "bad-hash").Validate());
     }
 
     private static EmpiricalCaseObservation Observation() =>
@@ -103,7 +105,7 @@ public sealed class EmpiricalRawObservationArtifactTests
                 ["latency_ms"] = 100
             },
             [],
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
             "reports/r1-generation.json",
             new string('b', 64),
             "policies/r1.json",

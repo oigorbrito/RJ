@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,6 +8,10 @@ namespace RJ.DomainTests;
 
 public sealed class EmpiricalSelectionManifestTests
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
     [Fact]
     public void Validate_accepts_frozen_paired_manifest()
     {
@@ -23,10 +28,7 @@ public sealed class EmpiricalSelectionManifestTests
     public void Parse_round_trips_string_enums_and_hashes()
     {
         var manifest = Manifest();
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest, new JsonSerializerOptions
-        {
-            Converters = { new JsonStringEnumConverter() }
-        });
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
 
         var parsed = EmpiricalSelectionManifest.Parse(bytes).Validate();
 
@@ -149,7 +151,7 @@ public sealed class EmpiricalSelectionManifestTests
             Sha("dependencies"),
             "run/commands.txt",
             Sha("commands"),
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             [
@@ -194,19 +196,19 @@ public sealed class EmpiricalSelectionManifestTests
                 Sha($"review:{index}"),
                 $"author-{index:00}",
                 $"reviewer-{index:00}",
-                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00")))
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture)))
             .ToArray();
 
         return new Eval010CorpusManifest(
             Eval010CorpusManifest.SupportedFormatVersion,
             "test-corpus-v1",
-            DateTimeOffset.Parse("2026-09-11T11:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T11:00:00-03:00", CultureInfo.InvariantCulture),
             cases);
     }
 
     private static string ValidCnj(int sequence)
     {
-        var process = sequence.ToString("0000000", System.Globalization.CultureInfo.InvariantCulture);
+        var process = sequence.ToString("0000000", CultureInfo.InvariantCulture);
         const string suffix = "20268160021";
         var baseDigits = process + suffix;
         var remainder = 0;
@@ -217,7 +219,7 @@ public sealed class EmpiricalSelectionManifestTests
 
         var checkDigits = 98 - remainder;
         return process
-            + checkDigits.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
+            + checkDigits.ToString("00", CultureInfo.InvariantCulture)
             + suffix;
     }
 

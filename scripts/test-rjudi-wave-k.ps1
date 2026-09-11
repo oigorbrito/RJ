@@ -39,7 +39,7 @@ try {
     New-Item -ItemType Directory -Path $reportDir,$policyDir,$configDir -Force | Out-Null
 
     try {
-        '{"implementation":"fake-retrieval-selftest-v1","limit":5}' | Set-Content -LiteralPath $configPath -Encoding utf8NoBOM
+        '{"implementation":"fake-retrieval-selftest-v1","limit":5}' | Set-Content -LiteralPath $configPath -Encoding ASCII
         $configSha = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
         @{
@@ -72,7 +72,7 @@ try {
                     errorMessage = $null
                 }
             )
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8NoBOM
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding ASCII
         $reportSha = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
         @{
@@ -86,7 +86,7 @@ try {
             mrrMetricId = 'mrr'
             retrievalDurationMsMetricId = 'retrieval_duration_ms'
             candidateExecutionFailureGateId = 'candidate_execution_failure'
-        } | ConvertTo-Json | Set-Content -LiteralPath $policyPath -Encoding utf8NoBOM
+        } | ConvertTo-Json | Set-Content -LiteralPath $policyPath -Encoding ASCII
         $policySha = (Get-FileHash -LiteralPath $policyPath -Algorithm SHA256).Hash.ToLowerInvariant()
         $recordedAt = [DateTimeOffset]::UtcNow.ToString('o')
 

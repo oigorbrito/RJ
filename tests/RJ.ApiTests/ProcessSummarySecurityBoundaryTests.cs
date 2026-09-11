@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -9,7 +10,7 @@ namespace RJ.ApiTests;
 
 public sealed class ProcessSummarySecurityBoundaryTests
 {
-    private static readonly DateTimeOffset ObservedAt = DateTimeOffset.Parse("2026-09-11T00:00:00Z");
+    private static readonly DateTimeOffset ObservedAt = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
 
     [Fact]
     public void Resolver_rejects_unauthenticated_principal()

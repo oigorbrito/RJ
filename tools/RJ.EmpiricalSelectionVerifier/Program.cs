@@ -115,7 +115,7 @@ try
         }
     }
 
-    var report = new EmpiricalSelectionService().Compare(
+var report = EmpiricalSelectionService.Compare(
         manifest.Baseline,
         manifest.Challenger,
         manifest.Metrics,
@@ -177,7 +177,7 @@ static byte[] RematerializeGeneration(
     policy.Validate().RequireMatches(report);
     policy.RequireMatches(treatment);
 
-    var rematerialized = new GenerationEmpiricalObservationMaterializer().Materialize(
+var rematerialized = GenerationEmpiricalObservationMaterializer.Materialize(
         report,
         raw.SourceArtifactReference,
         raw.SourceArtifactSha256,
@@ -210,7 +210,7 @@ static byte[] RematerializeRetrieval(
     policy.Validate().RequireMatches(report);
     policy.RequireMatches(treatment);
 
-    var rematerialized = new RetrievalEmpiricalObservationMaterializer().Materialize(
+var rematerialized = RetrievalEmpiricalObservationMaterializer.Materialize(
         report,
         raw.SourceArtifactReference,
         raw.SourceArtifactSha256,

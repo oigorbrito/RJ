@@ -5,7 +5,7 @@
   "status": "NOT_TESTED",
   "branch": "rjudi/wave-k-retrieval-observation-001",
   "baseHead": "90dfec9dee9984da480bcc1cf02b637bac084b8a",
-  "canonicalCommand": ".\scripts\test-rjudi-wave-k.ps1",
+  "canonicalCommand": ".\\scripts\\test-rjudi-wave-k.ps1",
   "scope": [
     "provider-neutral retrieval benchmark through ILegalDocumentSearch",
     "executed retrieval implementation identity binding",

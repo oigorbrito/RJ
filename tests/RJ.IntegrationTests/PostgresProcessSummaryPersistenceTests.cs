@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Generation;
 using RJ.Application.Security;
 using RJ.Infrastructure.Persistence;
@@ -150,7 +151,7 @@ public sealed class PostgresProcessSummaryPersistenceTests
     {
         var observedAt = DateTimeOffset.Parse(
             "2026-09-11T00:00:00Z",
-            System.Globalization.CultureInfo.InvariantCulture);
+            CultureInfo.InvariantCulture);
         var citation = new GenerationCitation("document-1", new string('d', 64), 0, 4);
         var output = new GenerationModelOutput(
             false,

@@ -74,7 +74,7 @@ public sealed record RetrievalEmpiricalObservationMaterialization(
 
 public sealed class RetrievalEmpiricalObservationMaterializer
 {
-    public IReadOnlyList<RetrievalEmpiricalObservationMaterialization> Materialize(
+    public static IReadOnlyList<RetrievalEmpiricalObservationMaterialization> Materialize(
         RetrievalBenchmarkReport report,
         string sourceReportReference,
         string sourceReportSha256,

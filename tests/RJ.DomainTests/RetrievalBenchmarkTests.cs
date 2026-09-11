@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Benchmarking;
 using RJ.Application.Retrieval;
 using RJ.Domain.Cases;
@@ -125,7 +126,7 @@ public sealed class RetrievalBenchmarkTests
                 1,
                 2,
                 3,
-                0.625,
+                0.425,
                 12.5,
                 [
                     new("q1", 1, true, true, true),
@@ -136,20 +137,20 @@ public sealed class RetrievalBenchmarkTests
                 null,
                 null));
 
-        var item = Assert.Single(new RetrievalEmpiricalObservationMaterializer().Materialize(
+        var item = Assert.Single(RetrievalEmpiricalObservationMaterializer.Materialize(
             report,
             "reports/r0.json",
             new string('e', 64),
             "policies/r0.json",
             new string('f', 64),
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
             Policy()));
 
         Assert.Equal(EmpiricalExecutionStatus.Pass, item.Artifact.Status);
         Assert.Equal(0.25, item.Artifact.Measurements["hit_at_1_rate"]);
         Assert.Equal(0.5, item.Artifact.Measurements["hit_at_3_rate"]);
         Assert.Equal(0.75, item.Artifact.Measurements["hit_at_5_rate"]);
-        Assert.Equal(0.625, item.Artifact.Measurements["mrr"]);
+        Assert.Equal(0.425, item.Artifact.Measurements["mrr"]);
         Assert.Equal(12.5, item.Artifact.Measurements["retrieval_duration_ms"]);
         Assert.Equal("reports/r0.json", item.Artifact.SourceArtifactReference);
         Assert.Equal("policies/r0.json", item.Artifact.MaterializationPolicyReference);
@@ -166,13 +167,13 @@ public sealed class RetrievalBenchmarkTests
             "hit_at_1_rate", "hit_at_3_rate", "hit_at_5_rate", "mrr", "retrieval_duration_ms", "candidate_execution_failure");
 
         Assert.Throws<InvalidOperationException>(() =>
-            new RetrievalEmpiricalObservationMaterializer().Materialize(
+        RetrievalEmpiricalObservationMaterializer.Materialize(
                 report,
                 "reports/r0.json",
                 new string('e', 64),
                 "policies/r0.json",
                 new string('f', 64),
-                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00", CultureInfo.InvariantCulture),
                 wrong));
     }
 

@@ -45,7 +45,7 @@ try {
                 --model-config 'deterministic-selftest' --seed 'wave-j-fixed' --output $reportPath
         }
 
-        '{"modelId":"harness-selftest-v1","modelConfiguration":"deterministic-selftest"}' | Set-Content -LiteralPath $configPath -Encoding utf8NoBOM
+        '{"modelId":"harness-selftest-v1","modelConfiguration":"deterministic-selftest"}' | Set-Content -LiteralPath $configPath -Encoding ASCII
         $configSha = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
         $reportSha = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToLowerInvariant()
         @{
@@ -58,7 +58,7 @@ try {
             citationValidityMetricId = 'citation_validity'
             groundednessMetricId = 'groundedness'
             candidateExecutionFailureGateId = 'candidate_execution_failure'
-        } | ConvertTo-Json | Set-Content -LiteralPath $policyPath -Encoding utf8NoBOM
+        } | ConvertTo-Json | Set-Content -LiteralPath $policyPath -Encoding ASCII
         $policySha = (Get-FileHash -LiteralPath $policyPath -Algorithm SHA256).Hash.ToLowerInvariant()
         $recordedAt = [DateTimeOffset]::UtcNow.ToString('o')
 
