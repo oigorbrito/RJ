@@ -2,7 +2,8 @@
   "gate_version": "rjudi-m1-gate-v1",
   "base_commit": "c627a1bcdc87ff9b0bbd5ccc0b7d108daa5e324d",
   "scope": "local deterministic RJudi process core",
-  "status": "PASS_LOCAL_CORE_ONLY",
+  "status": "NOT_TESTED",
+  "last_verified_pre_wave_c_commit": "4282cd5c836f81c6da95d17cf317c05525b417d7",
   "canonical_script": "scripts/test-rjudi-m1.ps1",
   "preserves_existing_local_rag_mvp": true,
   "case_id": "response_60031603620268160021_1",
@@ -90,7 +91,15 @@
     "distinct_idempotency_keys_do_not_collide",
     "authorization_precedes_idempotent_replay",
     "idempotency_replay_scoped_to_caller_identity",
-    "concurrent_idempotency_conflict_rechecked_after_generation"
+    "concurrent_idempotency_conflict_rechecked_after_generation",
+    "http_identity_not_client_supplied",
+    "authenticated_process_summary_boundary",
+    "job_read_scope_isolated_by_tenant_subject_case",
+    "api_case_scope_fail_closed",
+    "ingestion_evidence_source_scope_fail_closed",
+    "audit_separate_from_telemetry",
+    "structured_audit_sink",
+    "structured_telemetry_sink"
   ],
   "evidence_tests": [
     "LegalDocumentTests",
@@ -98,7 +107,6 @@
     "Wave1CorpusContractTests",
     "ProcessSourceCanonicalizationServiceTests",
     "JuditProcessSourceAdapterTests",
-
     "ProcessNormalizationTests",
     "LegalCaseMergeServiceTests",
     "LegalCaseConsistencyEngineTests",
@@ -112,7 +120,8 @@
     "RjudiProcessBenchmarkCatalogFactoryTests",
     "ProcessSummaryObservabilityCatalogTests",
     "ProcessSummaryRefreshPlannerTests",
-    "ProcessSummaryEndpointTests"
+    "ProcessSummaryEndpointTests",
+    "ProcessSummarySecurityBoundaryTests"
   ],
   "not_claimed": [
     "FULL_RJUDI_MVP",
@@ -122,8 +131,12 @@
     "generation_provider_selection",
     "scheduler_runtime",
     "ocr_runtime",
-    "remote_ci",
-    "postgres_runtime"
+    "remote_ci_pass",
+    "postgres_runtime",
+    "persistent_job_store",
+    "restart_recovery",
+    "persistent_acl_store",
+    "concrete_http_authentication_provider"
   ],
   "blockers": [
     {
