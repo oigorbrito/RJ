@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Npgsql;
+using RJ.DemoSeeder;
 using RJ.Domain.Cases;
 using RJ.Infrastructure.Persistence;
 
@@ -71,12 +72,3 @@ foreach (var item in cases)
 }
 
 Console.WriteLine($"DEMO_SEED_COMPLETE count={cases.Count}");
-
-public sealed record DemoCase(
-    string CaseId,
-    string Cnj,
-    string SourceName,
-    JsonElement Process,
-    IReadOnlyList<DemoDocument> Documents);
-
-public sealed record DemoDocument(string DocumentId, string Content);
