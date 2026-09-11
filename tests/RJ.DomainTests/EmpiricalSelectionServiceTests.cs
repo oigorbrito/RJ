@@ -155,7 +155,7 @@ public sealed class EmpiricalSelectionServiceTests
     }
 
     private static EmpiricalTreatmentDefinition Treatment(string id, EmpiricalTreatmentKind kind) =>
-        new(id, kind, $"config-{id}-v1", $"Treatment {id}");
+        new(id, kind, Sha(id), $"Treatment {id}");
 
     private static IReadOnlyList<EmpiricalMetricDefinition> Metrics() =>
     [
@@ -179,5 +179,12 @@ public sealed class EmpiricalSelectionServiceTests
                 ["latency_ms"] = latency
             },
             [],
-            $"artifacts/{caseId}/{treatmentId}.json");
+            $"artifacts/{caseId}/{treatmentId}.json",
+            Sha($"{caseId}:{treatmentId}"));
+
+    private static string Sha(string seed)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(seed);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+    }
 }
