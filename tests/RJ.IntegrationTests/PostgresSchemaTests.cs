@@ -6,6 +6,10 @@ namespace RJ.IntegrationTests;
 
 public sealed class PostgresSchemaTests
 {
+    private static readonly int RequiredVersion = int.Parse(
+        PostgresSchema.Version,
+        System.Globalization.CultureInfo.InvariantCulture);
+
     [Fact]
     public async Task MigrateAsync_is_idempotent_and_records_expected_version()
     {
@@ -14,20 +18,13 @@ public sealed class PostgresSchemaTests
         await PostgresSchema.MigrateAsync(dataSource);
         await PostgresSchema.MigrateAsync(dataSource);
 
-        await using var command = dataSource.CreateCommand(
-            "SELECT max(version) FROM rj_schema_migrations;");
-        var currentVersion = Convert.ToInt32(
-            await command.ExecuteScalarAsync(),
-            System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(
-            int.Parse(PostgresSchema.Version, System.Globalization.CultureInfo.InvariantCulture),
-            currentVersion);
+        Assert.Equal(RequiredVersion, await ReadLedgerVersionAsync(dataSource));
     }
 
     [Fact]
     public async Task EnsureCurrentAsync_accepts_schema_after_explicit_migration()
     {
-        await using var database = await CreateTemporaryDatabaseAsync();
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
         await PostgresSchema.MigrateAsync(database.DataSource);
 
         await PostgresSchema.EnsureCurrentAsync(database.DataSource);
@@ -36,215 +33,113 @@ public sealed class PostgresSchemaTests
     [Fact]
     public async Task EnsureCurrentAsync_rejects_missing_ledger_without_mutating_schema()
     {
-        await using var database = await CreateTemporaryDatabaseAsync();
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
 
         var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
             () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
 
         Assert.Contains("ledger is missing", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(0, await CountRowsAsync(database.DataSource, "rj_schema_migrations"));
         Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+        Assert.False(await TableExistsAsync(database.DataSource, "process_summary_jobs"));
     }
 
     [Fact]
     public async Task EnsureCurrentAsync_rejects_older_ledger_version_without_mutating_schema()
     {
-        await using var database = await CreateTemporaryDatabaseAsync();
-        await CreateLedgerOnlyAsync(database.DataSource, 2);
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await CreateLedgerOnlyAsync(database.DataSource, RequiredVersion - 1);
 
         var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
             () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
 
-        Assert.Contains("does not match required version 3", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(2, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.Contains($"does not match required version {RequiredVersion}", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(RequiredVersion - 1, await ReadLedgerVersionAsync(database.DataSource));
         Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+        Assert.False(await TableExistsAsync(database.DataSource, "process_summary_jobs"));
     }
 
     [Fact]
     public async Task EnsureCurrentAsync_rejects_newer_ledger_version_without_mutating_schema()
     {
-        await using var database = await CreateTemporaryDatabaseAsync();
-        await CreateLedgerOnlyAsync(database.DataSource, 4);
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await CreateLedgerOnlyAsync(database.DataSource, RequiredVersion + 1);
 
         var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
             () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
 
-        Assert.Contains("does not match required version 3", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(4, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.Contains($"does not match required version {RequiredVersion}", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(RequiredVersion + 1, await ReadLedgerVersionAsync(database.DataSource));
         Assert.False(await TableExistsAsync(database.DataSource, "legal_documents"));
+        Assert.False(await TableExistsAsync(database.DataSource, "process_summary_jobs"));
     }
 
     [Fact]
-    public async Task EnsureCurrentAsync_rejects_structurally_degraded_schema_without_recreating_index()
+    public async Task EnsureCurrentAsync_rejects_degraded_legal_document_schema_without_repairing_it()
     {
-        await using var database = await CreateTemporaryDatabaseAsync();
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
         await PostgresSchema.MigrateAsync(database.DataSource);
-        await DropSearchIndexAsync(database.DataSource);
+        await using (var command = database.DataSource.CreateCommand(
+            "DROP INDEX IF EXISTS public.ix_legal_documents_search_vector;"))
+        {
+            await command.ExecuteNonQueryAsync();
+        }
 
         var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
             () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
 
         Assert.Contains("required schema invariants are missing or degraded", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(3, await ReadLedgerVersionAsync(database.DataSource));
-        Assert.False(await SearchIndexExistsAsync(database.DataSource));
+        Assert.Equal(RequiredVersion, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.False(await IndexExistsAsync(database.DataSource, "ix_legal_documents_search_vector"));
     }
 
     [Fact]
-    public async Task Migrated_schema_contains_required_structural_constraints_and_gin_index()
+    public async Task EnsureCurrentAsync_rejects_degraded_process_summary_schema_without_repairing_it()
     {
-        await using var dataSource = CreateDataSourceOrSkip();
-        await PostgresSchema.MigrateAsync(dataSource);
-
-        const string sql = """
-            WITH attrs AS (
-                SELECT
-                    max(attnum) FILTER (WHERE attname = 'case_id' AND NOT attisdropped) AS case_id_attnum,
-                    max(attnum) FILTER (WHERE attname = 'document_id' AND NOT attisdropped) AS document_id_attnum,
-                    max(attnum) FILTER (WHERE attname = 'content_sha256' AND NOT attisdropped) AS content_sha256_attnum,
-                    max(attnum) FILTER (WHERE attname = 'search_vector' AND NOT attisdropped) AS search_vector_attnum
-                FROM pg_attribute
-                WHERE attrelid = 'public.legal_documents'::regclass
-            )
-            SELECT
-                EXISTS (
-                    SELECT 1
-                    FROM pg_constraint con
-                    CROSS JOIN attrs a
-                    WHERE con.conrelid = 'public.legal_documents'::regclass
-                      AND con.conname = 'pk_legal_documents'
-                      AND con.contype = 'p'
-                      AND con.convalidated
-                      AND con.conenforced
-                      AND con.conkey = ARRAY[a.case_id_attnum, a.document_id_attnum]::smallint[]) AS has_primary_key,
-                EXISTS (
-                    SELECT 1
-                    FROM pg_constraint con
-                    CROSS JOIN attrs a
-                    WHERE con.conrelid = 'public.legal_documents'::regclass
-                      AND con.conname = 'uq_legal_documents_case_hash'
-                      AND con.contype = 'u'
-                      AND con.convalidated
-                      AND con.conenforced
-                      AND con.conkey = ARRAY[a.case_id_attnum, a.content_sha256_attnum]::smallint[]) AS has_case_hash_unique,
-                EXISTS (
-                    SELECT 1
-                    FROM pg_constraint con
-                    CROSS JOIN attrs a
-                    WHERE con.conrelid = 'public.legal_documents'::regclass
-                      AND con.conname = 'ck_legal_documents_sha256'
-                      AND con.contype = 'c'
-                      AND con.convalidated
-                      AND con.conenforced
-                      AND con.conkey = ARRAY[a.content_sha256_attnum]::smallint[]
-                      AND pg_get_expr(con.conbin, con.conrelid) LIKE '%content_sha256%^[0-9a-f]{64}$%') AS has_sha_check,
-                EXISTS (
-                    SELECT 1
-                    FROM pg_class idx
-                    JOIN pg_index i ON i.indexrelid = idx.oid
-                    JOIN pg_am am ON am.oid = idx.relam
-                    CROSS JOIN attrs a
-                    WHERE i.indrelid = 'public.legal_documents'::regclass
-                      AND idx.relname = 'ix_legal_documents_search_vector'
-                      AND am.amname = 'gin'
-                      AND i.indisvalid
-                      AND i.indisready
-                      AND i.indislive
-                      AND i.indnkeyatts = 1
-                      AND i.indnatts = 1
-                      AND (
-                          SELECT count(*) = 1 AND min(key_attnum) = a.search_vector_attnum
-                          FROM unnest(i.indkey::smallint[]) AS key_columns(key_attnum))
-                      AND i.indexprs IS NULL
-                      AND i.indpred IS NULL) AS has_search_gin;
-            """;
-
-        await using var command = dataSource.CreateCommand(sql);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        Assert.True(reader.GetBoolean(0));
-        Assert.True(reader.GetBoolean(1));
-        Assert.True(reader.GetBoolean(2));
-        Assert.True(reader.GetBoolean(3));
-    }
-
-    [Fact]
-    public async Task Sha256_check_accepts_valid_value_and_rejects_invalid_values_in_isolated_schema()
-    {
-        await using var dataSource = CreateDataSourceOrSkip();
-        var schemaName = $"rj_sha_check_{Guid.NewGuid():N}";
-
-        await using var connection = await dataSource.OpenConnectionAsync();
-        try
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
+        await using (var command = database.DataSource.CreateCommand(
+            "DROP INDEX IF EXISTS public.ix_process_summary_jobs_case_id;"))
         {
-            await using (var setup = new NpgsqlCommand($$"""
-                CREATE SCHEMA "{{schemaName}}";
-                CREATE TABLE "{{schemaName}}".hash_probe (
-                    content_sha256 char(64) NOT NULL,
-                    CONSTRAINT ck_hash_probe_sha256 CHECK (content_sha256 ~ '^[0-9a-f]{64}$')
-                );
-                """, connection))
-            {
-                await setup.ExecuteNonQueryAsync();
-            }
-
-            await using (var valid = new NpgsqlCommand(
-                $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
-                connection))
-            {
-                valid.Parameters.AddWithValue(new string('a', 64));
-                Assert.Equal(1, await valid.ExecuteNonQueryAsync());
-            }
-
-            foreach (var invalidHash in new[]
-                     {
-                         new string('a', 63),
-                         new string('A', 64),
-                         new string('g', 64)
-                     })
-            {
-                await using var invalid = new NpgsqlCommand(
-                    $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
-                    connection);
-                invalid.Parameters.AddWithValue(invalidHash);
-                var exception = await Assert.ThrowsAsync<PostgresException>(
-                    () => invalid.ExecuteNonQueryAsync());
-                Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
-            }
-
-            await using (var overlength = new NpgsqlCommand(
-                $"INSERT INTO \"{schemaName}\".hash_probe (content_sha256) VALUES ($1);",
-                connection))
-            {
-                overlength.Parameters.AddWithValue(new string('a', 65));
-                var exception = await Assert.ThrowsAsync<PostgresException>(
-                    () => overlength.ExecuteNonQueryAsync());
-                Assert.Equal("22001", exception.SqlState);
-            }
+            await command.ExecuteNonQueryAsync();
         }
-        finally
-        {
-            await using var cleanup = new NpgsqlCommand(
-                $"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE;",
-                connection);
-            await cleanup.ExecuteNonQueryAsync();
-        }
+
+        var exception = await Assert.ThrowsAsync<PostgresSchemaVersionException>(
+            () => PostgresSchema.EnsureCurrentAsync(database.DataSource));
+
+        Assert.Contains("required schema invariants are missing or degraded", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(RequiredVersion, await ReadLedgerVersionAsync(database.DataSource));
+        Assert.False(await IndexExistsAsync(database.DataSource, "ix_process_summary_jobs_case_id"));
     }
 
     [Fact]
-    public async Task Migrated_sha256_check_rejects_invalid_values_without_schema_mutation()
+    public async Task Migrated_schema_contains_legal_document_and_process_summary_structures()
     {
-        await using var dataSource = CreateDataSourceOrSkip();
-        await PostgresSchema.MigrateAsync(dataSource);
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
 
-        foreach (var invalidHash in new[]
-                 {
-                     new string('a', 63),
-                     new string('A', 64),
-                     new string('g', 64)
-                 })
+        Assert.True(await TableExistsAsync(database.DataSource, "legal_documents"));
+        Assert.True(await TableExistsAsync(database.DataSource, "process_summary_jobs"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "legal_documents", "pk_legal_documents", "p"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "legal_documents", "uq_legal_documents_case_hash", "u"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "legal_documents", "ck_legal_documents_sha256", "c"));
+        Assert.True(await IndexExistsAsync(database.DataSource, "ix_legal_documents_search_vector"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "process_summary_jobs", "pk_process_summary_jobs", "p"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "process_summary_jobs", "uq_process_summary_jobs_scoped_idempotency", "u"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "process_summary_jobs", "ck_process_summary_jobs_tenant_hash", "c"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "process_summary_jobs", "ck_process_summary_jobs_subject_hash", "c"));
+        Assert.True(await ConstraintExistsAsync(database.DataSource, "process_summary_jobs", "ck_process_summary_jobs_snapshot_hash", "c"));
+        Assert.True(await IndexExistsAsync(database.DataSource, "ix_process_summary_jobs_case_id"));
+    }
+
+    [Fact]
+    public async Task Migrated_legal_document_sha256_check_rejects_invalid_values()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
+
+        foreach (var invalidHash in InvalidHashes())
         {
-            var suffix = Guid.NewGuid().ToString("N");
-            await using var command = dataSource.CreateCommand("""
+            await using var command = database.DataSource.CreateCommand("""
                 INSERT INTO legal_documents (
                     case_id,
                     document_id,
@@ -254,6 +149,7 @@ public sealed class PostgresSchemaTests
                     content_sha256)
                 VALUES ($1, $2, $3, $4, $5, $6);
                 """);
+            var suffix = Guid.NewGuid().ToString("N");
             command.Parameters.AddWithValue($"schema-check-case-{suffix}");
             command.Parameters.AddWithValue($"schema-check-document-{suffix}");
             command.Parameters.AddWithValue("schema-check");
@@ -268,14 +164,55 @@ public sealed class PostgresSchemaTests
     }
 
     [Fact]
+    public async Task Migrated_process_summary_hash_checks_reject_invalid_values()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
+
+        foreach (var invalidHash in InvalidHashes())
+        {
+            await using var command = database.DataSource.CreateCommand("""
+                INSERT INTO process_summary_jobs (
+                    job_id,
+                    scoped_idempotency_key,
+                    tenant_id_hash,
+                    subject_id_hash,
+                    case_id,
+                    snapshot_sha256,
+                    job_json,
+                    created_at,
+                    updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, '{}'::jsonb, now(), now());
+                """);
+            command.Parameters.AddWithValue($"job-{Guid.NewGuid():N}");
+            command.Parameters.AddWithValue($"scope-{Guid.NewGuid():N}");
+            command.Parameters.AddWithValue(invalidHash);
+            command.Parameters.AddWithValue(new string('b', 64));
+            command.Parameters.AddWithValue("case-1");
+            command.Parameters.AddWithValue(new string('c', 64));
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(
+                () => command.ExecuteNonQueryAsync());
+            Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
+        }
+    }
+
+    [Fact]
     public async Task PostgresReadinessProbe_passes_after_explicit_migration()
     {
-        await using var dataSource = CreateDataSourceOrSkip();
-        await PostgresSchema.MigrateAsync(dataSource);
-        var probe = new PostgresReadinessProbe(dataSource);
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        await PostgresSchema.MigrateAsync(database.DataSource);
+        var probe = new PostgresReadinessProbe(database.DataSource);
 
         await probe.CheckAsync(CancellationToken.None);
     }
+
+    private static string[] InvalidHashes() =>
+    [
+        new string('a', 63),
+        new string('A', 64),
+        new string('g', 64)
+    ];
 
     private static NpgsqlDataSource CreateDataSourceOrSkip()
     {
@@ -287,9 +224,6 @@ public sealed class PostgresSchemaTests
 
         return NpgsqlDataSource.Create(connectionString);
     }
-
-    private static async Task<TemporaryPostgresDatabase> CreateTemporaryDatabaseAsync() =>
-        await TemporaryPostgresDatabase.CreateAsync();
 
     private static async Task CreateLedgerOnlyAsync(NpgsqlDataSource dataSource, int version)
     {
@@ -312,43 +246,63 @@ public sealed class PostgresSchemaTests
 
     private static async Task<int> ReadLedgerVersionAsync(NpgsqlDataSource dataSource)
     {
-        await using var command = dataSource.CreateCommand("SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;");
-        return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        await using var command = dataSource.CreateCommand(
+            "SELECT COALESCE(MAX(version), 0) FROM rj_schema_migrations;");
+        return Convert.ToInt32(
+            await command.ExecuteScalarAsync(),
+            System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static async Task<long> CountRowsAsync(NpgsqlDataSource dataSource, string tableName)
+    private static async Task<bool> TableExistsAsync(NpgsqlDataSource dataSource, string tableName)
     {
         await using var command = dataSource.CreateCommand("""
-            SELECT count(*)
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_name = @table_name;
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = $1);
             """);
-        command.Parameters.AddWithValue("table_name", tableName);
-        return Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        command.Parameters.AddWithValue(tableName);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static async Task<bool> TableExistsAsync(NpgsqlDataSource dataSource, string tableName) =>
-        await CountRowsAsync(dataSource, tableName) > 0;
-
-    private static async Task DropSearchIndexAsync(NpgsqlDataSource dataSource)
+    private static async Task<bool> ConstraintExistsAsync(
+        NpgsqlDataSource dataSource,
+        string tableName,
+        string constraintName,
+        string constraintType)
     {
         await using var command = dataSource.CreateCommand("""
-            DROP INDEX IF EXISTS public.ix_legal_documents_search_vector;
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_constraint con
+                WHERE con.conrelid = to_regclass('public.' || $1)
+                  AND con.conname = $2
+                  AND con.contype::text = $3
+                  AND con.convalidated
+                  AND con.conenforced);
             """);
-        await command.ExecuteNonQueryAsync();
+        command.Parameters.AddWithValue(tableName);
+        command.Parameters.AddWithValue(constraintName);
+        command.Parameters.AddWithValue(constraintType);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static async Task<bool> SearchIndexExistsAsync(NpgsqlDataSource dataSource)
+    private static async Task<bool> IndexExistsAsync(NpgsqlDataSource dataSource, string indexName)
     {
         await using var command = dataSource.CreateCommand("""
             SELECT EXISTS (
                 SELECT 1
                 FROM pg_class idx
                 JOIN pg_namespace n ON n.oid = idx.relnamespace
+                JOIN pg_index i ON i.indexrelid = idx.oid
                 WHERE n.nspname = 'public'
-                  AND idx.relname = 'ix_legal_documents_search_vector');
+                  AND idx.relname = $1
+                  AND i.indisvalid
+                  AND i.indisready
+                  AND i.indislive);
             """);
+        command.Parameters.AddWithValue(indexName);
         return Convert.ToBoolean(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 }
