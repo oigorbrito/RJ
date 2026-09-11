@@ -30,24 +30,28 @@ try {
     Invoke-GateStep 'git diff whitespace check' { git diff --check }
 
     $manifest = $env:RJ_EVAL010_MANIFEST_PATH
+    $manifestSha256 = $env:RJ_EVAL010_MANIFEST_SHA256
     $artifactRoot = $env:RJ_EVAL010_ARTIFACT_ROOT
     $catalog = $env:RJ_EVAL010_BENCHMARK_CATALOG_PATH
 
-    if ([string]::IsNullOrWhiteSpace($manifest) -or [string]::IsNullOrWhiteSpace($artifactRoot)) {
-        Write-Error 'BLOCKED RJ-BLK-003: RJ_EVAL010_MANIFEST_PATH and RJ_EVAL010_ARTIFACT_ROOT are required for real-corpus admission.'
+    if ([string]::IsNullOrWhiteSpace($manifest) `
+        -or [string]::IsNullOrWhiteSpace($manifestSha256) `
+        -or [string]::IsNullOrWhiteSpace($artifactRoot)) {
+        Write-Error 'BLOCKED RJ-BLK-003: RJ_EVAL010_MANIFEST_PATH, RJ_EVAL010_MANIFEST_SHA256 and RJ_EVAL010_ARTIFACT_ROOT are required for real-corpus admission.'
         exit 2
     }
 
     $arguments = @(
         'run', '--project', $toolProject, '--no-build', '--',
         $manifest,
+        $manifestSha256,
         $artifactRoot
     )
     if (-not [string]::IsNullOrWhiteSpace($catalog)) {
         $arguments += $catalog
     }
 
-    Invoke-GateStep 'verify frozen EVAL-010 corpus and oracle isolation' { dotnet @arguments }
+    Invoke-GateStep 'verify frozen EVAL-010 corpus digest, artifacts and oracle isolation' { dotnet @arguments }
 }
 finally {
     Pop-Location
