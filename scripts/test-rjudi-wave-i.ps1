@@ -29,6 +29,12 @@ try {
     }
     Invoke-GateStep 'git diff whitespace check' { git diff --check }
 
+    $executedCommit = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($executedCommit)) {
+        Write-Error 'Unable to resolve exact executed git commit.'
+        exit 3
+    }
+
     $manifest = $env:RJ_EMPIRICAL_SELECTION_MANIFEST_PATH
     $manifestSha = $env:RJ_EMPIRICAL_SELECTION_MANIFEST_SHA256
     $artifactRoot = $env:RJ_EMPIRICAL_SELECTION_ARTIFACT_ROOT
@@ -41,7 +47,7 @@ try {
     }
 
     Invoke-GateStep 'verify immutable paired empirical selection evidence and produce decision' {
-        dotnet run --project $toolProject --no-build -- $manifest $manifestSha $artifactRoot
+        dotnet run --project $toolProject --no-build -- $manifest $manifestSha $artifactRoot $executedCommit
     }
 }
 finally {
