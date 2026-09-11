@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0",
+  "wave": "J",
+  "name": "generation-observation-materialization",
+  "status": "NOT_TESTED",
+  "branch": "rjudi/wave-j-observation-materialization-001",
+  "baseHead": "6ae960f5cd9ce375a1ec75b025a29cfe51250794",
+  "canonicalCommand": ".\\scripts\\test-rjudi-wave-j.ps1",
+  "scope": [
+    "generation benchmark report to empirical raw observation transformation",
+    "raw observation source-report provenance",
+    "materialization-policy hashing",
+    "deterministic raw-observation hashing",
+    "self-test benchmark to observation end-to-end gate"
+  ],
+  "requiredInternalChecks": [
+    "dotnet build RJ.slnx --no-restore",
+    "GenerationEmpiricalObservationMaterializerTests",
+    "EmpiricalRawObservationArtifactTests",
+    "GenerationBenchmarkRunnerTests",
+    "git diff --check",
+    "harness-selftest-v1 benchmark execution",
+    "RJ.GenerationObservationMaterializer execution",
+    "exactly two self-test raw observation v2 artifacts",
+    "source report reference and SHA binding",
+    "observation index creation"
+  ],
+  "rawObservationFormat": "rjudi-empirical-raw-observation-v2",
+  "qualityMeasurements": [
+    "claim_recall",
+    "citation_validity",
+    "groundedness"
+  ],
+  "nonCompensableExecutionGate": "candidate_execution_failure",
+  "decisionRules": [
+    "evaluated quality below 1.0 remains a measurement and is not promoted to execution failure",
+    "candidate execution failure with no evaluation is a non-compensable gate",
+    "source report and policy hashes must be verified before materialization",
+    "Wave J self-test does not constitute EVAL-010 evidence or treatment selection"
+  ],
+  "externalBlockersNotRequiredForWaveJSelfTest": [
+    "RJ-BLK-003",
+    "SRC-003",
+    "ATT-001",
+    "BLK-POSTGRES-001"
+  ],
+  "executionEvidence": null
+}
