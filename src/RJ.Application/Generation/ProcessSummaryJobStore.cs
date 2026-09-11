@@ -10,6 +10,10 @@ public interface IProcessSummaryJobStore
         string scopedIdempotencyKey,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        int limit,
+        CancellationToken cancellationToken);
+
     Task<ProcessSummaryJobStoreWriteResult> TryCreateAsync(
         ProcessSummaryJobStoreEntry entry,
         CancellationToken cancellationToken);
@@ -43,6 +47,15 @@ public sealed class NoopProcessSummaryJobStore : IProcessSummaryJobStore
         return Task.FromResult<ProcessSummaryJob?>(null);
     }
 
+    public Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        RequirePositive(limit, nameof(limit));
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<ProcessSummaryJob>>([]);
+    }
+
     public Task<ProcessSummaryJobStoreWriteResult> TryCreateAsync(
         ProcessSummaryJobStoreEntry entry,
         CancellationToken cancellationToken)
@@ -50,6 +63,14 @@ public sealed class NoopProcessSummaryJobStore : IProcessSummaryJobStore
         ArgumentNullException.ThrowIfNull(entry);
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new ProcessSummaryJobStoreWriteResult(true, entry.Job));
+    }
+
+    private static void RequirePositive(int value, string parameterName)
+    {
+        if (value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, value, "Value must be positive.");
+        }
     }
 }
 
@@ -80,6 +101,24 @@ public sealed class InMemoryProcessSummaryJobStore : IProcessSummaryJobStore
         lock (sync)
         {
             return Task.FromResult(byScopedKey.TryGetValue(key, out var entry) ? entry.Job : null);
+        }
+    }
+
+    public Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        RequirePositive(limit, nameof(limit));
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (sync)
+        {
+            IReadOnlyList<ProcessSummaryJob> jobs = byJobId.Values
+                .Select(entry => entry.Job)
+                .OrderBy(job => job.ValidatedAt)
+                .ThenBy(job => job.JobId, StringComparer.Ordinal)
+                .Take(limit)
+                .ToArray();
+            return Task.FromResult(jobs);
         }
     }
 
@@ -118,5 +157,13 @@ public sealed class InMemoryProcessSummaryJobStore : IProcessSummaryJobStore
         }
 
         return value.Trim();
+    }
+
+    private static void RequirePositive(int value, string parameterName)
+    {
+        if (value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, value, "Value must be positive.");
+        }
     }
 }
