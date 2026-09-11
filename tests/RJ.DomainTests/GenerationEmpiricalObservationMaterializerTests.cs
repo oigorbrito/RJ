@@ -62,7 +62,14 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             new GenerationEvaluationResult("case-1", false, 1, 1, 1.0, 1.0, 1.0, true),
             null,
             null));
-        var wrongPolicy = Policy() with { ModelConfiguration = "different-config" };
+        var wrongPolicy = new GenerationEmpiricalObservationPolicy(
+            "Gx",
+            "model",
+            "different-config",
+            "claim_recall",
+            "citation_validity",
+            "groundedness",
+            "candidate_execution_failure");
 
         var error = Assert.Throws<InvalidOperationException>(() => Materialize(report, wrongPolicy));
         Assert.Contains("does not match", error.Message, StringComparison.OrdinalIgnoreCase);
