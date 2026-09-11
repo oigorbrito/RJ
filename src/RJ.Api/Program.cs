@@ -23,6 +23,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 
 var dataSource = NpgsqlDataSource.Create(connectionString);
 await PostgresSchema.EnsureCurrentAsync(dataSource);
+var generationModel = GenerationModelProvider.Create();
 
 builder.Services.AddSingleton(dataSource);
 builder.Services.AddSingleton<ILegalDocumentWriter, PostgresLegalDocumentWriter>();
@@ -48,7 +49,7 @@ builder.Services.AddSingleton<GenerationContextService>();
 builder.Services.AddSingleton<IProcessSourceAdapter, JuditProcessSourceAdapter>();
 builder.Services.AddSingleton<ProcessSourceCanonicalizationService>();
 builder.Services.AddSingleton<ProcessGenerationContextComposer>();
-builder.Services.AddSingleton<IGenerationModel>(_ => GenerationModelProvider.Create());
+builder.Services.AddSingleton<IGenerationModel>(generationModel);
 builder.Services.AddSingleton<GenerationService>();
 builder.Services.AddSingleton<ProcessSummaryJobService>();
 
