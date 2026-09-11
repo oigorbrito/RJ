@@ -5,7 +5,7 @@
   "status": "NOT_TESTED",
   "branch": "rjudi/wave-k-retrieval-observation-001",
   "baseHead": "90dfec9dee9984da480bcc1cf02b637bac084b8a",
-  "canonicalCommand": ".\\scripts\\test-rjudi-wave-k.ps1",
+  "canonicalCommand": ".\scripts\test-rjudi-wave-k.ps1",
   "scope": [
     "provider-neutral retrieval benchmark through ILegalDocumentSearch",
     "executed retrieval implementation identity binding",
@@ -35,6 +35,21 @@
     "classification": "IMPLEMENTED_IN_RJ",
     "nonClaim": "ts_rank_cd is not BM25"
   },
+  "requiredExecutionIdentity": {
+    "gitCommit": "d18f742136d0de0b1a2afe4d09ec2a46a5b02937",
+    "runtimeSource": "System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription",
+    "commitSource": "git rev-parse HEAD executed by the R0 executor",
+    "bindingRule": "report execution.gitCommit and execution.runtime must be retained and match the frozen selection manifest"
+  },
+  "r0ExecutorInvariants": [
+    "RJ_POSTGRES_CONNECTION is required and is never written to reports or diagnostics",
+    "catalog bytes and configuration bytes must match their supplied SHA-256 values before execution",
+    "configuration format is rjudi-retrieval-benchmark-config-v1 and limit is between 5 and 100",
+    "runtime retrieval implementation must identify as postgres-ts-rank-cd-v1 and match the configured implementation ID",
+    "executor resolves the exact git HEAD itself and records RuntimeInformation.FrameworkDescription",
+    "executor runs through PostgresLegalDocumentSearch and ILegalDocumentSearch; it does not accept a caller-supplied commit",
+    "R0 execution failure is distinct from quality measurements and materializes candidate_execution_failure"
+  ],
   "relevanceRule": "exact DocumentId + ContentSha256 admitted evidence identity",
   "rawObservationFormat": "rjudi-empirical-raw-observation-v3",
   "qualityMeasurements": [
