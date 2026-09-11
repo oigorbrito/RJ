@@ -92,6 +92,23 @@ public sealed record RetrievalBenchmarkCatalog(
     }
 }
 
+public sealed record RetrievalBenchmarkExecutionMetadata(string GitCommit, string Runtime)
+{
+    public string GitCommit { get; } = RequireGitCommit(GitCommit);
+    public string Runtime { get; } = EmpiricalTreatmentDefinition.Require(Runtime, nameof(Runtime));
+
+    private static string RequireGitCommit(string value)
+    {
+        var normalized = EmpiricalTreatmentDefinition.Require(value, nameof(GitCommit)).ToLowerInvariant();
+        if (normalized.Length != 40 || normalized.Any(character => !Uri.IsHexDigit(character)))
+        {
+            throw new ArgumentException("Git commit must contain exactly 40 hexadecimal characters.", nameof(value));
+        }
+
+        return normalized;
+    }
+}
+
 public sealed record RetrievalBenchmarkTreatmentMetadata(
     string TreatmentId,
     string ImplementationId,
@@ -129,6 +146,7 @@ public sealed record RetrievalBenchmarkCaseReport(
 public sealed record RetrievalBenchmarkReport(
     string FormatVersion,
     string CatalogVersion,
+    RetrievalBenchmarkExecutionMetadata Execution,
     RetrievalBenchmarkTreatmentMetadata Treatment,
     IReadOnlyList<RetrievalBenchmarkCaseReport> Cases)
 {
@@ -142,6 +160,7 @@ public sealed record RetrievalBenchmarkReport(
         }
 
         EmpiricalTreatmentDefinition.Require(CatalogVersion, nameof(CatalogVersion));
+        ArgumentNullException.ThrowIfNull(Execution);
         ArgumentNullException.ThrowIfNull(Treatment);
         ArgumentNullException.ThrowIfNull(Cases);
         if (Cases.Count == 0)
@@ -278,11 +297,13 @@ public sealed class RetrievalBenchmarkRunner(IIdentifiedLegalDocumentSearch sear
 
     public async Task<RetrievalBenchmarkReport> RunAsync(
         RetrievalBenchmarkCatalog catalog,
+        RetrievalBenchmarkExecutionMetadata execution,
         RetrievalBenchmarkTreatmentMetadata treatment,
         int limit,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(execution);
         ArgumentNullException.ThrowIfNull(treatment);
         catalog.Validate();
         if (limit is < 5 or > 100)
@@ -369,6 +390,7 @@ public sealed class RetrievalBenchmarkRunner(IIdentifiedLegalDocumentSearch sear
         return new RetrievalBenchmarkReport(
             RetrievalBenchmarkReport.SupportedFormatVersion,
             catalog.Version,
+            execution,
             treatment,
             reports).Validate();
     }
