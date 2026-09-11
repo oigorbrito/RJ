@@ -44,11 +44,14 @@ try
         return 3;
     }
 
-    await VerifyArtifactAsync(
+    var corpusBytes = await VerifyArtifactAsync(
         artifactRoot,
         manifest.CorpusManifestReference,
         manifest.CorpusManifestSha256,
         "corpus manifest");
+    var corpus = Eval010CorpusManifest.Parse(corpusBytes);
+    manifest.RequireMatchesCorpus(corpus);
+
     await VerifyArtifactAsync(
         artifactRoot,
         manifest.Baseline.ConfigurationReference,
