@@ -20,5 +20,6 @@
     <Project Path="tools/RJ.EmpiricalSelectionVerifier/RJ.EmpiricalSelectionVerifier.csproj" />
     <Project Path="tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csproj" />
     <Project Path="tools/RJ.GenerationObservationMaterializer/RJ.GenerationObservationMaterializer.csproj" />
+    <Project Path="tools/RJ.RetrievalObservationMaterializer/RJ.RetrievalObservationMaterializer.csproj" />
   </Folder>
 </Solution>
