@@ -70,6 +70,46 @@ public sealed class RetrievalBenchmarkTests
     }
 
     [Fact]
+    public async Task Runner_rejects_declared_implementation_that_does_not_match_executed_search()
+    {
+        var search = new FakeSearch(new Dictionary<string, IReadOnlyList<LegalDocumentSearchHit>>(StringComparer.Ordinal));
+        var wrong = new RetrievalBenchmarkTreatmentMetadata(
+            "R0",
+            "different-implementation",
+            "configs/r0.json",
+            new string('1', 64));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new RetrievalBenchmarkRunner(search).RunAsync(
+                Catalog("doc-1", new string('a', 64)),
+                wrong,
+                5,
+                CancellationToken.None));
+
+        Assert.Contains("does not match", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Runner_classifies_cross_case_hit_as_execution_failure()
+    {
+        var search = new FakeSearch(new Dictionary<string, IReadOnlyList<LegalDocumentSearchHit>>(StringComparer.Ordinal)
+        {
+            ["question"] = [Hit("case-2", "doc-1", new string('a', 64), 1.0f)]
+        });
+
+        var report = await new RetrievalBenchmarkRunner(search).RunAsync(
+            Catalog("doc-1", new string('a', 64)),
+            Treatment(),
+            5,
+            CancellationToken.None);
+
+        var item = Assert.Single(report.Cases);
+        Assert.False(item.ExecutionSucceeded);
+        Assert.Contains(nameof(InvalidOperationException), item.ErrorType!, StringComparison.Ordinal);
+        Assert.Equal("Retrieval treatment execution failed.", item.ErrorMessage);
+    }
+
+    [Fact]
     public void Materializer_preserves_case_quality_metrics_and_provenance()
     {
         var report = new RetrievalBenchmarkReport(
@@ -172,8 +212,10 @@ public sealed class RetrievalBenchmarkTests
         new(new LegalDocumentSnapshot(caseId, documentId, "fixture", content, content, sha), rank);
 
     private sealed class FakeSearch(IReadOnlyDictionary<string, IReadOnlyList<LegalDocumentSearchHit>> results)
-        : ILegalDocumentSearch
+        : IIdentifiedLegalDocumentSearch
     {
+        public string ImplementationId => "postgres-ts-rank-cd-v1";
+
         public Task<IReadOnlyList<LegalDocumentSearchHit>> SearchAsync(
             LegalCaseId caseId,
             string query,
@@ -187,8 +229,10 @@ public sealed class RetrievalBenchmarkTests
         }
     }
 
-    private sealed class ThrowingSearch : ILegalDocumentSearch
+    private sealed class ThrowingSearch : IIdentifiedLegalDocumentSearch
     {
+        public string ImplementationId => "postgres-ts-rank-cd-v1";
+
         public Task<IReadOnlyList<LegalDocumentSearchHit>> SearchAsync(
             LegalCaseId caseId,
             string query,
