@@ -53,6 +53,31 @@ public sealed class EmpiricalSelectionManifestTests
     }
 
     [Fact]
+    public void Validate_rejects_post_hoc_metric_not_declared_by_protocol()
+    {
+        var postHoc = new EmpiricalCaseObservation(
+            "case-1",
+            "r1",
+            EmpiricalExecutionStatus.Pass,
+            new Dictionary<string, double>
+            {
+                ["quality"] = 0.8,
+                ["latency_ms"] = 100,
+                ["post_hoc_score"] = 999
+            },
+            [],
+            "raw/case-1-r1.json",
+            Sha("raw:case-1:r1:post-hoc"));
+        var manifest = Manifest() with
+        {
+            Observations = [Observation("case-1", "r0"), postHoc]
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(manifest.Validate);
+        Assert.Contains("undeclared metric", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Validate_rejects_cross_kind_comparison()
     {
         var manifest = Manifest() with
