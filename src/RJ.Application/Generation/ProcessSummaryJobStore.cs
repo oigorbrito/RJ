@@ -11,6 +11,8 @@ public interface IProcessSummaryJobStore
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        string currentSummaryVersion,
+        DateTimeOffset expiredBefore,
         int limit,
         CancellationToken cancellationToken);
 
@@ -48,9 +50,12 @@ public sealed class NoopProcessSummaryJobStore : IProcessSummaryJobStore
     }
 
     public Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        string currentSummaryVersion,
+        DateTimeOffset expiredBefore,
         int limit,
         CancellationToken cancellationToken)
     {
+        Require(currentSummaryVersion, nameof(currentSummaryVersion));
         RequirePositive(limit, nameof(limit));
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<IReadOnlyList<ProcessSummaryJob>>([]);
@@ -63,6 +68,16 @@ public sealed class NoopProcessSummaryJobStore : IProcessSummaryJobStore
         ArgumentNullException.ThrowIfNull(entry);
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new ProcessSummaryJobStoreWriteResult(true, entry.Job));
+    }
+
+    private static string Require(string value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Process-summary store value cannot be empty.", parameterName);
+        }
+
+        return value.Trim();
     }
 
     private static void RequirePositive(int value, string parameterName)
@@ -105,15 +120,20 @@ public sealed class InMemoryProcessSummaryJobStore : IProcessSummaryJobStore
     }
 
     public Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        string currentSummaryVersion,
+        DateTimeOffset expiredBefore,
         int limit,
         CancellationToken cancellationToken)
     {
+        var version = Require(currentSummaryVersion, nameof(currentSummaryVersion));
         RequirePositive(limit, nameof(limit));
         cancellationToken.ThrowIfCancellationRequested();
         lock (sync)
         {
             IReadOnlyList<ProcessSummaryJob> jobs = byJobId.Values
                 .Select(entry => entry.Job)
+                .Where(job => job.ValidatedAt < expiredBefore
+                    || !StringComparer.Ordinal.Equals(job.SummaryVersion, version))
                 .OrderBy(job => job.ValidatedAt)
                 .ThenBy(job => job.JobId, StringComparer.Ordinal)
                 .Take(limit)
