@@ -1,16 +1,18 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RJ.Application.Benchmarking;
 
-if (args.Length != 3)
+if (args.Length != 4)
 {
-    Console.Error.WriteLine("Usage: RJ.EmpiricalSelectionVerifier <manifest.json> <expected-manifest-sha256> <artifact-root>");
+    Console.Error.WriteLine("Usage: RJ.EmpiricalSelectionVerifier <manifest.json> <expected-manifest-sha256> <artifact-root> <executed-git-commit>");
     return 2;
 }
 
 var manifestPath = Path.GetFullPath(args[0]);
 var expectedManifestSha = args[1].Trim().ToLowerInvariant();
 var artifactRoot = Path.GetFullPath(args[2]);
+var executedGitCommit = args[3].Trim().ToLowerInvariant();
 
 if (!File.Exists(manifestPath) || !Directory.Exists(artifactRoot))
 {
@@ -29,6 +31,18 @@ try
     }
 
     var manifest = EmpiricalSelectionManifest.Parse(manifestBytes).Validate();
+    if (!StringComparer.Ordinal.Equals(manifest.GitCommit.ToLowerInvariant(), executedGitCommit))
+    {
+        Console.Error.WriteLine($"Executed git commit mismatch: manifest {manifest.GitCommit}, observed {executedGitCommit}.");
+        return 3;
+    }
+
+    var observedRuntime = RuntimeInformation.FrameworkDescription;
+    if (!StringComparer.Ordinal.Equals(manifest.Runtime, observedRuntime))
+    {
+        Console.Error.WriteLine($"Runtime mismatch: manifest '{manifest.Runtime}', observed '{observedRuntime}'.");
+        return 3;
+    }
 
     await VerifyArtifactAsync(
         artifactRoot,
