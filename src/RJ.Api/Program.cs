@@ -48,7 +48,7 @@ builder.Services.AddSingleton<GenerationContextService>();
 builder.Services.AddSingleton<IProcessSourceAdapter, JuditProcessSourceAdapter>();
 builder.Services.AddSingleton<ProcessSourceCanonicalizationService>();
 builder.Services.AddSingleton<ProcessGenerationContextComposer>();
-builder.Services.AddSingleton<IGenerationModel, DeterministicProcessSummaryModel>();
+builder.Services.AddSingleton<IGenerationModel>(_ => GenerationModelProvider.Create());
 builder.Services.AddSingleton<GenerationService>();
 builder.Services.AddSingleton<ProcessSummaryJobService>();
 
