@@ -65,7 +65,8 @@ public sealed class RetrievalBenchmarkTests
         Assert.False(item.ExecutionSucceeded);
         Assert.Equal(0, item.QueryCount);
         Assert.Empty(item.Queries);
-        Assert.Contains(nameof(InvalidOperationException), item.ErrorType, StringComparison.Ordinal);
+        Assert.NotNull(item.ErrorType);
+        Assert.Contains(nameof(InvalidOperationException), item.ErrorType!, StringComparison.Ordinal);
     }
 
     [Fact]
