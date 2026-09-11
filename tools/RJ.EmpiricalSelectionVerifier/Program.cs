@@ -103,8 +103,8 @@ try
 
         byte[] expectedBytes = treatment.Kind switch
         {
-            EmpiricalTreatmentKind.Generation => RematerializeGeneration(raw, sourceBytes, policyBytes, treatment, policyJsonOptions),
-            EmpiricalTreatmentKind.Retrieval => RematerializeRetrieval(raw, sourceBytes, policyBytes, treatment, policyJsonOptions),
+            EmpiricalTreatmentKind.Generation => RematerializeGeneration(raw, sourceBytes, policyBytes, treatment, manifest.GitCommit, manifest.Runtime, policyJsonOptions),
+            EmpiricalTreatmentKind.Retrieval => RematerializeRetrieval(raw, sourceBytes, policyBytes, treatment, manifest.GitCommit, manifest.Runtime, policyJsonOptions),
             _ => throw new InvalidOperationException($"Unsupported empirical treatment kind '{treatment.Kind}'.")
         };
 
@@ -161,9 +161,17 @@ static byte[] RematerializeGeneration(
     byte[] sourceBytes,
     byte[] policyBytes,
     EmpiricalTreatmentDefinition treatment,
+    string expectedGitCommit,
+    string expectedRuntime,
     JsonSerializerOptions policyJsonOptions)
 {
     var report = GenerationBenchmarkJson.Parse(sourceBytes);
+    if (!StringComparer.Ordinal.Equals(report.Metadata.GitCommit.ToLowerInvariant(), expectedGitCommit.ToLowerInvariant())
+        || !StringComparer.Ordinal.Equals(report.Metadata.Runtime, expectedRuntime))
+    {
+        throw new InvalidOperationException("Generation benchmark source commit/runtime does not match selection manifest.");
+    }
+
     var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Generation materialization policy produced no document.");
     policy.Validate().RequireMatches(report);
@@ -186,9 +194,17 @@ static byte[] RematerializeRetrieval(
     byte[] sourceBytes,
     byte[] policyBytes,
     EmpiricalTreatmentDefinition treatment,
+    string expectedGitCommit,
+    string expectedRuntime,
     JsonSerializerOptions policyJsonOptions)
 {
     var report = RetrievalBenchmarkJson.Parse(sourceBytes);
+    if (!StringComparer.Ordinal.Equals(report.Execution.GitCommit, expectedGitCommit.ToLowerInvariant())
+        || !StringComparer.Ordinal.Equals(report.Execution.Runtime, expectedRuntime))
+    {
+        throw new InvalidOperationException("Retrieval benchmark source commit/runtime does not match selection manifest.");
+    }
+
     var policy = JsonSerializer.Deserialize<RetrievalEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Retrieval materialization policy produced no document.");
     policy.Validate().RequireMatches(report);
