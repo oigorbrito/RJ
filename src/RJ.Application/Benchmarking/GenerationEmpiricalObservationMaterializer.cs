@@ -4,22 +4,44 @@ using System.Text.Json.Serialization;
 namespace RJ.Application.Benchmarking;
 
 public sealed record GenerationEmpiricalObservationPolicy(
+    string TreatmentId,
+    string ModelId,
+    string ModelConfiguration,
     string ClaimRecallMetricId,
     string CitationValidityMetricId,
     string GroundednessMetricId,
     string CandidateExecutionFailureGateId)
 {
+    public string TreatmentId { get; } = EmpiricalTreatmentDefinition.Require(TreatmentId, nameof(TreatmentId));
+    public string ModelId { get; } = EmpiricalTreatmentDefinition.Require(ModelId, nameof(ModelId));
+    public string ModelConfiguration { get; } = EmpiricalTreatmentDefinition.Require(ModelConfiguration, nameof(ModelConfiguration));
     public string ClaimRecallMetricId { get; } = EmpiricalTreatmentDefinition.Require(ClaimRecallMetricId, nameof(ClaimRecallMetricId));
     public string CitationValidityMetricId { get; } = EmpiricalTreatmentDefinition.Require(CitationValidityMetricId, nameof(CitationValidityMetricId));
     public string GroundednessMetricId { get; } = EmpiricalTreatmentDefinition.Require(GroundednessMetricId, nameof(GroundednessMetricId));
     public string CandidateExecutionFailureGateId { get; } = EmpiricalTreatmentDefinition.Require(CandidateExecutionFailureGateId, nameof(CandidateExecutionFailureGateId));
 
-    public void Validate()
+    public GenerationEmpiricalObservationPolicy Validate()
     {
         var ids = new[] { ClaimRecallMetricId, CitationValidityMetricId, GroundednessMetricId };
         if (ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)
         {
             throw new InvalidOperationException("Generation empirical metric ids must be unique.");
+        }
+
+        return this;
+    }
+
+    public void RequireMatches(GenerationBenchmarkReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(report.Metadata);
+        report.Metadata.Validate();
+
+        if (!StringComparer.Ordinal.Equals(ModelId, report.Metadata.ModelId)
+            || !StringComparer.Ordinal.Equals(ModelConfiguration, report.Metadata.ModelConfiguration))
+        {
+            throw new InvalidOperationException(
+                $"Generation treatment '{TreatmentId}' policy does not match benchmark model/configuration.");
         }
     }
 }
@@ -35,9 +57,10 @@ public sealed class GenerationEmpiricalObservationMaterializer
 {
     public IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
         GenerationBenchmarkReport report,
-        string treatmentId,
         string sourceReportReference,
         string sourceReportSha256,
+        string materializationPolicyReference,
+        string materializationPolicySha256,
         DateTimeOffset recordedAt,
         GenerationEmpiricalObservationPolicy policy)
     {
@@ -45,14 +68,21 @@ public sealed class GenerationEmpiricalObservationMaterializer
         ArgumentNullException.ThrowIfNull(report.Metadata);
         ArgumentNullException.ThrowIfNull(report.Cases);
         ArgumentNullException.ThrowIfNull(policy);
-        policy.Validate();
+        policy.Validate().RequireMatches(report);
 
-        treatmentId = EmpiricalTreatmentDefinition.Require(treatmentId, nameof(treatmentId));
         sourceReportReference = EmpiricalTreatmentDefinition.Require(sourceReportReference, nameof(sourceReportReference));
         sourceReportSha256 = EmpiricalTreatmentDefinition.RequireSha256(sourceReportSha256, nameof(sourceReportSha256));
+        materializationPolicyReference = EmpiricalTreatmentDefinition.Require(materializationPolicyReference, nameof(materializationPolicyReference));
+        materializationPolicySha256 = EmpiricalTreatmentDefinition.RequireSha256(materializationPolicySha256, nameof(materializationPolicySha256));
         if (recordedAt == default)
         {
             throw new ArgumentException("Recorded-at timestamp must be provided.", nameof(recordedAt));
+        }
+
+        if (report.TotalCases != report.Cases.Count
+            || report.PassedCases + report.FailedCases != report.TotalCases)
+        {
+            throw new InvalidOperationException("Generation benchmark report aggregate case counts are inconsistent.");
         }
 
         if (report.Cases.Count == 0)
@@ -78,10 +108,10 @@ public sealed class GenerationEmpiricalObservationMaterializer
 
             if (item.Evaluation is null)
             {
-                if (string.IsNullOrWhiteSpace(item.ErrorType))
+                if (string.IsNullOrWhiteSpace(item.ErrorType) || item.Passed)
                 {
                     throw new InvalidOperationException(
-                        $"Generation benchmark case '{caseId}' has neither evaluation nor execution error evidence.");
+                        $"Generation benchmark case '{caseId}' has inconsistent execution-failure evidence.");
                 }
 
                 status = EmpiricalExecutionStatus.Fail;
@@ -94,6 +124,12 @@ public sealed class GenerationEmpiricalObservationMaterializer
                 {
                     throw new InvalidOperationException(
                         $"Generation benchmark evaluation case id does not match report case '{caseId}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.ErrorType) || item.Passed != item.Evaluation.Passed)
+                {
+                    throw new InvalidOperationException(
+                        $"Generation benchmark case '{caseId}' has inconsistent evaluation status/error evidence.");
                 }
 
                 status = EmpiricalExecutionStatus.Pass;
@@ -109,19 +145,21 @@ public sealed class GenerationEmpiricalObservationMaterializer
             var artifact = new EmpiricalRawObservationArtifact(
                 EmpiricalRawObservationArtifact.SupportedFormatVersion,
                 caseId,
-                treatmentId,
+                policy.TreatmentId,
                 status,
                 measurements,
                 failedGates,
                 recordedAt,
                 sourceReportReference,
-                sourceReportSha256);
+                sourceReportSha256,
+                materializationPolicyReference,
+                materializationPolicySha256);
             artifact.Validate();
 
             var bytes = JsonSerializer.SerializeToUtf8Bytes(artifact, JsonOptions);
             output.Add(new GenerationEmpiricalObservationMaterialization(
                 caseId,
-                treatmentId,
+                policy.TreatmentId,
                 artifact,
                 bytes,
                 EmpiricalSelectionManifest.ComputeSha256(bytes)));
