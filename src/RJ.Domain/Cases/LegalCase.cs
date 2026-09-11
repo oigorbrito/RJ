@@ -94,7 +94,13 @@ public sealed class LegalCase
     private static T[] RequireList<T>(IReadOnlyList<T> items, string parameterName)
     {
         ArgumentNullException.ThrowIfNull(items, parameterName);
-        return items.ToArray();
+        var list = items.ToArray();
+        if (list.Any(item => item is null))
+        {
+            throw new ArgumentException("Collection cannot contain null items.", parameterName);
+        }
+
+        return list;
     }
 
     private static decimal? RequireNonNegativeAmount(decimal? amount)
@@ -200,6 +206,18 @@ public sealed record LegalCaseFieldProvenance(
     public string SourceSha256 { get; } = RequireSha256(SourceSha256, nameof(SourceSha256));
 
     public string ObservedPath { get; } = LegalCase.Required(ObservedPath, nameof(ObservedPath));
+
+    public DateTimeOffset ObservedAt { get; } = RequireObservedAt(ObservedAt, nameof(ObservedAt));
+
+    private static DateTimeOffset RequireObservedAt(DateTimeOffset value, string parameterName)
+    {
+        if (value == default)
+        {
+            throw new ArgumentException("Observed instant cannot be empty.", parameterName);
+        }
+
+        return value;
+    }
 
     private static string RequireSha256(string value, string parameterName)
     {

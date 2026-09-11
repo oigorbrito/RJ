@@ -12,11 +12,14 @@ public sealed class ProcessSummaryJobService(
     GenerationService generation,
     IProcessSummaryClock clock,
     IProcessSummaryTelemetry telemetry,
-    IProcessAttachmentContentStore attachmentContentStore)
+    IProcessAttachmentContentStore attachmentContentStore,
+    IProcessSummaryAuditSink? auditSink = null,
+    IProcessSummaryJobStore? jobStore = null,
+    IProcessSummaryStructuredLogger? structuredLogger = null)
 {
-    private readonly Dictionary<string, ProcessSummaryJob> jobsByIdempotencyKey = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, ProcessSummaryJob> jobsById = new(StringComparer.Ordinal);
-    private readonly object sync = new();
+    private readonly IProcessSummaryAuditSink audit = auditSink ?? new NoopProcessSummaryAuditSink();
+    private readonly IProcessSummaryJobStore store = jobStore ?? new InMemoryProcessSummaryJobStore();
+    private readonly IProcessSummaryStructuredLogger logger = structuredLogger ?? new NoopProcessSummaryStructuredLogger();
 
     public Task<ProcessSummaryJob> SubmitAsync(
         string idempotencyKey,
@@ -44,6 +47,15 @@ public sealed class ProcessSummaryJobService(
         var security = ProcessSecurityPolicy.AuthorizeProcessSummary(caller, legalCase);
         if (!security.IsAllowed)
         {
+            Log("process_summary.submit", "forbidden", null, legalCase.Id.Value, callerTelemetryTags, clock.UtcNow);
+            audit.Record(new ProcessSummaryAuditEvent(
+                "process_summary.submit",
+                "forbidden",
+                null,
+                legalCase.Id.Value,
+                callerTelemetryTags["subject_id_hash"],
+                clock.UtcNow,
+                "caller_not_authorized"));
             telemetry.Record(Telemetry(
                 ProcessSummaryJobTelemetryStatus.Forbidden,
                 "process_summary.forbidden",
@@ -56,35 +68,35 @@ public sealed class ProcessSummaryJobService(
             throw new UnauthorizedAccessException(security.DenialReason);
         }
 
-        lock (sync)
+        var existing = store.GetByIdempotencyKey(scopedKey);
+        if (existing is not null)
         {
-            if (jobsByIdempotencyKey.TryGetValue(scopedKey, out var existing))
+            if (!StringComparer.Ordinal.Equals(existing.SnapshotSha256, source.RawContentSha256()))
             {
-                if (!StringComparer.Ordinal.Equals(existing.SnapshotSha256, source.RawContentSha256()))
-                {
-                    telemetry.Record(Telemetry(
-                        ProcessSummaryJobTelemetryStatus.IdempotencyConflict,
-                        "process_summary.idempotency_conflict",
-                        null,
-                        null,
-                        null,
-                        source.RawContentSha256(),
-                        null,
-                        callerTelemetryTags));
-                    throw new InvalidOperationException("Idempotency key is already bound to a different process snapshot.");
-                }
-
+                Log("process_summary.idempotency_conflict", "conflict", null, legalCase.Id.Value, callerTelemetryTags, clock.UtcNow);
                 telemetry.Record(Telemetry(
-                    ProcessSummaryJobTelemetryStatus.IdempotentReplay,
-                    "process_summary.idempotent_replay",
-                    existing.JobId,
-                    existing.CaseId,
-                    existing.Cnj,
-                    existing.SnapshotSha256,
-                    existing.SummaryVersion,
+                    ProcessSummaryJobTelemetryStatus.IdempotencyConflict,
+                    "process_summary.idempotency_conflict",
+                    null,
+                    null,
+                    null,
+                    source.RawContentSha256(),
+                    null,
                     callerTelemetryTags));
-                return existing;
+                throw new InvalidOperationException("Idempotency key is already bound to a different process snapshot.");
             }
+
+            Log("process_summary.idempotent_replay", "replayed", existing.JobId, existing.CaseId, callerTelemetryTags, clock.UtcNow);
+            telemetry.Record(Telemetry(
+                ProcessSummaryJobTelemetryStatus.IdempotentReplay,
+                "process_summary.idempotent_replay",
+                existing.JobId,
+                existing.CaseId,
+                existing.Cnj,
+                existing.SnapshotSha256,
+                existing.SummaryVersion,
+                callerTelemetryTags));
+            return existing;
         }
 
         var submittedAt = clock.UtcNow;
@@ -163,12 +175,14 @@ public sealed class ProcessSummaryJobService(
             job.SummaryVersion,
             terminalTags));
 
-        lock (sync)
+        if (!store.TryAdd(scopedKey, job))
         {
-            if (jobsByIdempotencyKey.TryGetValue(scopedKey, out var raced))
+            var raced = store.GetByIdempotencyKey(scopedKey);
+            if (raced is not null)
             {
                 if (!StringComparer.Ordinal.Equals(raced.SnapshotSha256, source.RawContentSha256()))
                 {
+                    Log("process_summary.idempotency_conflict", "conflict", null, legalCase.Id.Value, callerTelemetryTags, clock.UtcNow);
                     telemetry.Record(Telemetry(
                         ProcessSummaryJobTelemetryStatus.IdempotencyConflict,
                         "process_summary.idempotency_conflict",
@@ -184,12 +198,43 @@ public sealed class ProcessSummaryJobService(
                 return raced;
             }
 
-            jobsByIdempotencyKey.Add(scopedKey, job);
-            jobsById.Add(job.JobId, job);
+            throw new InvalidOperationException("Process summary job could not be stored.");
         }
+
+        Log(
+            "process_summary.submit",
+            validation.IsValid ? "validated" : "failed",
+            job.JobId,
+            job.CaseId,
+            callerTelemetryTags,
+            now);
+        audit.Record(new ProcessSummaryAuditEvent(
+            "process_summary.submit",
+            validation.IsValid ? "validated" : "failed",
+            job.JobId,
+            job.CaseId,
+            callerTelemetryTags["subject_id_hash"],
+            now,
+            validation.IsValid ? "validation_passed" : "validation_failed"));
 
         return job;
     }
+
+    private void Log(
+        string eventName,
+        string outcome,
+        string? jobId,
+        string? caseId,
+        Dictionary<string, string> callerTags,
+        DateTimeOffset observedAt) =>
+        logger.Record(new ProcessSummaryLogEvent(
+            eventName,
+            outcome,
+            jobId,
+            caseId,
+            callerTags["tenant_id_hash"],
+            callerTags["subject_id_hash"],
+            observedAt));
 
     private ProcessSummaryTelemetryEvent Telemetry(
         ProcessSummaryJobTelemetryStatus status,
@@ -265,10 +310,7 @@ public sealed class ProcessSummaryJobService(
     public ProcessSummaryJob? GetJob(string jobId)
     {
         var id = Require(jobId, nameof(jobId));
-        lock (sync)
-        {
-            return jobsById.GetValueOrDefault(id);
-        }
+        return store.GetById(id);
     }
 
     public GenerationModelOutput? GetValidatedSummary(string jobId)

@@ -57,6 +57,24 @@ public sealed class ProcessSummaryValidatorTests
     }
 
     [Fact]
+    public void Validate_rejects_raw_cpf_and_cnpj_with_non_ascii_digits()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(
+            false,
+            null,
+            [
+                Claim("CPF: \uFF10\uFF12\uFF17\uFF12\uFF17\uFF11\uFF13\uFF15\uFF19\uFF17\uFF11"),
+                Claim("CNPJ: \uFF11\uFF10\uFF11\uFF17\uFF12\uFF12\uFF15\uFF15\uFF10\uFF10\uFF10\uFF11\uFF19\uFF15")
+            ]);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Summary contains an unmasked CPF or CNPJ.", result.Errors);
+    }
+
+    [Fact]
     public void Validate_rejects_foreign_cnj_prognosis_and_attachment_content()
     {
         var legalCase = Case();
@@ -75,6 +93,21 @@ public sealed class ProcessSummaryValidatorTests
         Assert.Contains("Summary contains a CNJ different from the canonical case CNJ.", result.Errors);
         Assert.Contains("Summary contains legal prognosis not supported by deterministic process evidence.", result.Errors);
         Assert.Contains("Summary claims attachment content even though attachment content is not observed.", result.Errors);
+    }
+
+    [Fact]
+    public void Validate_rejects_foreign_cnj_with_non_ascii_digits()
+    {
+        var legalCase = Case();
+        var output = new GenerationModelOutput(
+            false,
+            null,
+            [Claim("CNJ relacionado \uFF15\uFF10\uFF10\uFF13\uFF11\uFF16\uFF10-\uFF15\uFF13.\uFF12\uFF10\uFF12\uFF16.\uFF18.\uFF11\uFF16.\uFF10\uFF10\uFF12\uFF11")]);
+
+        var result = ProcessSummaryValidator.Validate(legalCase, output);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Summary contains a CNJ different from the canonical case CNJ.", result.Errors);
     }
 
     [Fact]

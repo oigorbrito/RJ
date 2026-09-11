@@ -20,7 +20,12 @@ public sealed class ProcessAttachmentChunkerTests
         Assert.Equal(0, chunk.TokenStart);
         Assert.Equal(6, chunk.TokenCount);
         Assert.Equal(text, chunk.Text);
+        Assert.Equal(content.CaseId, chunk.CaseId);
+        Assert.Equal(content.AttachmentId, chunk.AttachmentId);
+        Assert.Equal(content.SourceName, chunk.SourceName);
+        Assert.Equal(content.SourceReference, chunk.SourceReference);
         Assert.Equal(content.ContentSha256, chunk.ContentSha256);
+        Assert.Equal(content.ObservedAt, chunk.ObservedAt);
     }
 
     [Fact]
@@ -63,6 +68,19 @@ public sealed class ProcessAttachmentChunkerTests
         var second = ProcessAttachmentChunker.Chunk(content);
 
         Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void Chunk_rejects_invalid_evidence_values_when_constructed_directly()
+    {
+        var hash = new string('a', 64);
+
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk(" ", "attachment-001", 0, 0, 1, "texto", "source", "ref", hash, ObservedAt));
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk("case-001", "attachment-001", -1, 0, 1, "texto", "source", "ref", hash, ObservedAt));
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk("case-001", "attachment-001", 0, -1, 1, "texto", "source", "ref", hash, ObservedAt));
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk("case-001", "attachment-001", 0, 0, 0, "texto", "source", "ref", hash, ObservedAt));
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk("case-001", "attachment-001", 0, 0, 1, "texto", "source", "ref", "not-a-hash", ObservedAt));
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentChunk("case-001", "attachment-001", 0, 0, 1, "texto", "source", "ref", hash, default));
     }
 
     private static ProcessAttachmentContent Content(string text) =>

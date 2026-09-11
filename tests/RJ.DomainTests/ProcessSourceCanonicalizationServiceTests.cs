@@ -58,6 +58,17 @@ public sealed class ProcessSourceCanonicalizationServiceTests
         Assert.Throws<ArgumentException>(() => new ProcessSourceDocument("fixture-source", "source", "fixture.json", value, ObservedAt));
     }
 
+    [Fact]
+    public void Source_document_rejects_missing_observed_instant()
+    {
+        Assert.Throws<ArgumentException>(() => new ProcessSourceDocument(
+            "fixture-source",
+            "source",
+            "fixture.json",
+            "{}",
+            default));
+    }
+
     private sealed class CapturingAdapter(string sourceSystem) : IProcessSourceAdapter
     {
         public string SourceSystem { get; } = sourceSystem;

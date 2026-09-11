@@ -37,9 +37,9 @@ public static class IngestionEndpoint
             await handler.HandleAsync(command, cancellationToken);
             return Results.Accepted();
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            return Results.BadRequest(new ApiError("invalid_request", exception.Message));
+            return Results.BadRequest(new ApiError("invalid_request", "Invalid ingestion request."));
         }
         catch (LegalDocumentConflictException)
         {

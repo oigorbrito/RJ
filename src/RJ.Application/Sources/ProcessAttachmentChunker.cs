@@ -12,7 +12,79 @@ public sealed record ProcessAttachmentChunk(
     string SourceName,
     string SourceReference,
     string ContentSha256,
-    DateTimeOffset ObservedAt);
+    DateTimeOffset ObservedAt)
+{
+    public string CaseId { get; } = Require(CaseId, nameof(CaseId));
+
+    public string AttachmentId { get; } = Require(AttachmentId, nameof(AttachmentId));
+
+    public int ChunkIndex { get; } = RequireNonNegative(ChunkIndex, nameof(ChunkIndex));
+
+    public int TokenStart { get; } = RequireNonNegative(TokenStart, nameof(TokenStart));
+
+    public int TokenCount { get; } = RequirePositive(TokenCount, nameof(TokenCount));
+
+    public string Text { get; } = Require(Text, nameof(Text));
+
+    public string SourceName { get; } = Require(SourceName, nameof(SourceName));
+
+    public string SourceReference { get; } = Require(SourceReference, nameof(SourceReference));
+
+    public string ContentSha256 { get; } = RequireSha256(ContentSha256, nameof(ContentSha256));
+
+    public DateTimeOffset ObservedAt { get; } = RequireObservedAt(ObservedAt, nameof(ObservedAt));
+
+    private static string Require(string value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Attachment chunk value cannot be empty.", parameterName);
+        }
+
+        return value.Trim();
+    }
+
+    private static int RequireNonNegative(int value, string parameterName)
+    {
+        if (value < 0)
+        {
+            throw new ArgumentException("Attachment chunk numeric value cannot be negative.", parameterName);
+        }
+
+        return value;
+    }
+
+    private static int RequirePositive(int value, string parameterName)
+    {
+        if (value <= 0)
+        {
+            throw new ArgumentException("Attachment chunk token count must be positive.", parameterName);
+        }
+
+        return value;
+    }
+
+    private static string RequireSha256(string value, string parameterName)
+    {
+        var normalized = Require(value, parameterName).ToLowerInvariant();
+        if (normalized.Length != 64 || normalized.Any(character => !Uri.IsHexDigit(character)))
+        {
+            throw new ArgumentException("Attachment chunk content hash must be a SHA-256 hex digest.", parameterName);
+        }
+
+        return normalized;
+    }
+
+    private static DateTimeOffset RequireObservedAt(DateTimeOffset value, string parameterName)
+    {
+        if (value == default)
+        {
+            throw new ArgumentException("Attachment chunk observed instant cannot be empty.", parameterName);
+        }
+
+        return value;
+    }
+}
 
 public static class ProcessAttachmentChunker
 {

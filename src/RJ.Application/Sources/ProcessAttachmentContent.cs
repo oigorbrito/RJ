@@ -22,6 +22,8 @@ public sealed record ProcessAttachmentContent(
 
     public string ExtractedText { get; } = Require(ExtractedText, nameof(ExtractedText));
 
+    public DateTimeOffset ObservedAt { get; } = RequireObservedAt(ObservedAt, nameof(ObservedAt));
+
     public string ContentSha256 { get; } = ComputeSha256(ExtractedText);
 
     public LegalCaseFieldProvenance ToProvenance() =>
@@ -41,6 +43,16 @@ public sealed record ProcessAttachmentContent(
         }
 
         return value.Trim();
+    }
+
+    private static DateTimeOffset RequireObservedAt(DateTimeOffset value, string parameterName)
+    {
+        if (value == default)
+        {
+            throw new ArgumentException("Attachment content observed instant cannot be empty.", parameterName);
+        }
+
+        return value;
     }
 
     private static string ComputeSha256(string value)

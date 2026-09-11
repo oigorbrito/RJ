@@ -76,6 +76,139 @@ public sealed class ProcessSummaryJobServiceTests
     }
 
     [Fact]
+    public async Task Submit_records_audit_event_separately_from_telemetry()
+    {
+        var telemetry = new InMemoryProcessSummaryTelemetry();
+        var audit = new InMemoryProcessSummaryAuditSink();
+        var service = CreateService(telemetry, audit: audit);
+
+        var job = await service.SubmitAsync(
+            "idem-audit-1",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            CancellationToken.None);
+
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("process_summary.submit", auditEvent.Action);
+        Assert.Equal("validated", auditEvent.Outcome);
+        Assert.Equal(job.JobId, auditEvent.JobId);
+        Assert.Equal(job.CaseId, auditEvent.CaseId);
+        Assert.Equal(64, auditEvent.SubjectIdHash.Length);
+        Assert.DoesNotContain("cpf", auditEvent.ReasonCode, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(telemetry.Events);
+    }
+
+    [Fact]
+    public async Task Submit_records_structured_log_without_raw_process_data()
+    {
+        var logger = new InMemoryProcessSummaryStructuredLogger();
+        var service = CreateService(structuredLogger: logger);
+
+        var job = await service.SubmitAsync(
+            "idem-log-1",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            CancellationToken.None);
+
+        var logEvent = Assert.Single(logger.Events);
+        Assert.Equal("process_summary.submit", logEvent.EventName);
+        Assert.Equal("validated", logEvent.Outcome);
+        Assert.Equal(job.JobId, logEvent.JobId);
+        Assert.Equal(job.CaseId, logEvent.CaseId);
+        Assert.Equal(64, logEvent.TenantIdHash.Length);
+        Assert.Equal(64, logEvent.SubjectIdHash.Length);
+        Assert.DoesNotContain("02727135971", string.Join('|', logger.Events.SelectMany(item => new[]
+        {
+            item.EventName,
+            item.Outcome,
+            item.JobId ?? string.Empty,
+            item.CaseId ?? string.Empty,
+            item.TenantIdHash,
+            item.SubjectIdHash
+        })));
+    }
+
+    [Fact]
+    public async Task Job_store_rejects_non_terminal_publication()
+    {
+        var service = CreateService();
+        var validJob = await service.SubmitAsync(
+            "idem-store-invariant",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            CancellationToken.None);
+        var store = new InMemoryProcessSummaryJobStore();
+
+        Assert.Throws<ArgumentException>(() => store.TryAdd(
+            "tenant-1|subject-1|idem-store-invariant",
+            validJob with { Status = ProcessSummaryJobStatus.Submitted }));
+    }
+
+    [Fact]
+    public async Task Cancelled_submission_is_not_published_to_the_job_store()
+    {
+        var store = new InMemoryProcessSummaryJobStore();
+        var service = CreateService(jobStore: store);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.SubmitAsync(
+            "idem-cancelled",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            cancellation.Token));
+
+        Assert.Empty(await store.RecoverIncompleteAsync(CancellationToken.None));
+        Assert.Null(store.GetByIdempotencyKey("tenant-1|subject-1|idem-cancelled"));
+    }
+
+    [Fact]
+    public async Task Cancellation_during_generation_is_not_published_to_the_job_store()
+    {
+        var store = new InMemoryProcessSummaryJobStore();
+        var model = new CancellationAwareModel();
+        var service = CreateService(model: model, jobStore: store);
+        using var cancellation = new CancellationTokenSource();
+        var submission = service.SubmitAsync(
+            "idem-cancelled-during-generation",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            cancellation.Token);
+
+        await model.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => submission);
+        Assert.Empty(await store.RecoverIncompleteAsync(CancellationToken.None));
+        Assert.Null(store.GetByIdempotencyKey("tenant-1|subject-1|idem-cancelled-during-generation"));
+    }
+
+    [Fact]
+    public async Task Audit_failure_is_not_reported_as_telemetry_failure_and_job_is_not_published()
+    {
+        var telemetry = new InMemoryProcessSummaryTelemetry();
+        var service = CreateService(
+            telemetry,
+            audit: new ThrowingAuditSink());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SubmitAsync(
+            "idem-audit-failure",
+            AuthorizedCaller(),
+            Source(File.ReadAllText(FixturePath)),
+            "Resuma o processo.",
+            CancellationToken.None));
+
+        Assert.Equal("Audit sink failure.", exception.Message);
+        Assert.Contains(telemetry.Events, item => item.Status == ProcessSummaryJobTelemetryStatus.Validated);
+        Assert.DoesNotContain(telemetry.Events, item => item.Status == ProcessSummaryJobTelemetryStatus.Failed);
+    }
+
+    [Fact]
     public async Task Submit_records_end_to_end_duration_from_submission_to_terminal_status()
     {
         var telemetry = new InMemoryProcessSummaryTelemetry();
@@ -405,7 +538,7 @@ public sealed class ProcessSummaryJobServiceTests
     public async Task Submit_records_sanitized_validation_failure_telemetry()
     {
         var telemetry = new InMemoryProcessSummaryTelemetry();
-        var service = CreateService(telemetry, new IncompleteProcessSummaryModel());
+        var service = CreateService(telemetry, model: new IncompleteProcessSummaryModel());
         var source = Source(File.ReadAllText(FixturePath));
 
         var job = await service.SubmitAsync("idem-job-9", AuthorizedCaller(), source, "Resuma o processo.", CancellationToken.None);
@@ -443,7 +576,7 @@ public sealed class ProcessSummaryJobServiceTests
                 "Resuma o processo.",
                 CancellationToken.None));
 
-        var failedService = CreateService(telemetry, new IncompleteProcessSummaryModel());
+        var failedService = CreateService(telemetry, model: new IncompleteProcessSummaryModel());
         _ = await failedService.SubmitAsync("idem-job-catalog-3", AuthorizedCaller(), source, "Resuma o processo.", CancellationToken.None);
 
         var traces = ProcessSummaryObservabilityCatalog.Current().Traces.ToDictionary(item => item.Name, StringComparer.Ordinal);
@@ -470,8 +603,11 @@ public sealed class ProcessSummaryJobServiceTests
 
     private static ProcessSummaryJobService CreateService(
         InMemoryProcessSummaryTelemetry? telemetry = null,
+        IProcessSummaryAuditSink? audit = null,
         IGenerationModel? model = null,
-        IProcessSummaryClock? clock = null)
+        IProcessSummaryClock? clock = null,
+        IProcessSummaryStructuredLogger? structuredLogger = null,
+        IProcessSummaryJobStore? jobStore = null)
     {
         var canonicalization = new ProcessSourceCanonicalizationService(new[] { new JuditProcessSourceAdapter() });
         var composer = new ProcessGenerationContextComposer(new GenerationContextBuilder());
@@ -482,7 +618,10 @@ public sealed class ProcessSummaryJobServiceTests
             generation,
             clock ?? new FixedClock(SubmittedAt),
             telemetry ?? new InMemoryProcessSummaryTelemetry(),
-            new EmptyProcessAttachmentContentStore());
+            new EmptyProcessAttachmentContentStore(),
+            audit,
+            jobStore: jobStore,
+            structuredLogger: structuredLogger);
     }
 
     private static void AssertNoSensitiveTelemetry(ProcessSummaryTelemetryEvent telemetryEvent)
@@ -577,6 +716,26 @@ public sealed class ProcessSummaryJobServiceTests
                         cnj.Excerpt,
                         [new GenerationCitation(cnj.DocumentId, cnj.ContentSha256, cnj.Position.StartOffset, cnj.Position.Length)])
                 ]));
+        }
+    }
+
+    private sealed class ThrowingAuditSink : IProcessSummaryAuditSink
+    {
+        public void Record(ProcessSummaryAuditEvent auditEvent) =>
+            throw new InvalidOperationException("Audit sink failure.");
+    }
+
+    private sealed class CancellationAwareModel : IGenerationModel
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<GenerationModelOutput> GenerateAsync(
+            GenerationContext context,
+            CancellationToken cancellationToken)
+        {
+            Started.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Generation should have been cancelled.");
         }
     }
 

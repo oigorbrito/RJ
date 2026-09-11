@@ -178,6 +178,24 @@ public sealed class ReadEndpointTests
         Assert.Equal("invalid_request", error.Code);
     }
 
+    [Fact]
+    public async Task Read_validation_errors_do_not_expose_domain_exception_details()
+    {
+        var service = new LegalDocumentQueryService(
+            new ThrowingReader("internal document detail"),
+            new ThrowingSearch("internal search detail"));
+
+        var list = await ReadEndpoint.ListDocumentsAsync("case-1", 0, null, service, CancellationToken.None);
+        var search = await ReadEndpoint.SearchAsync("case-1", "query", null, service, CancellationToken.None);
+
+        var listError = Assert.IsType<ApiReadError>(((IValueHttpResult)list).Value);
+        var searchError = Assert.IsType<ApiReadError>(((IValueHttpResult)search).Value);
+        Assert.Equal("Invalid read request.", listError.Error);
+        Assert.Equal("Invalid read request.", searchError.Error);
+        Assert.DoesNotContain("internal", listError.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("internal", searchError.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static LegalDocumentSnapshot Snapshot() => new(
         "case-1",
         "doc-1",
@@ -217,5 +235,31 @@ public sealed class ReadEndpointTests
             int limit,
             CancellationToken cancellationToken) =>
             Task.FromResult(hits);
+    }
+
+    private sealed class ThrowingReader(string detail) : ILegalDocumentReader
+    {
+        public Task<LegalDocumentSnapshot?> GetAsync(
+            LegalCaseId caseId,
+            LegalDocumentId documentId,
+            CancellationToken cancellationToken) =>
+            throw new ArgumentException(detail);
+
+        public Task<IReadOnlyList<LegalDocumentSnapshot>> ListByCaseAsync(
+            LegalCaseId caseId,
+            int offset,
+            int limit,
+            CancellationToken cancellationToken) =>
+            throw new ArgumentException(detail);
+    }
+
+    private sealed class ThrowingSearch(string detail) : ILegalDocumentSearch
+    {
+        public Task<IReadOnlyList<LegalDocumentSearchHit>> SearchAsync(
+            LegalCaseId caseId,
+            string query,
+            int limit,
+            CancellationToken cancellationToken) =>
+            throw new ArgumentException(detail);
     }
 }

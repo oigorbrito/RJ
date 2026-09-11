@@ -27,6 +27,11 @@ public sealed record CallerContext(
         return AuthorizedCaseIds.Contains(caseId.Value, StringComparer.Ordinal);
     }
 
+    public bool IsAuthorizedForCase(string caseId)
+    {
+        return IsAuthorizedFor(new LegalCaseId(Require(caseId, nameof(caseId))));
+    }
+
     public bool IsAuthorizedForEvidenceSource(string sourceName)
     {
         var name = Require(sourceName, nameof(sourceName));

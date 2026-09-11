@@ -21,7 +21,7 @@ public sealed class EmptyProcessAttachmentContentStore : IProcessAttachmentConte
 public sealed class InMemoryProcessAttachmentContentStore(IReadOnlyList<ProcessAttachmentContent> contents)
     : IProcessAttachmentContentStore
 {
-    private readonly ProcessAttachmentContent[] contents = (contents ?? throw new ArgumentNullException(nameof(contents))).ToArray();
+    private readonly ProcessAttachmentContent[] contents = RequireContents(contents);
 
     public IReadOnlyList<ProcessAttachmentContent> ListByCase(string caseId)
     {
@@ -35,5 +35,18 @@ public sealed class InMemoryProcessAttachmentContentStore(IReadOnlyList<ProcessA
             .OrderBy(item => item.AttachmentId, StringComparer.Ordinal)
             .ThenBy(item => item.SourceReference, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static ProcessAttachmentContent[] RequireContents(IReadOnlyList<ProcessAttachmentContent> value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var items = value.ToArray();
+        if (items.Any(item => item is null))
+        {
+            throw new ArgumentException("Attachment content store cannot contain null items.", nameof(value));
+        }
+
+        return items;
     }
 }

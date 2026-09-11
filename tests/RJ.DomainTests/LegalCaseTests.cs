@@ -51,6 +51,29 @@ public sealed class LegalCaseTests
     }
 
     [Fact]
+    public void Constructor_rejects_null_items_in_process_collections()
+    {
+        var parties = new[] { (LegalCaseParty)null! };
+
+        Assert.Throws<ArgumentException>(() => new LegalCase(
+            new LegalCaseId("case-1"),
+            new LegalCaseCnj("6003160-36.2026.8.16.0021"),
+            "case name",
+            "court",
+            "phase",
+            "status",
+            0,
+            null,
+            parties,
+            Array.Empty<LegalCaseLawyer>(),
+            new[] { new LegalCaseClassification("436", "classification") },
+            new[] { new LegalCaseSubject("899", "subject") },
+            new[] { new LegalCaseStep("step-1", DateTimeOffset.Parse("2026-09-01T20:33:37.000Z", CultureInfo.InvariantCulture), "content", "source") },
+            Array.Empty<LegalCaseAttachment>(),
+            new[] { Provenance("cnj", "page_data[0].response_data.code") }));
+    }
+
+    [Fact]
     public void Constructor_rejects_missing_process_provenance()
     {
         Assert.Throws<ArgumentException>(() => new LegalCase(
@@ -160,6 +183,18 @@ public sealed class LegalCaseTests
         Assert.Equal(new string('a', 64), provenance.SourceSha256);
         Assert.Equal("page_data[0].response_data.code", provenance.ObservedPath);
         Assert.Throws<ArgumentException>(() => new LegalCaseFieldProvenance("cnj", "source", "fixture.json", "invalid", "path", provenance.ObservedAt));
+    }
+
+    [Fact]
+    public void Provenance_rejects_missing_observed_instant()
+    {
+        Assert.Throws<ArgumentException>(() => new LegalCaseFieldProvenance(
+            "cnj",
+            "source",
+            "fixture.json",
+            new string('a', 64),
+            "page_data[0].response_data.code",
+            default));
     }
 
     [Fact]

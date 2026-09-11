@@ -15,7 +15,19 @@ public sealed record ProcessSourceDocument(
 
     public string RawContent { get; } = Require(RawContent, nameof(RawContent));
 
+    public DateTimeOffset ObservedAt { get; } = RequireObservedAt(ObservedAt, nameof(ObservedAt));
+
     internal static string RequireSourceSystem(string value) => Require(value, nameof(SourceSystem));
+
+    private static DateTimeOffset RequireObservedAt(DateTimeOffset value, string parameterName)
+    {
+        if (value == default)
+        {
+            throw new ArgumentException("Process source observed instant cannot be empty.", parameterName);
+        }
+
+        return value;
+    }
 
     private static string Require(string value, string parameterName)
     {

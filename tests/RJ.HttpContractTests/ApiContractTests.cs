@@ -1,9 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RJ.Infrastructure.Persistence;
 
@@ -26,6 +31,25 @@ public sealed class ApiContractTests
         Assert.Equal("live", (await ReadJsonAsync(live)).RootElement.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
         Assert.Equal("ready", (await ReadJsonAsync(ready)).RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task OpenApi_document_exposes_named_public_routes()
+    {
+        await using var fixture = await HttpFixture.CreateAsync();
+
+        var response = await fixture.Client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("application/json", response.Content.Headers.ContentType?.MediaType, StringComparison.OrdinalIgnoreCase);
+
+        using var document = await ReadJsonAsync(response);
+        var paths = document.RootElement.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/legal-documents", out var ingestion));
+        Assert.Equal("IngestLegalDocument", ingestion.GetProperty("post").GetProperty("operationId").GetString());
+        Assert.True(paths.TryGetProperty("/api/cases/{caseId}/evidence", out var evidence));
+        Assert.Equal("RetrieveCaseEvidence", evidence.GetProperty("get").GetProperty("operationId").GetString());
+        Assert.True(paths.TryGetProperty("/api/process-summaries/jobs", out var jobs));
+        Assert.Equal("SubmitProcessSummaryJob", jobs.GetProperty("post").GetProperty("operationId").GetString());
     }
 
     [Fact]
@@ -234,7 +258,9 @@ public sealed class ApiContractTests
             var dataSource = NpgsqlDataSource.Create(connectionString);
             await PostgresSchema.MigrateAsync(dataSource);
 
-            var factory = new WebApplicationFactory<Program>();
+            var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                    services.AddSingleton<IStartupFilter, TestPrincipalStartupFilter>()));
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions
             {
                 AllowAutoRedirect = false
@@ -249,5 +275,58 @@ public sealed class ApiContractTests
             await _factory.DisposeAsync();
             await _dataSource.DisposeAsync();
         }
+    }
+}
+
+internal sealed class TestPrincipalStartupFilter : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+    {
+        app.Use(async (context, proceed) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                var caseId = await ResolveCaseIdAsync(context);
+                if (!string.IsNullOrWhiteSpace(caseId))
+                {
+                    var claims = new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, "http-contract-subject"),
+                        new Claim("tenant_id", "http-contract-tenant"),
+                        new Claim("tenant_case_access", $"http-contract-tenant:{caseId}")
+                    };
+                    context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "http-contract-test"));
+                }
+            }
+
+            await proceed();
+        });
+
+        next(app);
+    };
+
+    private static async Task<string?> ResolveCaseIdAsync(HttpContext context)
+    {
+        var segments = context.Request.Path.Value?
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments is { Length: >= 3 } && segments[0] == "api" && segments[1] == "cases")
+        {
+            return segments[2];
+        }
+
+        if (!HttpMethods.IsPost(context.Request.Method)
+            || (!context.Request.Path.Equals("/api/legal-documents", StringComparison.Ordinal)
+                && !context.Request.Path.Equals("/api/process-summaries/jobs", StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        context.Request.EnableBuffering();
+        using var document = await JsonDocument.ParseAsync(context.Request.Body, cancellationToken: context.RequestAborted);
+        context.Request.Body.Position = 0;
+        var propertyName = context.Request.Path == "/api/legal-documents" ? "caseId" : "sourceReference";
+        return document.RootElement.TryGetProperty(propertyName, out var property)
+            ? property.GetString()
+            : null;
     }
 }

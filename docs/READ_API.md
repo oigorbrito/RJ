@@ -2,6 +2,23 @@
 
 ## Contract
 
+The generated OpenAPI document is available at `GET /openapi/v1.json` when the API host is running.
+Route names are stable and are used as the operation identifiers by the OpenAPI provider.
+
+## Authentication and authorization
+
+All `/api` routes require an authenticated principal. Anonymous requests are rejected with HTTP 401 before repository, evidence, generation, or job processing.
+
+The HTTP boundary derives caller identity only from the authenticated principal. The process-summary request body does not carry tenant, subject, case-authorization, sealed-case, or evidence-source authorization fields. The current claim contract is:
+
+- `tenant_id`: tenant identity;
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier`: subject identity;
+- `tenant_case_access`: one claim per authorized case in the form `{tenant_id}:{case_id}`;
+- `evidence_source`: optional claim per authorized evidence source;
+- `sealed_case_access=true`: optional claim for sealed cases.
+
+Missing identity claims return HTTP 401. An authenticated principal without access to the requested case returns HTTP 403. ACL persistence and the concrete identity provider remain deployment concerns; the application boundary is fail-closed and never trusts authorization values from the client payload.
+
 All document retrieval routes are scoped by `caseId` in the URL. There is no unscoped document-list or full-text-search endpoint.
 
 - `GET /api/cases/{caseId}/documents?page={>=1}&pageSize={1..100}`
@@ -45,6 +62,17 @@ The evidence endpoint does not serialize Application-layer `LegalEvidenceHit` or
 `rawContent` is the preserved ingested evidence representation. `content` is the normalized operational representation. `contentSha256` is derived from UTF-8 bytes of `rawContent` during ingestion.
 
 Search remains PostgreSQL FTS only and is not semantic/vector retrieval.
+
+## Process summary jobs
+
+The deterministic process-summary surface is:
+
+- `POST /api/process-summaries/jobs`;
+- `GET /api/process-summaries/jobs/{jobId}`;
+- `GET /api/process-summaries/jobs/{jobId}/validated-summary`;
+- `POST /api/process-summaries/jobs/{jobId}/refresh-plan`.
+
+Job polling and refresh-plan responses re-check the authenticated caller against the case bound to the job before returning an envelope or validated result. A failed validation job never returns a validated summary. The current job store is in-memory and process-local; restart recovery and durable retention are not claimed by this contract.
 
 ## Isolation and ordering
 

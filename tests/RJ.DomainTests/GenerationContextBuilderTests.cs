@@ -61,6 +61,81 @@ public sealed class GenerationContextBuilderTests
         Assert.Throws<InvalidOperationException>(() => builder.Build("case-1", "abc", 100, [invalid]));
     }
 
+    [Fact]
+    public void Evidence_hit_rejects_invalid_citation_values()
+    {
+        var position = SourcePosition.Create(0, 5, 5);
+
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit(" ", "doc-1", "source.txt", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit("case-1", " ", "source.txt", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit("case-1", "doc-1", " ", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit("case-1", "doc-1", "source.txt", "not-a-hash", "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit("case-1", "doc-1", "source.txt", Hash, " ", position, 1f));
+        Assert.Throws<ArgumentNullException>(() => new LegalEvidenceHit("case-1", "doc-1", "source.txt", Hash, "texto", null!, 1f));
+        Assert.Throws<ArgumentException>(() => new LegalEvidenceHit("case-1", "doc-1", "source.txt", Hash, "texto", position, float.NaN));
+    }
+
+    [Fact]
+    public void Generation_context_item_rejects_invalid_citation_values()
+    {
+        var position = SourcePosition.Create(0, 5, 5);
+
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem(" ", "doc-1", "source.txt", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem("case-1", " ", "source.txt", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem("case-1", "doc-1", " ", Hash, "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem("case-1", "doc-1", "source.txt", "not-a-hash", "texto", position, 1f));
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem("case-1", "doc-1", "source.txt", Hash, " ", position, 1f));
+        Assert.Throws<ArgumentNullException>(() => new GenerationContextItem("case-1", "doc-1", "source.txt", Hash, "texto", null!, 1f));
+        Assert.Throws<ArgumentException>(() => new GenerationContextItem("case-1", "doc-1", "source.txt", Hash, "texto", position, float.PositiveInfinity));
+    }
+
+    [Fact]
+    public void Generation_context_rejects_invalid_context_values()
+    {
+        var item = new GenerationContextItem(
+            "case-1",
+            "doc-1",
+            "source.txt",
+            Hash,
+            "texto",
+            SourcePosition.Create(0, 5, 5),
+            1f);
+        var otherCaseItem = new GenerationContextItem(
+            "case-2",
+            item.DocumentId,
+            item.SourceName,
+            item.ContentSha256,
+            item.Excerpt,
+            item.Position,
+            item.Rank);
+
+        Assert.Throws<ArgumentException>(() => new GenerationContext(" ", "query", 100, 0, []));
+        Assert.Throws<ArgumentException>(() => new GenerationContext("case-1", " ", 100, 0, []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenerationContext("case-1", "query", 0, 0, []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenerationContext("case-1", "query", 100, -1, []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenerationContext("case-1", "query", 100, 101, []));
+        Assert.Throws<ArgumentNullException>(() => new GenerationContext("case-1", "query", 100, 0, null!));
+        Assert.Throws<ArgumentException>(() => new GenerationContext("case-1", "query", 100, 0, [null!]));
+        Assert.Throws<ArgumentException>(() => new GenerationContext("case-1", "query", 100, 5, [otherCaseItem]));
+        Assert.Equal("case-1", new GenerationContext(" case-1 ", " query ", 100, 5, [item]).CaseId);
+    }
+
+    [Fact]
+    public void Generation_context_with_query_rebuilds_through_validated_constructor()
+    {
+        var context = new GenerationContext("case-1", "query", 100, 0, []);
+
+        var updated = context.WithQuery("corrective query");
+
+        Assert.NotSame(context, updated);
+        Assert.Equal("corrective query", updated.Query);
+        Assert.Equal(context.CaseId, updated.CaseId);
+        Assert.Equal(context.CharacterBudget, updated.CharacterBudget);
+        Assert.Equal(context.UsedCharacters, updated.UsedCharacters);
+        Assert.Equal(context.Items, updated.Items);
+        Assert.Throws<ArgumentException>(() => context.WithQuery(" "));
+    }
+
     private static LegalEvidenceHit Evidence(
         string caseId,
         string documentId,

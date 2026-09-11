@@ -23,10 +23,8 @@ public static class ProcessSummaryCorrectiveRetry
             return new ProcessSummaryCorrectiveRetryResult(firstOutput, firstValidation, 1, false);
         }
 
-        var correctiveContext = context with
-        {
-            Query = BuildCorrectiveQuery(context.Query, firstValidation.Errors)
-        };
+        var correctiveContext = context.WithQuery(
+            BuildCorrectiveQuery(context.Query, firstValidation.Errors));
         var secondOutput = await generation.GenerateAsync(correctiveContext, cancellationToken);
         var secondValidation = ProcessSummaryValidator.Validate(legalCase, secondOutput, consistencyReport);
 

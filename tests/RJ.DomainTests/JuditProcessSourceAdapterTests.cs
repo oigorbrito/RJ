@@ -80,6 +80,14 @@ public sealed class JuditProcessSourceAdapterTests
         Assert.Equal(expected, masked);
     }
 
+    [Theory]
+    [InlineData("\uFF10\uFF12\uFF17\uFF12\uFF17\uFF11\uFF13\uFF15\uFF19\uFF17\uFF11")]
+    [InlineData("\uFF11\uFF10\uFF11\uFF17\uFF12\uFF12\uFF15\uFF15\uFF10\uFF10\uFF10\uFF11\uFF19\uFF15")]
+    public void Brazilian_document_masker_rejects_non_ascii_digits(string input)
+    {
+        Assert.Throws<ArgumentException>(() => BrazilianDocumentMasker.MaskCpfCnpj(input));
+    }
+
     [Fact]
     public void Canonicalize_preserves_raw_source_and_masks_only_canonical_party_documents()
     {

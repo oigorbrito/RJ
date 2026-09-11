@@ -20,9 +20,9 @@ public static class ReadEndpoint
             var items = documents.Select(ToSummary).ToArray();
             return Results.Ok(new LegalDocumentPage(pageNumber, size, items));
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            return InvalidRequest(exception);
+            return InvalidRequest();
         }
     }
 
@@ -37,9 +37,9 @@ public static class ReadEndpoint
             var document = await service.GetAsync(caseId, documentId, cancellationToken);
             return document is null ? Results.NotFound() : Results.Ok(ToDetail(document));
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            return InvalidRequest(exception);
+            return InvalidRequest();
         }
     }
 
@@ -61,9 +61,9 @@ public static class ReadEndpoint
                 hit.Rank)).ToArray();
             return Results.Ok(items);
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            return InvalidRequest(exception);
+            return InvalidRequest();
         }
     }
 
@@ -83,14 +83,14 @@ public static class ReadEndpoint
                 cancellationToken);
             return Results.Ok(evidence.Select(ToEvidenceResult).ToArray());
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            return InvalidRequest(exception);
+            return InvalidRequest();
         }
     }
 
-    private static IResult InvalidRequest(ArgumentException exception) =>
-        Results.BadRequest(new ApiReadError("invalid_request", exception.Message));
+    private static IResult InvalidRequest() =>
+        Results.BadRequest(new ApiReadError("invalid_request", "Invalid read request."));
 
     private static LegalDocumentSummary ToSummary(LegalDocumentSnapshot document) => new(
         document.CaseId,

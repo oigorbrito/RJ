@@ -95,6 +95,18 @@ public sealed class GenerationServiceTests
         Assert.Null(model.ReceivedContext);
     }
 
+    [Fact]
+    public void Generation_citation_rejects_invalid_source_positions_and_hashes()
+    {
+        var hash = new string('a', 64);
+
+        Assert.Throws<ArgumentException>(() => new GenerationCitation(" ", hash, 0, 1));
+        Assert.Throws<ArgumentException>(() => new GenerationCitation("doc-1", "not-a-hash", 0, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenerationCitation("doc-1", hash, -1, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenerationCitation("doc-1", hash, 0, 0));
+        Assert.Equal(hash, new GenerationCitation(" doc-1 ", hash.ToUpperInvariant(), 0, 1).ContentSha256);
+    }
+
     private static GenerationContext CreateContext()
     {
         const string excerpt = "A tutela provisoria foi deferida.";

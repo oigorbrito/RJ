@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using RJ.Api;
 using RJ.Application.Generation;
 using RJ.Application.Operations;
+using RJ.Application.Security;
 using RJ.Application.Sources;
 
 namespace RJ.ApiTests;
@@ -15,6 +16,31 @@ public sealed class ProcessSummaryEndpointTests
     private static readonly string FixturePath = Path.Combine(RepoRoot, "tests", "fixtures", "rj", "response_60031603620268160021_1.json");
     private static readonly DateTimeOffset SubmittedAt =
         DateTimeOffset.Parse("2026-09-07T20:00:00.000Z", CultureInfo.InvariantCulture);
+
+    [Fact]
+    public async Task Submit_without_authenticated_context_returns_unauthorized()
+    {
+        var request = Request("idem-no-caller", File.ReadAllText(FixturePath)) with
+        {
+            AuthenticatedCallerContext = null
+        };
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, CreateService(), CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [Fact]
+    public void Process_summary_request_json_does_not_expose_caller_identity_fields()
+    {
+        var json = JsonSerializer.Serialize(Request("idem-json-boundary", File.ReadAllText(FixturePath)));
+
+        Assert.DoesNotContain("AuthenticatedCallerContext", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("TenantId", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("SubjectId", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("AuthorizedCaseIds", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("tenant_case_access", json, StringComparison.Ordinal);
+    }
 
     [Fact]
     public async Task Submit_returns_accepted_job_bound_to_snapshot_and_validated_summary()
@@ -507,6 +533,23 @@ public sealed class ProcessSummaryEndpointTests
     }
 
     [Fact]
+    public async Task Submit_sanitizes_negative_process_source_amount()
+    {
+        var sensitiveRawContent = File.ReadAllText(FixturePath)
+            .Replace("\"amount\":30000", "\"amount\":-1", StringComparison.Ordinal);
+        var service = CreateService();
+        var request = Request("idem-negative-source-amount", sensitiveRawContent);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("Legal case amount cannot be negative", error.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("amount", error.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Submit_sanitizes_invalid_process_source_secrecy_level_type()
     {
         var sensitiveRawContent = File.ReadAllText(FixturePath)
@@ -624,6 +667,33 @@ public sealed class ProcessSummaryEndpointTests
         var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
         Assert.Equal("Invalid process summary request.", error.Error);
         Assert.DoesNotContain("ExtractedText", error.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Submit_sanitizes_missing_attachment_content_observed_instant()
+    {
+        var service = CreateService();
+        var request = Request(
+            "idem-missing-attachment-content-observed-instant",
+            File.ReadAllText(FixturePath),
+            attachmentContents:
+            [
+                new ProcessAttachmentContentRequest(
+                    "response_60031603620268160021_1",
+                    "411788364428621657023616086781",
+                    "attachment-extractor",
+                    "attachments/411788364428621657023616086781.html",
+                    "ATO ORDINATORIO OBSERVADO",
+                    "0001-01-01T00:00:00.000Z")
+            ]);
+
+        var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+        var error = Assert.IsType<ProcessSummaryError>(((IValueHttpResult)result).Value);
+        Assert.Equal("Invalid process summary request.", error.Error);
+        Assert.DoesNotContain("Attachment content observed instant cannot be empty", error.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("observed", error.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -799,7 +869,7 @@ public sealed class ProcessSummaryEndpointTests
         IReadOnlyList<string>? authorizedCaseIds = null,
         IReadOnlyList<string>? authorizedEvidenceSourceNames = null,
         IReadOnlyList<ProcessAttachmentContentRequest>? attachmentContents = null) =>
-        new(
+        new ProcessSummaryRequest(
             idempotencyKey,
             JuditProcessSourceAdapter.JuditSourceSystem,
             "Judit",
@@ -807,12 +877,15 @@ public sealed class ProcessSummaryEndpointTests
             rawContent,
             "2026-09-02T18:51:04.800Z",
             "Resuma o processo.",
-            "tenant-1",
-            "subject-1",
-            authorizedCaseIds ?? ["response_60031603620268160021_1"],
-            false,
-            authorizedEvidenceSourceNames,
-            attachmentContents);
+            attachmentContents)
+        {
+            AuthenticatedCallerContext = new CallerContext(
+                "tenant-1",
+                "subject-1",
+                authorizedCaseIds ?? ["response_60031603620268160021_1"],
+                false,
+                authorizedEvidenceSourceNames)
+        };
 
     private static ProcessSummaryJobService CreateService(IGenerationModel? model = null)
     {

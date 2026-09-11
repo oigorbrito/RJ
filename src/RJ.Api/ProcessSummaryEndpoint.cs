@@ -1,16 +1,48 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using RJ.Application.Generation;
 using RJ.Application.Security;
 using RJ.Application.Sources;
+using RJ.Api.Security;
 
 namespace RJ.Api;
 
 public static class ProcessSummaryEndpoint
 {
+    public static Task<IResult> SubmitAuthenticatedAsync(
+        ProcessSummaryRequest request,
+        CallerContext caller,
+        ProcessSummaryJobService service,
+        CancellationToken cancellationToken) =>
+        SubmitCoreAsync(request, caller, service, cancellationToken);
+
     public static async Task<IResult> SubmitAsync(
         ProcessSummaryRequest request,
+        ProcessSummaryJobService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var caller = request.AuthenticatedCallerContext
+                ?? throw new UnauthorizedAccessException("An authenticated caller is required.");
+            return await SubmitCoreAsync(request, caller, service, cancellationToken);
+        }
+        catch (ArgumentNullException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary request."));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Unauthorized();
+        }
+    }
+
+    private static async Task<IResult> SubmitCoreAsync(
+        ProcessSummaryRequest request,
+        CallerContext caller,
         ProcessSummaryJobService service,
         CancellationToken cancellationToken)
     {
@@ -41,12 +73,6 @@ public static class ProcessSummaryEndpoint
                 request.SourceReference,
                 request.RawContent,
                 DateTimeOffset.Parse(request.ObservedAt, CultureInfo.InvariantCulture));
-            var caller = new CallerContext(
-                request.TenantId,
-                request.SubjectId,
-                request.AuthorizedCaseIds,
-                request.CanAccessSealedCases,
-                request.AuthorizedEvidenceSourceNames);
             var attachmentContents = request.AttachmentContents
                 .Select(item => new ProcessAttachmentContent(
                     item.CaseId,
@@ -108,6 +134,29 @@ public static class ProcessSummaryEndpoint
         }
     }
 
+    public static IResult GetJobAuthenticated(string jobId, CallerContext caller, ProcessSummaryJobService service)
+    {
+        try
+        {
+            var job = service.GetJob(jobId);
+            if (job is null)
+            {
+                return Results.NotFound();
+            }
+
+            EnsureCallerCanReadJob(caller, job);
+            return Results.Ok(ToResponse(job));
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+        }
+        catch (ForbiddenAccessException)
+        {
+            return Results.Forbid();
+        }
+    }
+
     public static IResult GetValidatedSummary(string jobId, ProcessSummaryJobService service)
     {
         try
@@ -118,6 +167,31 @@ public static class ProcessSummaryEndpoint
         catch (ArgumentException)
         {
             return Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+        }
+    }
+
+    public static IResult GetValidatedSummaryAuthenticated(string jobId, CallerContext caller, ProcessSummaryJobService service)
+    {
+        try
+        {
+            var job = service.GetJob(jobId);
+            if (job is null)
+            {
+                return Results.NotFound();
+            }
+
+            EnsureCallerCanReadJob(caller, job);
+            return job is { Status: ProcessSummaryJobStatus.Validated, Validation.IsValid: true }
+                ? Results.Ok(job.Output)
+                : Results.NotFound();
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+        }
+        catch (ForbiddenAccessException)
+        {
+            return Results.Forbid();
         }
     }
 
@@ -147,6 +221,42 @@ public static class ProcessSummaryEndpoint
         }
     }
 
+    public static IResult GetRefreshPlanAuthenticated(
+        string jobId,
+        ProcessSummaryRefreshPlanRequest request,
+        CallerContext caller,
+        ProcessSummaryJobService service)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var job = service.GetJob(jobId);
+            if (job is null)
+            {
+                return Results.NotFound();
+            }
+
+            EnsureCallerCanReadJob(caller, job);
+            var plan = service.GetRefreshPlan(jobId, request.CurrentSnapshotSha256, request.CurrentSummaryVersion);
+            return plan is null
+                ? Results.NotFound()
+                : Results.Ok(new ProcessSummaryRefreshPlanResponse(
+                    plan.Action.ToString(), plan.Reason, plan.RequiresScheduler));
+        }
+        catch (ArgumentNullException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary refresh plan request."));
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest(new ProcessSummaryError("Invalid process summary refresh plan request."));
+        }
+        catch (ForbiddenAccessException)
+        {
+            return Results.Forbid();
+        }
+    }
+
 
     private static ProcessSummaryJobResponse ToResponse(ProcessSummaryJob job) => new(
         job.JobId,
@@ -170,6 +280,16 @@ public static class ProcessSummaryEndpoint
     private static IReadOnlyList<string> ToPublicValidationErrors(ProcessSummaryJob job) =>
         job.Validation.IsValid ? [] : ["process_summary_validation_failed"];
 
+    private static void EnsureCallerCanReadJob(CallerContext caller, ProcessSummaryJob job)
+    {
+        ArgumentNullException.ThrowIfNull(caller);
+        ArgumentNullException.ThrowIfNull(job);
+        if (!caller.IsAuthorizedForCase(job.CaseId))
+        {
+            throw new ForbiddenAccessException("Caller is not authorized for this legal case.");
+        }
+    }
+
     private static string ToPublicConflictError(InvalidOperationException exception) =>
         exception.Message switch
         {
@@ -188,14 +308,12 @@ public sealed record ProcessSummaryRequest(
     string RawContent,
     string ObservedAt,
     string Instruction,
-    string TenantId,
-    string SubjectId,
-    IReadOnlyList<string> AuthorizedCaseIds,
-    bool CanAccessSealedCases,
-    IReadOnlyList<string>? AuthorizedEvidenceSourceNames = null,
     IReadOnlyList<ProcessAttachmentContentRequest>? AttachmentContents = null)
 {
     public IReadOnlyList<ProcessAttachmentContentRequest> AttachmentContents { get; } = AttachmentContents ?? [];
+
+    [JsonIgnore]
+    public CallerContext? AuthenticatedCallerContext { get; init; }
 }
 
 public sealed record ProcessAttachmentContentRequest(

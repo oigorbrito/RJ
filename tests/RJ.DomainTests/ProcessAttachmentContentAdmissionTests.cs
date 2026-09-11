@@ -79,6 +79,24 @@ public sealed class ProcessAttachmentContentAdmissionTests
         Assert.Equal(ExpectedExtractorOrder, admitted.Select(item => item.SourceName));
     }
 
+    [Fact]
+    public void Attachment_content_rejects_missing_observed_instant()
+    {
+        Assert.Throws<ArgumentException>(() => new ProcessAttachmentContent(
+            "case-001",
+            "attachment-001",
+            "html-extractor",
+            "attachments/attachment-001.html",
+            "Texto observado.",
+            default));
+    }
+
+    [Fact]
+    public void In_memory_store_rejects_null_attachment_content_items()
+    {
+        Assert.Throws<ArgumentException>(() => new InMemoryProcessAttachmentContentStore([null!]));
+    }
+
     private static RJ.Domain.Cases.LegalCase LoadCanonicalCase()
     {
         var rawContent = File.ReadAllText(FixturePath);
