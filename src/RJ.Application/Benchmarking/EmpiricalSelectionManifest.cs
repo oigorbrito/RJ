@@ -105,12 +105,25 @@ public sealed record EmpiricalSelectionManifest(
         }
 
         var declaredGates = NonCompensableGates.ToHashSet(StringComparer.Ordinal);
+        var declaredMetrics = Metrics.Select(item => item.MetricId).ToHashSet(StringComparer.Ordinal);
         foreach (var observation in Observations)
         {
             if (observation.FailedNonCompensableGates.Any(gate => !declaredGates.Contains(gate)))
             {
                 throw new InvalidOperationException(
                     $"Observation '{observation.CaseId}/{observation.TreatmentId}' reports an undeclared non-compensable gate.");
+            }
+
+            if (observation.Measurements.Any(item => !declaredMetrics.Contains(item.Key)))
+            {
+                throw new InvalidOperationException(
+                    $"Observation '{observation.CaseId}/{observation.TreatmentId}' reports an undeclared metric.");
+            }
+
+            if (observation.Measurements.Any(item => !double.IsFinite(item.Value)))
+            {
+                throw new InvalidOperationException(
+                    $"Observation '{observation.CaseId}/{observation.TreatmentId}' contains a non-finite measurement.");
             }
         }
 
