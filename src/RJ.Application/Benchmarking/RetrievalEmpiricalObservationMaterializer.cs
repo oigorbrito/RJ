@@ -50,6 +50,19 @@ public sealed record RetrievalEmpiricalObservationPolicy(
                 $"Retrieval treatment '{TreatmentId}' policy does not match benchmark treatment identity/configuration.");
         }
     }
+
+    public void RequireMatches(EmpiricalTreatmentDefinition treatment)
+    {
+        ArgumentNullException.ThrowIfNull(treatment);
+        if (treatment.Kind != EmpiricalTreatmentKind.Retrieval
+            || !StringComparer.Ordinal.Equals(TreatmentId, treatment.TreatmentId)
+            || !StringComparer.Ordinal.Equals(ConfigurationReference, treatment.ConfigurationReference)
+            || !StringComparer.Ordinal.Equals(ConfigurationSha256, treatment.ConfigurationSha256))
+        {
+            throw new InvalidOperationException(
+                $"Retrieval materialization policy does not match empirical treatment '{treatment.TreatmentId}'.");
+        }
+    }
 }
 
 public sealed record RetrievalEmpiricalObservationMaterialization(
