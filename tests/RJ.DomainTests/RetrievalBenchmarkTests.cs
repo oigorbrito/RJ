@@ -20,6 +20,7 @@ public sealed class RetrievalBenchmarkTests
         });
         var report = await new RetrievalBenchmarkRunner(search).RunAsync(
             Catalog("doc-2", expectedHash),
+            Execution(),
             Treatment(),
             5,
             CancellationToken.None);
@@ -31,6 +32,7 @@ public sealed class RetrievalBenchmarkTests
         Assert.Equal(1, item.HitAt5);
         Assert.Equal(0.5, item.Mrr);
         Assert.Equal(2, Assert.Single(item.Queries).FirstRelevantRank);
+        Assert.Equal(new string('a', 40), report.Execution.GitCommit);
     }
 
     [Fact]
@@ -42,6 +44,7 @@ public sealed class RetrievalBenchmarkTests
         });
         var report = await new RetrievalBenchmarkRunner(search).RunAsync(
             Catalog("expected-doc", new string('d', 64)),
+            Execution(),
             Treatment(),
             5,
             CancellationToken.None);
@@ -57,6 +60,7 @@ public sealed class RetrievalBenchmarkTests
     {
         var report = await new RetrievalBenchmarkRunner(new ThrowingSearch()).RunAsync(
             Catalog("doc-1", new string('a', 64)),
+            Execution(),
             Treatment(),
             5,
             CancellationToken.None);
@@ -82,6 +86,7 @@ public sealed class RetrievalBenchmarkTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new RetrievalBenchmarkRunner(search).RunAsync(
                 Catalog("doc-1", new string('a', 64)),
+                Execution(),
                 wrong,
                 5,
                 CancellationToken.None));
@@ -99,6 +104,7 @@ public sealed class RetrievalBenchmarkTests
 
         var report = await new RetrievalBenchmarkRunner(search).RunAsync(
             Catalog("doc-1", new string('a', 64)),
+            Execution(),
             Treatment(),
             5,
             CancellationToken.None);
@@ -112,11 +118,8 @@ public sealed class RetrievalBenchmarkTests
     [Fact]
     public void Materializer_preserves_case_quality_metrics_and_provenance()
     {
-        var report = new RetrievalBenchmarkReport(
-            RetrievalBenchmarkReport.SupportedFormatVersion,
-            "catalog-v1",
-            Treatment(),
-            [new RetrievalBenchmarkCaseReport(
+        var report = Report(
+            new RetrievalBenchmarkCaseReport(
                 "case-1",
                 4,
                 1,
@@ -131,7 +134,7 @@ public sealed class RetrievalBenchmarkTests
                     new("q4", null, false, false, false)
                 ],
                 null,
-                null)]).Validate();
+                null));
 
         var item = Assert.Single(new RetrievalEmpiricalObservationMaterializer().Materialize(
             report,
@@ -155,13 +158,9 @@ public sealed class RetrievalBenchmarkTests
     [Fact]
     public void Materializer_rejects_policy_that_does_not_match_report_configuration()
     {
-        var report = new RetrievalBenchmarkReport(
-            RetrievalBenchmarkReport.SupportedFormatVersion,
-            "catalog-v1",
-            Treatment(),
-            [new RetrievalBenchmarkCaseReport(
-                "case-1", 1, 1, 1, 1, 1.0, 1.0,
-                [new("q1", 1, true, true, true)], null, null)]).Validate();
+        var report = Report(new RetrievalBenchmarkCaseReport(
+            "case-1", 1, 1, 1, 1, 1.0, 1.0,
+            [new("q1", 1, true, true, true)], null, null));
         var wrong = new RetrievalEmpiricalObservationPolicy(
             "R0", "postgres-ts-rank-cd-v1", "configs/r0.json", new string('9', 64),
             "hit_at_1_rate", "hit_at_3_rate", "hit_at_5_rate", "mrr", "retrieval_duration_ms", "candidate_execution_failure");
@@ -176,6 +175,30 @@ public sealed class RetrievalBenchmarkTests
                 DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
                 wrong));
     }
+
+    [Fact]
+    public void Policy_rejects_selection_treatment_with_different_configuration_hash()
+    {
+        var treatment = new EmpiricalTreatmentDefinition(
+            "R0",
+            EmpiricalTreatmentKind.Retrieval,
+            "configs/r0.json",
+            new string('9', 64),
+            "lexical retrieval baseline");
+
+        Assert.Throws<InvalidOperationException>(() => Policy().RequireMatches(treatment));
+    }
+
+    private static RetrievalBenchmarkReport Report(RetrievalBenchmarkCaseReport item) =>
+        new RetrievalBenchmarkReport(
+            RetrievalBenchmarkReport.SupportedFormatVersion,
+            "catalog-v1",
+            Execution(),
+            Treatment(),
+            [item]).Validate();
+
+    private static RetrievalBenchmarkExecutionMetadata Execution() =>
+        new(new string('a', 40), ".NET 10.0.0");
 
     private static RetrievalBenchmarkCatalog Catalog(string documentId, string sha) =>
         new(
