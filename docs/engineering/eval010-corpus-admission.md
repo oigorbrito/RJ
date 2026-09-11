@@ -79,7 +79,7 @@ dotnet run --project tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csp
 
 Before parsing the manifest, the verifier hashes the exact manifest bytes and requires equality with `<manifest-sha256>`.
 
-Artifact references are resolved under the supplied root. References that escape that root are rejected.
+Artifact references are normalized lexically under the supplied root and references that escape that root are rejected. Path comparison follows the host operating system's case semantics. This is a reproducibility/path-boundary check, not a hardened filesystem sandbox: symlink/reparse-point confinement is not claimed.
 
 Exit codes:
 
@@ -137,6 +137,7 @@ This wave does not demonstrate:
 - model/provider superiority;
 - production generalization;
 - numeric acceptance thresholds beyond already pre-specified hard gates;
-- any weighted composite score.
+- any weighted composite score;
+- symlink/reparse-point confinement by the verifier.
 
 When treatment measurements later fail to distinguish candidates without an unambiguous pre-specified decision, the required result remains `NO_CLEAR_WINNER`.
