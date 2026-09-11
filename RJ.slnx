@@ -17,6 +17,7 @@
     <Project Path="tools/RJ.AttachmentAdmissionVerifier/RJ.AttachmentAdmissionVerifier.csproj" />
     <Project Path="tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj" />
     <Project Path="tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj" />
+    <Project Path="tools/RJ.EmpiricalSelectionVerifier/RJ.EmpiricalSelectionVerifier.csproj" />
     <Project Path="tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csproj" />
   </Folder>
 </Solution>

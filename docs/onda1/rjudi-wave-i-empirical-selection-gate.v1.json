@@ -1,0 +1,56 @@
+{
+  "gate_version": "rjudi-wave-i-empirical-selection-gate-v1",
+  "scope": "paired retrieval and generation treatment selection procedure",
+  "base_head": "23c26f7730baec6b05c9231af35406c0d7c69b90",
+  "research_question": "Under the same admitted EVAL-010 cases, independently reviewed oracle artifacts and frozen run configuration, does a challenger pass every non-compensable gate and Pareto-dominate the baseline across all pre-specified required case-by-metric coordinates?",
+  "treatment_identities": {
+    "retrieval": [
+      { "id": "R0", "meaning": "current case-scoped PostgreSQL Portuguese lexical FTS baseline using ts_rank_cd", "implementation_status": "IMPLEMENTED_IN_RJ", "selection_status": "BASELINE_ONLY" },
+      { "id": "R1", "meaning": "vector-only retrieval candidate", "implementation_status": "NOT_DEMONSTRATED", "selection_status": "EMPIRICAL_DECISION_PENDING" },
+      { "id": "R2", "meaning": "lexical-plus-vector hybrid retrieval candidate", "implementation_status": "NOT_DEMONSTRATED", "selection_status": "EMPIRICAL_DECISION_PENDING" },
+      { "id": "R3", "meaning": "hybrid retrieval plus reranking candidate", "implementation_status": "NOT_DEMONSTRATED", "selection_status": "EMPIRICAL_DECISION_PENDING" }
+    ],
+    "generation": [
+      { "id": "G0", "meaning": "deterministic process-summary fake control", "implementation_status": "IMPLEMENTED_IN_RJ", "selection_status": "CONTROL_ONLY" },
+      { "id": "Gx", "meaning": "externally supplied generation challenger with exact provider/model/configuration artifact", "implementation_status": "REQUIRES_EMPIRICAL_EVALUATION", "selection_status": "EMPIRICAL_DECISION_PENDING" }
+    ]
+  },
+  "selection_input_contract": {
+    "format_version": "rjudi-empirical-selection-v1",
+    "raw_observation_format_version": "rjudi-empirical-raw-observation-v1",
+    "manifest_sha256_required": true,
+    "corpus_manifest_reference_and_sha256_required": true,
+    "eval010_case_count_must_be_between_30_and_50": true,
+    "selection_case_set_must_exactly_equal_admitted_eval010_case_set": true,
+    "exactly_one_baseline_and_one_challenger_observation_per_case": true,
+    "baseline_configuration_reference_and_sha256_required": true,
+    "challenger_configuration_reference_and_sha256_required": true,
+    "raw_observation_reference_and_sha256_required": true,
+    "raw_observation_content_must_match_manifest": true,
+    "undeclared_measurement_ids_rejected": true,
+    "undefined_or_integer_enum_encodings_rejected": true,
+    "dependency_evidence_reference_and_sha256_required": true,
+    "command_evidence_reference_and_sha256_required": true,
+    "exact_git_commit_required_and_verified": true,
+    "runtime_required_and_verified": true
+  },
+  "decision_rules": [
+    "BLOCKED if either treatment has NOT_TESTED or BLOCKED observations",
+    "BLOCKED if a required paired case or required metric is missing",
+    "a non-compensable gate failure cannot be averaged away",
+    "if baseline passes all hard gates and challenger fails any hard gate, KEEP_BASELINE",
+    "if challenger passes all hard gates and baseline fails any hard gate, SELECT_CHALLENGER",
+    "if both fail hard gates, NO_CLEAR_WINNER",
+    "when both pass hard gates, compare every pre-specified required case-by-metric coordinate",
+    "challenger is selected only if it is never worse and is better on at least one required coordinate",
+    "baseline is kept only if challenger is never better and is worse on at least one required coordinate",
+    "tradeoffs or equality produce NO_CLEAR_WINNER",
+    "weighted scores, undeclared post-hoc metrics and post-hoc tie-breakers are forbidden"
+  ],
+  "external_blocker": {
+    "blocker_id": "RJ-BLK-003",
+    "reason": "No authorized admitted 30-50 case EVAL-010 corpus with independently reviewed structured oracle artifacts and complete paired treatment observations is available."
+  },
+  "canonical_command": ".\\scripts\\test-rjudi-wave-i.ps1",
+  "status": "PROCEDURE_IMPLEMENTED_SELECTION_BLOCKED_BY_EXTERNAL_EVIDENCE"
+}
