@@ -38,7 +38,13 @@ public sealed class ProcessSummaryMaintenanceService(
         }
 
         var now = clock.UtcNow;
-        var jobs = await store.ListForMaintenanceAsync(batchSize, cancellationToken);
+        var retention = ProcessSecurityPolicy.DefaultRetentionPolicy();
+        var expiredBefore = now - retention.SummaryTtl;
+        var jobs = await store.ListForMaintenanceAsync(
+            ProcessSummaryPrompt.PromptVersion,
+            expiredBefore,
+            batchSize,
+            cancellationToken);
         var dispatched = new List<ProcessSummaryMaintenanceWorkItem>();
 
         foreach (var job in jobs)
@@ -49,7 +55,7 @@ public sealed class ProcessSummaryMaintenanceService(
                 job.SnapshotSha256,
                 ProcessSummaryPrompt.PromptVersion,
                 now,
-                ProcessSecurityPolicy.DefaultRetentionPolicy());
+                retention);
             var plan = ProcessSummaryRefreshPlanner.Plan(freshness);
             if (!plan.RequiresScheduler)
             {
