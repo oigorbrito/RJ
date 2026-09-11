@@ -32,14 +32,16 @@ public sealed class EmpiricalRawObservationArtifactTests
             [],
             DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
             "reports/r1-generation.json",
-            new string('b', 64));
+            new string('b', 64),
+            "policies/r1.json",
+            new string('c', 64));
 
         var error = Assert.Throws<InvalidOperationException>(() => raw.Validate().RequireMatches(manifest));
         Assert.Contains("measurements", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Parse_preserves_string_execution_status_and_source_provenance()
+    public void Parse_preserves_string_execution_status_and_provenance()
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(Raw(), new JsonSerializerOptions
         {
@@ -53,10 +55,12 @@ public sealed class EmpiricalRawObservationArtifactTests
         Assert.Equal("r1", parsed.TreatmentId);
         Assert.Equal("reports/r1-generation.json", parsed.SourceArtifactReference);
         Assert.Equal(new string('b', 64), parsed.SourceArtifactSha256);
+        Assert.Equal("policies/r1.json", parsed.MaterializationPolicyReference);
+        Assert.Equal(new string('c', 64), parsed.MaterializationPolicySha256);
     }
 
     [Fact]
-    public void Validate_rejects_missing_or_invalid_source_provenance()
+    public void Validate_rejects_invalid_policy_provenance()
     {
         Assert.Throws<ArgumentException>(() =>
             new EmpiricalRawObservationArtifact(
@@ -68,6 +72,8 @@ public sealed class EmpiricalRawObservationArtifactTests
                 [],
                 DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
                 "reports/r1-generation.json",
+                new string('b', 64),
+                "policies/r1.json",
                 "bad-hash"));
     }
 
@@ -99,5 +105,7 @@ public sealed class EmpiricalRawObservationArtifactTests
             [],
             DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
             "reports/r1-generation.json",
-            new string('b', 64));
+            new string('b', 64),
+            "policies/r1.json",
+            new string('c', 64));
 }
