@@ -34,6 +34,11 @@ public sealed record EmpiricalRawObservationArtifact(
 
         EmpiricalTreatmentDefinition.Require(CaseId, nameof(CaseId));
         EmpiricalTreatmentDefinition.Require(TreatmentId, nameof(TreatmentId));
+        if (!Enum.IsDefined(Status))
+        {
+            throw new InvalidOperationException($"Unsupported raw observation execution status '{Status}'.");
+        }
+
         ArgumentNullException.ThrowIfNull(Measurements);
         ArgumentNullException.ThrowIfNull(FailedNonCompensableGates);
         if (RecordedAt == default)
@@ -86,6 +91,6 @@ public sealed record EmpiricalRawObservationArtifact(
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
     };
 }
