@@ -9,6 +9,82 @@ namespace RJ.Api;
 
 public static class ProcessSummaryEndpoint
 {
+    public static async Task<IResult> SubmitAuthenticatedAsync(
+        HttpContext httpContext,
+        ProcessSummaryHttpRequest request,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        ProcessSummaryJobService service,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(callerResolver);
+        ArgumentNullException.ThrowIfNull(accessStore);
+
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var result = await SubmitAsync(ToInternalRequest(request, caller), service, cancellationToken);
+        if (result is IValueHttpResult { Value: ProcessSummaryJobResponse response }
+            && result is IStatusCodeHttpResult { StatusCode: StatusCodes.Status202Accepted })
+        {
+            if (!accessStore.TryBind(response.JobId, caller, response.CaseId))
+            {
+                return Results.Conflict(new ProcessSummaryError("Process summary request could not be completed."));
+            }
+        }
+
+        return result;
+    }
+
+    public static IResult GetJobAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(httpContext, jobId, callerResolver, accessStore, out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetJob(jobId, service);
+    }
+
+    public static IResult GetValidatedSummaryAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(httpContext, jobId, callerResolver, accessStore, out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetValidatedSummary(jobId, service);
+    }
+
+    public static IResult GetRefreshPlanAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        ProcessSummaryRefreshPlanRequest request,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(httpContext, jobId, callerResolver, accessStore, out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetRefreshPlan(jobId, request, service);
+    }
+
     public static async Task<IResult> SubmitAsync(
         ProcessSummaryRequest request,
         ProcessSummaryJobService service,
@@ -147,6 +223,62 @@ public static class ProcessSummaryEndpoint
         }
     }
 
+    private static bool TryAuthorizeJobAccess(
+        HttpContext httpContext,
+        string jobId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        out IResult? unauthorized)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(callerResolver);
+        ArgumentNullException.ThrowIfNull(accessStore);
+        unauthorized = null;
+
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            unauthorized = Results.Unauthorized();
+            return false;
+        }
+
+        try
+        {
+            if (!accessStore.CanAccess(jobId, caller))
+            {
+                unauthorized = Results.NotFound();
+                return false;
+            }
+        }
+        catch (ArgumentException)
+        {
+            unauthorized = Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static ProcessSummaryRequest ToInternalRequest(
+        ProcessSummaryHttpRequest request,
+        CallerContext caller)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(caller);
+        return new ProcessSummaryRequest(
+            request.IdempotencyKey,
+            request.SourceSystem,
+            request.SourceName,
+            request.SourceReference,
+            request.RawContent,
+            request.ObservedAt,
+            request.Instruction,
+            caller.TenantId,
+            caller.SubjectId,
+            caller.AuthorizedCaseIds,
+            caller.CanAccessSealedCases,
+            caller.AuthorizedEvidenceSourceNames,
+            request.AttachmentContents);
+    }
 
     private static ProcessSummaryJobResponse ToResponse(ProcessSummaryJob job) => new(
         job.JobId,
@@ -178,6 +310,19 @@ public static class ProcessSummaryEndpoint
             "Attachment content must reference observed attachment metadata." => exception.Message,
             _ => "Process summary request could not be completed."
         };
+}
+
+public sealed record ProcessSummaryHttpRequest(
+    string IdempotencyKey,
+    string SourceSystem,
+    string SourceName,
+    string SourceReference,
+    string RawContent,
+    string ObservedAt,
+    string Instruction,
+    IReadOnlyList<ProcessAttachmentContentRequest>? AttachmentContents = null)
+{
+    public IReadOnlyList<ProcessAttachmentContentRequest> AttachmentContents { get; } = AttachmentContents ?? [];
 }
 
 public sealed record ProcessSummaryRequest(
