@@ -66,6 +66,8 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             "Gx",
             "model",
             "different-config",
+            "configs/gx.json",
+            new string('d', 64),
             "claim_recall",
             "citation_validity",
             "groundedness",
@@ -73,6 +75,18 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
 
         var error = Assert.Throws<InvalidOperationException>(() => Materialize(report, wrongPolicy));
         Assert.Contains("does not match", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Policy_rejects_selection_treatment_with_different_configuration_hash()
+    {
+        var treatment = new EmpiricalTreatmentDefinition(
+            "Gx",
+            EmpiricalTreatmentKind.Generation,
+            "configs/gx.json",
+            new string('e', 64));
+
+        Assert.Throws<InvalidOperationException>(() => Policy().RequireMatches(treatment));
     }
 
     private static IReadOnlyList<GenerationEmpiricalObservationMaterialization> Materialize(
@@ -92,6 +106,8 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             "Gx",
             "model",
             "config",
+            "configs/gx.json",
+            new string('d', 64),
             "claim_recall",
             "citation_validity",
             "groundedness",
