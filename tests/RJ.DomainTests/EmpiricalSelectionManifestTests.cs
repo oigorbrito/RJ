@@ -43,8 +43,8 @@ public sealed class EmpiricalSelectionManifestTests
         {
             Observations =
             [
-                Observation("r0", EmpiricalExecutionStatus.Fail, ["undeclared_gate"]),
-                Observation("r1")
+                Observation("case-1", "r0", EmpiricalExecutionStatus.Fail, ["undeclared_gate"]),
+                Observation("case-1", "r1")
             ]
         };
 
@@ -81,6 +81,37 @@ public sealed class EmpiricalSelectionManifestTests
                 "bad"));
     }
 
+    [Fact]
+    public void RequireMatchesCorpus_accepts_exact_30_case_paired_population()
+    {
+        var corpus = Corpus(30);
+        var observations = corpus.Cases
+            .SelectMany(item => new[] { Observation(item.CaseId, "r0"), Observation(item.CaseId, "r1") })
+            .ToArray();
+        var manifest = Manifest() with { Observations = observations };
+
+        var result = manifest.Validate().RequireMatchesCorpus(corpus);
+
+        Assert.Same(manifest, result);
+        Assert.Equal(60, result.Observations.Count);
+    }
+
+    [Fact]
+    public void RequireMatchesCorpus_rejects_silent_case_omission()
+    {
+        var corpus = Corpus(30);
+        var observations = corpus.Cases
+            .Take(29)
+            .SelectMany(item => new[] { Observation(item.CaseId, "r0"), Observation(item.CaseId, "r1") })
+            .ToArray();
+        var manifest = Manifest() with { Observations = observations };
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            manifest.Validate().RequireMatchesCorpus(corpus));
+
+        Assert.Contains("exactly match", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static EmpiricalSelectionManifest Manifest() =>
         new(
             EmpiricalSelectionManifest.SupportedFormatVersion,
@@ -101,17 +132,18 @@ public sealed class EmpiricalSelectionManifestTests
                 new EmpiricalMetricDefinition("latency_ms", EmpiricalMetricDirection.LowerIsBetter, true)
             ],
             ["no_oracle_leakage", "no_raw_pii"],
-            [Observation("r0"), Observation("r1")]);
+            [Observation("case-1", "r0"), Observation("case-1", "r1")]);
 
     private static EmpiricalTreatmentDefinition Treatment(string id, EmpiricalTreatmentKind kind) =>
         new(id, kind, $"configs/{id}.json", Sha($"config:{id}"), $"Treatment {id}");
 
     private static EmpiricalCaseObservation Observation(
+        string caseId,
         string treatmentId,
         EmpiricalExecutionStatus status = EmpiricalExecutionStatus.Pass,
         IReadOnlyList<string>? failedGates = null) =>
         new(
-            "case-1",
+            caseId,
             treatmentId,
             status,
             new Dictionary<string, double>
@@ -120,8 +152,49 @@ public sealed class EmpiricalSelectionManifestTests
                 ["latency_ms"] = 100
             },
             failedGates ?? [],
-            $"raw/case-1-{treatmentId}.json",
-            Sha($"raw:{treatmentId}"));
+            $"raw/{caseId}-{treatmentId}.json",
+            Sha($"raw:{caseId}:{treatmentId}"));
+
+    private static Eval010CorpusManifest Corpus(int count)
+    {
+        var cases = Enumerable.Range(1, count)
+            .Select(index => new Eval010CorpusCase(
+                $"case-{index:00}",
+                ValidCnj(index),
+                $"source/case-{index:00}.json",
+                Sha($"source:{index}"),
+                $"oracle/case-{index:00}.json",
+                Sha($"oracle:{index}"),
+                $"review/case-{index:00}.json",
+                Sha($"review:{index}"),
+                $"author-{index:00}",
+                $"reviewer-{index:00}",
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00")))
+            .ToArray();
+
+        return new Eval010CorpusManifest(
+            Eval010CorpusManifest.SupportedFormatVersion,
+            "test-corpus-v1",
+            DateTimeOffset.Parse("2026-09-11T11:00:00-03:00"),
+            cases);
+    }
+
+    private static string ValidCnj(int sequence)
+    {
+        var process = sequence.ToString("0000000", System.Globalization.CultureInfo.InvariantCulture);
+        const string suffix = "20268160021";
+        var baseDigits = process + suffix;
+        var remainder = 0;
+        foreach (var digit in baseDigits + "00")
+        {
+            remainder = ((remainder * 10) + digit - '0') % 97;
+        }
+
+        var checkDigits = 98 - remainder;
+        return process
+            + checkDigits.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
+            + suffix;
+    }
 
     private static string Sha(string value)
     {
