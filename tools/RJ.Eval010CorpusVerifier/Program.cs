@@ -1,15 +1,16 @@
 using System.Text.Json;
 using RJ.Application.Benchmarking;
 
-if (args.Length is < 2 or > 3)
+if (args.Length is < 3 or > 4)
 {
-    Console.Error.WriteLine("Usage: RJ.Eval010CorpusVerifier <manifest.json> <artifact-root> [benchmark-catalog.json]");
+    Console.Error.WriteLine("Usage: RJ.Eval010CorpusVerifier <manifest.json> <manifest-sha256> <artifact-root> [benchmark-catalog.json]");
     return 2;
 }
 
 var manifestPath = Path.GetFullPath(args[0]);
-var artifactRoot = Path.GetFullPath(args[1]);
-var catalogPath = args.Length == 3 ? Path.GetFullPath(args[2]) : null;
+var expectedManifestSha256 = NormalizeSha256(args[1]);
+var artifactRoot = Path.GetFullPath(args[2]);
+var catalogPath = args.Length == 4 ? Path.GetFullPath(args[3]) : null;
 
 if (!File.Exists(manifestPath))
 {
@@ -32,6 +33,13 @@ if (catalogPath is not null && !File.Exists(catalogPath))
 try
 {
     var manifestBytes = await File.ReadAllBytesAsync(manifestPath);
+    var actualManifestSha256 = ExternalGenerationBenchmarkCatalog.ComputeSha256(manifestBytes);
+    if (!StringComparer.Ordinal.Equals(actualManifestSha256, expectedManifestSha256))
+    {
+        throw new InvalidOperationException(
+            $"Frozen manifest SHA-256 mismatch. Expected {expectedManifestSha256}, observed {actualManifestSha256}.");
+    }
+
     var manifest = Eval010CorpusManifest.Parse(manifestBytes);
     ExternalGenerationBenchmarkCatalog? catalog = null;
     if (catalogPath is not null)
@@ -41,11 +49,13 @@ try
 
     var service = new Eval010CorpusAdmissionService(new RootedArtifactReader(artifactRoot));
     var report = await service.AdmitAsync(manifest, catalog, CancellationToken.None);
-    Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
-    }));
+    Console.WriteLine(JsonSerializer.Serialize(
+        new Eval010VerificationEnvelope(actualManifestSha256, report),
+        new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true
+        }));
     return report.Passed ? 0 : 3;
 }
 catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or JsonException or IOException or UnauthorizedAccessException)
@@ -53,6 +63,23 @@ catch (Exception exception) when (exception is ArgumentException or InvalidOpera
     Console.Error.WriteLine($"EVAL-010 corpus verification failed: {exception.Message}");
     return 3;
 }
+
+static string NormalizeSha256(string value)
+{
+    var normalized = value?.Trim().ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(normalized)
+        || normalized.Length != 64
+        || normalized.Any(character => !Uri.IsHexDigit(character)))
+    {
+        throw new ArgumentException("manifest-sha256 must contain exactly 64 hexadecimal characters.", nameof(value));
+    }
+
+    return normalized;
+}
+
+sealed record Eval010VerificationEnvelope(
+    string ManifestSha256,
+    Eval010CorpusAdmissionReport Admission);
 
 sealed class RootedArtifactReader(string root) : IBenchmarkArtifactReader
 {
