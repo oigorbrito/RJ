@@ -25,14 +25,16 @@ public sealed class PostgresProcessSummaryPersistenceTests
             CancellationToken.None);
 
         Assert.True(written.Created);
-        Assert.Equal(job, written.Job);
+        AssertJobEquivalent(job, written.Job);
 
         var secondStore = new PostgresProcessSummaryJobStore(database.DataSource);
         var byId = await secondStore.GetByJobIdAsync(job.JobId, CancellationToken.None);
         var byKey = await secondStore.GetByScopedIdempotencyKeyAsync(scopedKey, CancellationToken.None);
 
-        Assert.Equal(job, byId);
-        Assert.Equal(job, byKey);
+        Assert.NotNull(byId);
+        Assert.NotNull(byKey);
+        AssertJobEquivalent(job, byId);
+        AssertJobEquivalent(job, byKey);
     }
 
     [Fact]
@@ -51,7 +53,7 @@ public sealed class PostgresProcessSummaryPersistenceTests
 
         Assert.True(first.Created);
         Assert.False(second.Created);
-        Assert.Equal(original, second.Job);
+        AssertJobEquivalent(original, second.Job);
     }
 
     [Fact]
@@ -99,6 +101,36 @@ public sealed class PostgresProcessSummaryPersistenceTests
         Assert.True(first.Created);
         Assert.True(second.Created);
         Assert.NotEqual(firstKey, secondKey);
+    }
+
+    private static void AssertJobEquivalent(ProcessSummaryJob expected, ProcessSummaryJob actual)
+    {
+        Assert.Equal(expected.JobId, actual.JobId);
+        Assert.Equal(expected.IdempotencyKey, actual.IdempotencyKey);
+        Assert.Equal(expected.CaseId, actual.CaseId);
+        Assert.Equal(expected.Cnj, actual.Cnj);
+        Assert.Equal(expected.SnapshotSha256, actual.SnapshotSha256);
+        Assert.Equal(expected.SummaryVersion, actual.SummaryVersion);
+        Assert.Equal(expected.RetrievalCalls, actual.RetrievalCalls);
+        Assert.Equal(expected.Attempts, actual.Attempts);
+        Assert.Equal(expected.Retried, actual.Retried);
+        Assert.Equal(expected.CreatedAt, actual.CreatedAt);
+        Assert.Equal(expected.ValidatedAt, actual.ValidatedAt);
+        Assert.Equal(expected.Status, actual.Status);
+        Assert.Equal(expected.Validation.IsValid, actual.Validation.IsValid);
+        Assert.Equal(expected.Validation.Errors.ToArray(), actual.Validation.Errors.ToArray());
+        Assert.Equal(expected.Output.Abstained, actual.Output.Abstained);
+        Assert.Equal(expected.Output.AbstentionReason, actual.Output.AbstentionReason);
+        Assert.Equal(expected.Output.Claims.Count, actual.Output.Claims.Count);
+        for (var index = 0; index < expected.Output.Claims.Count; index++)
+        {
+            var expectedClaim = expected.Output.Claims[index];
+            var actualClaim = actual.Output.Claims[index];
+            Assert.Equal(expectedClaim.Text, actualClaim.Text);
+            Assert.Equal(expectedClaim.Citations.ToArray(), actualClaim.Citations.ToArray());
+        }
+
+        Assert.Equal(expected.History.ToArray(), actual.History.ToArray());
     }
 
     private static ProcessSummaryJobStoreEntry Entry(
