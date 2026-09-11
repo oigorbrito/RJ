@@ -5,6 +5,7 @@ using RJ.Application.Generation;
 using RJ.Application.Ingestion;
 using RJ.Application.Operations;
 using RJ.Application.Retrieval;
+using RJ.Application.Security;
 using RJ.Application.Sources;
 using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
@@ -32,7 +33,9 @@ builder.Services.AddSingleton<IProcessSummaryClock, SystemProcessSummaryClock>()
 builder.Services.AddSingleton<IProcessSummaryTelemetry, LoggingProcessSummaryTelemetry>();
 builder.Services.AddSingleton<IProcessSummaryAuditSink, LoggingProcessSummaryAuditSink>();
 builder.Services.AddSingleton<IProcessSummaryCallerContextResolver, ClaimsProcessSummaryCallerContextResolver>();
-builder.Services.AddSingleton<IProcessSummaryJobAccessStore, InMemoryProcessSummaryJobAccessStore>();
+builder.Services.AddSingleton<IProcessSummaryJobStore, PostgresProcessSummaryJobStore>();
+builder.Services.AddSingleton<IProcessSummaryJobAccessStore, PostgresProcessSummaryJobAccessStore>();
+builder.Services.AddSingleton<ProcessSummaryPersistenceCoordinator>();
 builder.Services.AddSingleton<IProcessAttachmentContentStore, EmptyProcessAttachmentContentStore>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
@@ -82,10 +85,10 @@ app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAuthoriz
 app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAuthorizedAsync)
     .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
 
-app.MapPost("/api/process-summaries/jobs", ProcessSummaryEndpoint.SubmitAuthenticatedAsync);
-app.MapGet("/api/process-summaries/jobs/{jobId}", ProcessSummaryEndpoint.GetJobAuthenticated);
-app.MapGet("/api/process-summaries/jobs/{jobId}/validated-summary", ProcessSummaryEndpoint.GetValidatedSummaryAuthenticated);
-app.MapPost("/api/process-summaries/jobs/{jobId}/refresh-plan", ProcessSummaryEndpoint.GetRefreshPlanAuthenticated);
+app.MapPost("/api/process-summaries/jobs", PersistentProcessSummaryEndpoint.SubmitAsync);
+app.MapGet("/api/process-summaries/jobs/{jobId}", PersistentProcessSummaryEndpoint.GetJobAsync);
+app.MapGet("/api/process-summaries/jobs/{jobId}/validated-summary", PersistentProcessSummaryEndpoint.GetValidatedSummaryAsync);
+app.MapPost("/api/process-summaries/jobs/{jobId}/refresh-plan", PersistentProcessSummaryEndpoint.GetRefreshPlanAsync);
 
 app.Run();
 
