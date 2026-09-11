@@ -36,6 +36,8 @@ The following API surfaces require an authenticated principal:
 
 Case-scoped routes require the case identifier to be present in the caller's authorized case claims. Ingestion additionally requires the supplied source name to be authorized. Unauthorized case access is returned as not-found at the HTTP boundary to avoid disclosing resource existence.
 
+Document listing, document reads, search hits and evidence retrieval are filtered by the caller's authorized evidence-source claims. Generation-context evidence is filtered before `GenerationContextBuilder` receives it, so an unauthorized source is not admitted into the constructed context.
+
 Process-summary jobs are bound, for the current in-memory runtime, to tenant + subject + case through `IProcessSummaryJobAccessStore`. A caller must match that scope before polling a job, retrieving a validated summary or requesting a refresh plan.
 
 ## Audit and telemetry
