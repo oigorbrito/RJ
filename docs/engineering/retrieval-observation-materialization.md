@@ -23,7 +23,7 @@ Retrieval relevance is based only on exact admitted evidence identity:
 - `DocumentId`
 - `ContentSha256`
 
-Expected answer prose is not supplied to the retrieval runner and textual similarity is not used to decide relevance. This prevents the oracle answer text from being injected into the retriever as a matching rule.
+Expected answer prose is not supplied to the retrieval runner and textual similarity is not used to decide relevance. This prevents oracle answer text from being injected into the retriever as a matching rule.
 
 A returned document whose `CaseId` differs from the experimental case is classified as treatment execution failure rather than a quality observation.
 
@@ -45,7 +45,7 @@ Treatment execution failure is kept separate from quality: a failed case has no 
 
 ## Report integrity
 
-`rjudi-retrieval-benchmark-report-v1` validates:
+`rjudi-retrieval-benchmark-report-v1` retains exact execution `GitCommit` and runtime and validates:
 
 - unique cases and query IDs;
 - positive relevant ranks;
@@ -55,6 +55,26 @@ Treatment execution failure is kept separate from quality: a failed case has no 
 - finite, non-negative duration;
 - failed cases carry no quality measurements;
 - successful cases carry no error message.
+
+The empirical-selection verifier requires source report commit/runtime to match the frozen selection manifest.
+
+## Production R0 benchmark runner
+
+`RJ.RetrievalBenchmarkRunner` is the executable path for the currently implemented R0 baseline. It:
+
+1. requires `RJ_POSTGRES_CONNECTION`;
+2. verifies exact catalog and configuration SHA-256 values;
+3. checks the current PostgreSQL schema;
+4. constructs the real `PostgresLegalDocumentSearch`;
+5. requires configured implementation ID to equal the runtime implementation ID;
+6. resolves `git rev-parse HEAD` itself rather than accepting a caller-supplied commit;
+7. records `RuntimeInformation.FrameworkDescription`;
+8. executes the provider-neutral retrieval runner;
+9. writes the typed retrieval benchmark report and its SHA-256.
+
+Its configuration format is `rjudi-retrieval-benchmark-config-v1` and requires an implementation ID plus a search limit between 5 and 100.
+
+R1/R2/R3 are not routed through this PostgreSQL-specific executable until actual candidate implementations exist.
 
 ## Raw observation materialization
 
@@ -66,11 +86,11 @@ Treatment execution failure is kept separate from quality: a failed case has no 
 - metric IDs;
 - execution-failure gate ID.
 
-The policy must match the treatment identity/configuration embedded in the retrieval report.
+The policy must match both the retrieval report and the corresponding `EmpiricalTreatmentDefinition` used by the selection manifest.
 
 `RJ.RetrievalObservationMaterializer` verifies report and policy hashes, then writes one `rjudi-empirical-raw-observation-v3` artifact per case plus an index. Each raw artifact retains source-report and policy references/hashes.
 
-`RJ.EmpiricalSelectionVerifier` dispatches by empirical treatment kind. For retrieval observations it reopens the source report and policy, validates their hashes and identity binding, re-materializes the case observation, and requires byte-for-byte equality with the stored raw artifact.
+`RJ.EmpiricalSelectionVerifier` dispatches by empirical treatment kind. For retrieval observations it reopens the source report and policy, validates source report commit/runtime, configuration identity and hashes, re-materializes the case observation, and requires byte-for-byte equality with the stored raw artifact. The generation path now applies the same selection-treatment configuration and source-report commit/runtime binding.
 
 ## Canonical gate
 
@@ -83,8 +103,8 @@ The Wave K self-test does not require PostgreSQL or EVAL-010. It:
 1. builds the solution;
 2. runs focused retrieval/generation/raw-observation regression tests;
 3. runs `git diff --check`;
-4. creates a frozen synthetic retrieval configuration/report/policy;
-5. hashes each artifact;
+4. resolves and embeds the exact HEAD/runtime in a frozen synthetic retrieval report;
+5. creates and hashes a synthetic retrieval configuration/report/policy;
 6. runs `RJ.RetrievalObservationMaterializer`;
 7. requires one raw v3 observation and one index;
 8. checks report/policy provenance and selected measurements.
