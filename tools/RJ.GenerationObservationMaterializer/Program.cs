@@ -3,17 +3,17 @@ using RJ.Application.Benchmarking;
 
 if (args.Length != 8)
 {
-    Console.Error.WriteLine("Usage: RJ.GenerationObservationMaterializer <generation-report.json> <expected-report-sha256> <treatment-id> <source-report-reference> <recorded-at> <policy.json> <expected-policy-sha256> <output-dir>");
+    Console.Error.WriteLine("Usage: RJ.GenerationObservationMaterializer <generation-report.json> <expected-report-sha256> <source-report-reference> <recorded-at> <policy.json> <expected-policy-sha256> <policy-reference> <output-dir>");
     return 2;
 }
 
 var reportPath = Path.GetFullPath(args[0]);
 var expectedReportSha = args[1].Trim().ToLowerInvariant();
-var treatmentId = args[2].Trim();
-var sourceReportReference = args[3].Trim();
-var recordedAtText = args[4].Trim();
-var policyPath = Path.GetFullPath(args[5]);
-var expectedPolicySha = args[6].Trim().ToLowerInvariant();
+var sourceReportReference = args[2].Trim();
+var recordedAtText = args[3].Trim();
+var policyPath = Path.GetFullPath(args[4]);
+var expectedPolicySha = args[5].Trim().ToLowerInvariant();
+var policyReference = args[6].Trim();
 var outputDir = Path.GetFullPath(args[7]);
 var policyJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -31,8 +31,6 @@ try
         return 2;
     }
 
-    RequireSafeFileToken(treatmentId, "treatment-id");
-
     var reportBytes = await File.ReadAllBytesAsync(reportPath);
     VerifySha(reportBytes, expectedReportSha, "generation report");
     var report = GenerationBenchmarkJson.Parse(reportBytes);
@@ -41,13 +39,15 @@ try
     VerifySha(policyBytes, expectedPolicySha, "materialization policy");
     var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Materialization policy produced no document.");
-    policy.Validate();
+    policy.Validate().RequireMatches(report);
+    RequireSafeFileToken(policy.TreatmentId, "treatment-id");
 
     var materialized = new GenerationEmpiricalObservationMaterializer().Materialize(
         report,
-        treatmentId,
         sourceReportReference,
         expectedReportSha,
+        policyReference,
+        expectedPolicySha,
         recordedAt,
         policy);
 
@@ -66,7 +66,9 @@ try
             artifactReference = fileName,
             item.ArtifactSha256,
             sourceArtifactReference = item.Artifact.SourceArtifactReference,
-            sourceArtifactSha256 = item.Artifact.SourceArtifactSha256
+            sourceArtifactSha256 = item.Artifact.SourceArtifactSha256,
+            materializationPolicyReference = item.Artifact.MaterializationPolicyReference,
+            materializationPolicySha256 = item.Artifact.MaterializationPolicySha256
         });
     }
 
@@ -75,11 +77,13 @@ try
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     });
-    var indexPath = Path.Combine(outputDir, $"{treatmentId}.empirical-observation-index.json");
+    var indexPath = Path.Combine(outputDir, $"{policy.TreatmentId}.empirical-observation-index.json");
     await File.WriteAllBytesAsync(indexPath, indexBytes);
     Console.WriteLine(JsonSerializer.Serialize(new
     {
-        treatmentId,
+        treatmentId = policy.TreatmentId,
+        modelId = policy.ModelId,
+        modelConfiguration = policy.ModelConfiguration,
         observationCount = materialized.Count,
         indexPath,
         indexSha256 = EmpiricalSelectionManifest.ComputeSha256(indexBytes)
