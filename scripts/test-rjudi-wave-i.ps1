@@ -24,8 +24,8 @@ function Invoke-GateStep {
 Push-Location $repoRoot
 try {
     Invoke-GateStep 'build solution' { dotnet build $solution --no-restore }
-    Invoke-GateStep 'empirical selection model, manifest and Pareto decision tests' {
-        dotnet test $domainProject --no-restore --filter 'FullyQualifiedName~EmpiricalSelectionServiceTests|FullyQualifiedName~EmpiricalSelectionManifestTests'
+    Invoke-GateStep 'empirical selection, manifest, raw observation and Pareto decision tests' {
+        dotnet test $domainProject --no-restore --filter 'FullyQualifiedName~EmpiricalSelectionServiceTests|FullyQualifiedName~EmpiricalSelectionManifestTests|FullyQualifiedName~EmpiricalRawObservationArtifactTests'
     }
     Invoke-GateStep 'git diff whitespace check' { git diff --check }
 
