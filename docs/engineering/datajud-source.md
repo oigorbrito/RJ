@@ -49,8 +49,9 @@ Creating placeholder values for those fields would turn source absence into inve
 
 Classification:
 
-- documented endpoint/query/schema: SUPPORTED_BY_SPEC / authoritative external source contract;
-- parser, fail-closed rules and typed observation: PROJECT_DECISION derived from source contract;
+- documented endpoint/query/schema: authoritative external source contract;
+- parser, fail-closed rules and typed observation: DERIVED_FROM_METHOD / PROJECT_DECISION;
+- raw SHA/reference/observed-at preservation: REPRODUCIBILITY_SUPPORTED;
 - full DataJud-to-`LegalCase` adapter: NOT_DEMONSTRATED;
 - DataJud enrichment merge policy: REQUIRES_EMPIRICAL_EVALUATION / PROJECT_DECISION until authentic observations are admitted.
 
@@ -65,11 +66,11 @@ They MUST NOT be described as:
 - corpus evidence;
 - end-to-end DataJud integration.
 
-## Authentic fixture verifier
+## Authentic fixture verifier and capture tool
 
-`tools/RJ.DataJudFixtureVerifier` validates a captured raw response using the exact production parser.
+`tools/RJ.DataJudFixtureVerifier` uses the exact production parser for both verification and capture.
 
-Usage:
+Verification usage:
 
 ```powershell
 dotnet run --project tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj -- `
@@ -79,13 +80,35 @@ dotnet run --project tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.c
   <observed-at-iso8601>
 ```
 
+Capture usage:
+
+```powershell
+$env:RJ_DATAJUD_API_KEY = '<current CNJ-published API key>'
+dotnet run --project tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj -- `
+  capture tjpr 60031603620268160021 C:\evidence\datajud-tjpr-case-001.json
+```
+
+Capture mode:
+
+- obtains the endpoint through `DataJudPublicApiContract.SearchEndpoint`;
+- creates the same deterministic `numeroProcesso` query used by the contract;
+- reads the API key only from `RJ_DATAJUD_API_KEY` and never writes/logs it;
+- requires HTTP success;
+- validates CNJ and documented schema before persisting the body;
+- writes the exact raw body to the requested path;
+- writes `<output>.metadata.json` containing source reference, normalized CNJ, observed-at timestamp, SHA-256 and fixture path.
+
+The API key itself is deliberately not committed because the CNJ documentation states that the published key may change.
+
 Exit codes:
 
-- `0`: source response satisfies the implemented documented contract;
-- `2`: invocation/precondition error;
-- `3`: schema/CNJ/JSON verification failure.
+- `0`: verification/capture succeeded and the payload satisfies the implemented contract;
+- `2`: invocation/precondition/configuration error;
+- `3`: schema/CNJ/JSON contract failure;
+- `4`: DataJud returned a non-success HTTP status during capture;
+- `5`: network/DNS/HTTP transport failure before a successful response.
 
-On success the tool prints the typed observation including the SHA-256 of the exact raw fixture. It does not mutate the repository or silently admit the fixture as benchmark evidence.
+On verification success the tool prints the typed observation including the SHA-256 of the exact raw fixture. Verification does not mutate the repository or silently admit the fixture as benchmark evidence.
 
 ## Wave F gate
 
