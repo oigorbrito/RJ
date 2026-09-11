@@ -7,7 +7,8 @@ an empirical treatment, add a new functional wave, or claim production
 validation without the required external evidence.
 
 - Initial checkout HEAD: `4282cd5c836f81c6da95d17cf317c05525b417d7`
-- Final reviewed HEAD: `62062d9cf99a7a83b29d832f5ff725a6a852dc05`
+- Final implementation HEAD: `d6d9bbed0134005d34736d804e9a27de012f7ed5`
+- Documentation sealing commit: this report's final parent commit
 - Wave J base: `90dfec9dee9984da480bcc1cf02b637bac084b8a`
 - Final branch: `rjudi/wave-k-retrieval-observation-001`
 - Pull request: `#32`
@@ -25,7 +26,7 @@ validation without the required external evidence.
 | H | `23c26f7` / `rjudi/wave-h-attachment-admission-001` | `BLOCKED` | `ATT-001`: no authorized judicial attachment binary and independent extraction. |
 | I | `6ae960f` / `rjudi/wave-i-empirical-selection-001` | `BLOCKED` | Selection procedure is implemented; treatment decision remains pending external paired evidence. |
 | J | `90dfec9` / `rjudi/wave-j-observation-materialization-001` | `PASS` on final K | Self-test produced report/policy/config hashes and `WAVE_J_GATE=PASS`. |
-| K | `62062d9` / `rjudi/wave-k-retrieval-observation-001` | `PASS` local / `BLOCKED` remote | Self-test produced bound report/policy/config hashes and `WAVE_K_GATE=PASS`; CI remains `RJ-BLK-002`. |
+| K | `62062d9` → `d6d9bbe` / `rjudi/wave-k-retrieval-observation-001` | `PASS` local / `BLOCKED` remote | Self-test produced bound report/policy/config hashes and `WAVE_K_GATE=PASS`; closure fixes are pushed in `d6d9bbe`, CI remains `RJ-BLK-002`. |
 
 The cumulative HEAD contains the canonical scripts `test-rjudi-m1.ps1` and
 `test-rjudi-wave-d.ps1` through `test-rjudi-wave-k.ps1`. All projects in the
@@ -46,7 +47,7 @@ in `RJ.slnx`.
 | focused J tests | `PASS` | 15/15. |
 | focused K tests | `PASS` | 17/17. |
 | PostgreSQL service | `BLOCKED` | `postgresql-x64-18` installed but `Stopped`; `RJ_POSTGRES_CONNECTION` absent. |
-| CI run `34624098242` | `BLOCKED` | `runner-smoke` job `103344885952` was not started before the first step; `build-test` skipped. |
+| CI run `34628548536` on `d6d9bbe` | `BLOCKED` | `runner-smoke` job `103359472121` was not started before the first step for billing/spending-limit; `build-test` job `103359485579` skipped. |
 
 CI code execution did not occur: the exact-head runner job failed before its
 first step and the dependent build was skipped. Local synthetic generation and
@@ -75,8 +76,8 @@ failures.
 ## Blockers
 
 - `RJ-BLK-002`: GitHub Actions billing/spending-limit pre-step failure in run
-  `34624098242`; objective unblock condition is a new exact-head run that starts
-  `runner-smoke` and exposes subsequent steps/logs.
+  `34628548536` for `d6d9bbe`; objective unblock condition is a new exact-head
+  run that starts `runner-smoke` and exposes subsequent steps/logs.
 - `RJ-BLK-003`: authorized EVAL-010 corpus/oracle and paired treatment evidence
   are absent.
 - `BLK-POSTGRES-001`: local PostgreSQL service/connection is unavailable.
