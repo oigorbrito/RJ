@@ -8,9 +8,11 @@
   "canonicalCommand": ".\\scripts\\test-rjudi-wave-j.ps1",
   "scope": [
     "generation benchmark report to empirical raw observation transformation",
+    "treatment-policy to model/configuration binding",
     "raw observation source-report provenance",
-    "materialization-policy hashing",
+    "raw observation materialization-policy provenance",
     "deterministic raw-observation hashing",
+    "selection-time deterministic re-materialization",
     "self-test benchmark to observation end-to-end gate"
   ],
   "requiredInternalChecks": [
@@ -21,11 +23,13 @@
     "git diff --check",
     "harness-selftest-v1 benchmark execution",
     "RJ.GenerationObservationMaterializer execution",
-    "exactly two self-test raw observation v2 artifacts",
+    "exactly two self-test raw observation v3 artifacts",
     "source report reference and SHA binding",
+    "materialization policy reference and SHA binding",
+    "treatment ID to model ID/configuration binding",
     "observation index creation"
   ],
-  "rawObservationFormat": "rjudi-empirical-raw-observation-v2",
+  "rawObservationFormat": "rjudi-empirical-raw-observation-v3",
   "qualityMeasurements": [
     "claim_recall",
     "citation_validity",
@@ -35,7 +39,9 @@
   "decisionRules": [
     "evaluated quality below 1.0 remains a measurement and is not promoted to execution failure",
     "candidate execution failure with no evaluation is a non-compensable gate",
-    "source report and policy hashes must be verified before materialization",
+    "source report and materialization-policy hashes must be verified before materialization",
+    "materialization policy treatment/model/configuration must match the generation benchmark report",
+    "empirical selection verifier must re-materialize and require byte-for-byte equality with stored raw observation",
     "Wave J self-test does not constitute EVAL-010 evidence or treatment selection"
   ],
   "externalBlockersNotRequiredForWaveJSelfTest": [
