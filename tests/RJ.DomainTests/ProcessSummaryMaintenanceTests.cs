@@ -115,14 +115,17 @@ public sealed class ProcessSummaryMaintenanceTests
             () => service.RunOnceAsync(0, CancellationToken.None));
     }
 
-    private static Task AddAsync(InMemoryProcessSummaryJobStore store, ProcessSummaryJob job) =>
-        store.TryCreateAsync(
+    private static async Task AddAsync(InMemoryProcessSummaryJobStore store, ProcessSummaryJob job)
+    {
+        var result = await store.TryCreateAsync(
             new ProcessSummaryJobStoreEntry(
                 $"scope-{job.JobId}",
                 new string('a', 64),
                 new string('b', 64),
                 job),
             CancellationToken.None);
+        Assert.True(result.Created);
+    }
 
     private static ProcessSummaryJob Job(
         string jobId,
