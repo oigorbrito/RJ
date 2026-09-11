@@ -28,6 +28,7 @@ builder.Services.AddSingleton(dataSource);
 builder.Services.AddSingleton<ILegalDocumentWriter, PostgresLegalDocumentWriter>();
 builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>();
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
+builder.Services.AddSingleton<PostgresProcessCatalog>();
 builder.Services.AddSingleton<IReadinessProbe, PostgresReadinessProbe>();
 builder.Services.AddSingleton<IProcessSummaryClock, SystemProcessSummaryClock>();
 builder.Services.AddSingleton<IProcessSummaryTelemetry, LoggingProcessSummaryTelemetry>();
@@ -73,6 +74,9 @@ app.Use(async (context, next) =>
 app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
+
+app.MapGet("/api/processes/by-cnj/{cnj}", ProcessLookupEndpoint.GetByCnjAsync);
+app.MapGet("/api/processes/{caseId}", ProcessLookupEndpoint.GetByCaseIdAsync);
 
 app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
     .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
