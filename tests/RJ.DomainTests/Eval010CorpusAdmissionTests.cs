@@ -106,7 +106,7 @@ public sealed class Eval010CorpusAdmissionTests
 
         return new Eval010CorpusCase(
             $"case-{index:D2}",
-            $"0000000-{index % 90:D2}.2026.8.16.{index:D4}",
+            ValidCnj(index),
             sourceReference,
             ExternalGenerationBenchmarkCatalog.ComputeSha256(source),
             oracleReference,
@@ -116,6 +116,20 @@ public sealed class Eval010CorpusAdmissionTests
             $"oracle-author-{index:D2}",
             $"oracle-reviewer-{index:D2}",
             DateTimeOffset.Parse("2026-09-10T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private static string ValidCnj(int index)
+    {
+        var processNumber = (6003000 + index).ToString("D7", System.Globalization.CultureInfo.InvariantCulture);
+        var body = $"{processNumber}20268160021";
+        var remainder = 0;
+        foreach (var character in body + "00")
+        {
+            remainder = ((remainder * 10) + character - '0') % 97;
+        }
+
+        var checkDigits = 98 - remainder;
+        return $"{processNumber}-{checkDigits:D2}.2026.8.16.0021";
     }
 
     private static ExternalGenerationBenchmarkCase CatalogCase(Eval010CorpusCase item, string evidenceReference)
