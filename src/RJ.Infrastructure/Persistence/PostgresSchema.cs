@@ -4,8 +4,8 @@ namespace RJ.Infrastructure.Persistence;
 
 public static class PostgresSchema
 {
-    public const string Version = "4";
-    private const int VersionNumber = 4;
+    public const string Version = "5";
+    private const int VersionNumber = 5;
     private const long MigrationLockKey = 724_587_321;
 
     private const string MigrationSql = """
@@ -59,6 +59,20 @@ public static class PostgresSchema
 
         CREATE INDEX IF NOT EXISTS ix_process_summary_jobs_case_id
             ON process_summary_jobs (case_id);
+
+        CREATE TABLE IF NOT EXISTS process_cases (
+            case_id text NOT NULL,
+            cnj text NOT NULL,
+            source_name text NOT NULL,
+            canonical_json jsonb NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            CONSTRAINT pk_process_cases PRIMARY KEY (case_id),
+            CONSTRAINT uq_process_cases_cnj UNIQUE (cnj)
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_process_cases_cnj
+            ON process_cases (cnj);
         """;
 
     public static async Task MigrateAsync(
@@ -143,7 +157,8 @@ public static class PostgresSchema
         }
 
         if (!await LegalDocumentStructureMatchesAsync(connection, cancellationToken)
-            || !await ProcessSummaryStructureMatchesAsync(connection, cancellationToken))
+            || !await ProcessSummaryStructureMatchesAsync(connection, cancellationToken)
+            || !await ProcessCatalogStructureMatchesAsync(connection, cancellationToken))
         {
             throw new PostgresSchemaVersionException(
                 $"Database schema ledger reports version {VersionNumber}, but required schema invariants are missing or degraded.");
@@ -298,6 +313,56 @@ public static class PostgresSchema
             )
             SELECT
                 to_regclass('public.process_summary_jobs') IS NOT NULL
+                AND (SELECT ok FROM required_columns)
+                AND (SELECT ok FROM required_constraints)
+                AND (SELECT ok FROM required_index);
+            """;
+
+        await using var command = new NpgsqlCommand(structureSql, connection);
+        return Convert.ToBoolean(
+            await command.ExecuteScalarAsync(cancellationToken),
+            System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> ProcessCatalogStructureMatchesAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string structureSql = """
+            WITH required_columns AS (
+                SELECT count(*) = 6 AS ok
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'process_cases'
+                  AND column_name IN (
+                      'case_id',
+                      'cnj',
+                      'source_name',
+                      'canonical_json',
+                      'created_at',
+                      'updated_at')
+            ),
+            required_constraints AS (
+                SELECT
+                    count(*) FILTER (WHERE conname = 'pk_process_cases' AND contype = 'p' AND convalidated AND conenforced) = 1
+                    AND count(*) FILTER (WHERE conname = 'uq_process_cases_cnj' AND contype = 'u' AND convalidated AND conenforced) = 1 AS ok
+                FROM pg_constraint
+                WHERE conrelid = to_regclass('public.process_cases')
+            ),
+            required_index AS (
+                SELECT count(*) = 1 AS ok
+                FROM pg_class idx
+                JOIN pg_namespace n ON n.oid = idx.relnamespace
+                JOIN pg_index i ON i.indexrelid = idx.oid
+                WHERE n.nspname = 'public'
+                  AND idx.relname = 'ix_process_cases_cnj'
+                  AND i.indisvalid
+                  AND i.indisready
+                  AND i.indislive
+                  AND i.indpred IS NULL
+            )
+            SELECT
+                to_regclass('public.process_cases') IS NOT NULL
                 AND (SELECT ok FROM required_columns)
                 AND (SELECT ok FROM required_constraints)
                 AND (SELECT ok FROM required_index);
