@@ -97,6 +97,8 @@
     "job_read_scope_isolated_by_tenant_subject_case",
     "api_case_scope_fail_closed",
     "ingestion_evidence_source_scope_fail_closed",
+    "read_results_filtered_by_evidence_source",
+    "generation_context_filters_sources_before_build",
     "audit_separate_from_telemetry",
     "structured_audit_sink",
     "structured_telemetry_sink"
@@ -111,6 +113,7 @@
     "LegalCaseMergeServiceTests",
     "LegalCaseConsistencyEngineTests",
     "ProcessGenerationContextComposerTests",
+    "GenerationContextServiceAuthorizationTests",
     "ProcessSummaryGenerationTests",
     "ProcessSummaryValidatorTests",
     "ProcessSummaryCorrectiveRetryTests",
@@ -121,7 +124,8 @@
     "ProcessSummaryObservabilityCatalogTests",
     "ProcessSummaryRefreshPlannerTests",
     "ProcessSummaryEndpointTests",
-    "ProcessSummarySecurityBoundaryTests"
+    "ProcessSummarySecurityBoundaryTests",
+    "ReadEndpointAuthorizationTests"
   ],
   "not_claimed": [
     "FULL_RJUDI_MVP",
