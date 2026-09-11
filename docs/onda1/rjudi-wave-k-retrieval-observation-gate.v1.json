@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0",
+  "wave": "K",
+  "name": "retrieval-benchmark-observation-materialization",
+  "status": "NOT_TESTED",
+  "branch": "rjudi/wave-k-retrieval-observation-001",
+  "baseHead": "90dfec9dee9984da480bcc1cf02b637bac084b8a",
+  "canonicalCommand": ".\\scripts\\test-rjudi-wave-k.ps1",
+  "scope": [
+    "provider-neutral retrieval benchmark through ILegalDocumentSearch",
+    "executed retrieval implementation identity binding",
+    "exact DocumentId plus ContentSha256 relevance",
+    "cross-case retrieval execution failure",
+    "per-case hit-at-k and MRR measurements",
+    "retrieval duration observation",
+    "retrieval report to raw observation v3 materialization",
+    "selection-time deterministic retrieval re-materialization"
+  ],
+  "requiredInternalChecks": [
+    "dotnet build RJ.slnx --no-restore",
+    "RetrievalBenchmarkTests",
+    "EmpiricalRawObservationArtifactTests",
+    "GenerationEmpiricalObservationMaterializerTests",
+    "git diff --check",
+    "RJ.RetrievalObservationMaterializer execution",
+    "one self-test raw observation v3 artifact",
+    "source report reference and SHA binding",
+    "materialization policy reference and SHA binding",
+    "treatment implementation/configuration binding",
+    "observation index creation"
+  ],
+  "productionBaselineIdentity": {
+    "treatment": "R0",
+    "implementationId": "postgres-ts-rank-cd-v1",
+    "classification": "IMPLEMENTED_IN_RJ",
+    "nonClaim": "ts_rank_cd is not BM25"
+  },
+  "relevanceRule": "exact DocumentId + ContentSha256 admitted evidence identity",
+  "rawObservationFormat": "rjudi-empirical-raw-observation-v3",
+  "qualityMeasurements": [
+    "hit_at_1_rate",
+    "hit_at_3_rate",
+    "hit_at_5_rate",
+    "mrr",
+    "retrieval_duration_ms"
+  ],
+  "nonCompensableExecutionGate": "candidate_execution_failure",
+  "decisionRules": [
+    "expected answer prose is not a retrieval relevance input",
+    "cross-case hit is treatment execution failure",
+    "execution failure remains separate from quality measurements",
+    "duration is measured and is not a post-hoc acceptance threshold",
+    "Wave K self-test does not constitute EVAL-010 evidence or treatment selection"
+  ],
+  "externalBlockersNotRequiredForWaveKSelfTest": [
+    "RJ-BLK-003",
+    "BLK-POSTGRES-001",
+    "SRC-003",
+    "ATT-001"
+  ],
+  "executionEvidence": null
+}
