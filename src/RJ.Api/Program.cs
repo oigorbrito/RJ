@@ -29,7 +29,10 @@ builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
 builder.Services.AddSingleton<IReadinessProbe, PostgresReadinessProbe>();
 builder.Services.AddSingleton<IProcessSummaryClock, SystemProcessSummaryClock>();
-builder.Services.AddSingleton<IProcessSummaryTelemetry, NoopProcessSummaryTelemetry>();
+builder.Services.AddSingleton<IProcessSummaryTelemetry, LoggingProcessSummaryTelemetry>();
+builder.Services.AddSingleton<IProcessSummaryAuditSink, LoggingProcessSummaryAuditSink>();
+builder.Services.AddSingleton<IProcessSummaryCallerContextResolver, ClaimsProcessSummaryCallerContextResolver>();
+builder.Services.AddSingleton<IProcessSummaryJobAccessStore, InMemoryProcessSummaryJobAccessStore>();
 builder.Services.AddSingleton<IProcessAttachmentContentStore, EmptyProcessAttachmentContentStore>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
@@ -65,18 +68,24 @@ app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
-app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
 
-app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
-app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync);
-app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync);
-app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAsync);
-app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync);
+app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
 
-app.MapPost("/api/process-summaries/jobs", ProcessSummaryEndpoint.SubmitAsync);
-app.MapGet("/api/process-summaries/jobs/{jobId}", ProcessSummaryEndpoint.GetJob);
-app.MapGet("/api/process-summaries/jobs/{jobId}/validated-summary", ProcessSummaryEndpoint.GetValidatedSummary);
-app.MapPost("/api/process-summaries/jobs/{jobId}/refresh-plan", ProcessSummaryEndpoint.GetRefreshPlan);
+app.MapPost("/api/process-summaries/jobs", ProcessSummaryEndpoint.SubmitAuthenticatedAsync);
+app.MapGet("/api/process-summaries/jobs/{jobId}", ProcessSummaryEndpoint.GetJobAuthenticated);
+app.MapGet("/api/process-summaries/jobs/{jobId}/validated-summary", ProcessSummaryEndpoint.GetValidatedSummaryAuthenticated);
+app.MapPost("/api/process-summaries/jobs/{jobId}/refresh-plan", ProcessSummaryEndpoint.GetRefreshPlanAuthenticated);
 
 app.Run();
 

@@ -5,6 +5,129 @@ namespace RJ.Api;
 
 public static class ReadEndpoint
 {
+    public static async Task<IResult> ListDocumentsAuthorizedAsync(
+        HttpContext httpContext,
+        string caseId,
+        int? page,
+        int? pageSize,
+        IProcessSummaryCallerContextResolver callerResolver,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var pageNumber = page ?? 1;
+            var size = pageSize ?? 20;
+            var documents = await service.ListAsync(caseId, pageNumber, size, cancellationToken);
+            var items = documents
+                .Where(document => caller.IsAuthorizedForEvidenceSource(document.SourceName))
+                .Select(ToSummary)
+                .ToArray();
+            return Results.Ok(new LegalDocumentPage(pageNumber, size, items));
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
+        }
+    }
+
+    public static async Task<IResult> GetDocumentAuthorizedAsync(
+        HttpContext httpContext,
+        string caseId,
+        string documentId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var document = await service.GetAsync(caseId, documentId, cancellationToken);
+            return document is null || !caller.IsAuthorizedForEvidenceSource(document.SourceName)
+                ? Results.NotFound()
+                : Results.Ok(ToDetail(document));
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
+        }
+    }
+
+    public static async Task<IResult> SearchAuthorizedAsync(
+        HttpContext httpContext,
+        string caseId,
+        string? q,
+        int? limit,
+        IProcessSummaryCallerContextResolver callerResolver,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var hits = await service.SearchAsync(caseId, q ?? string.Empty, limit ?? 20, cancellationToken);
+            var items = hits
+                .Where(hit => caller.IsAuthorizedForEvidenceSource(hit.Document.SourceName))
+                .Select(hit => new LegalDocumentSearchResult(
+                    hit.Document.CaseId,
+                    hit.Document.DocumentId,
+                    hit.Document.SourceName,
+                    hit.Document.ContentSha256,
+                    hit.Rank))
+                .ToArray();
+            return Results.Ok(items);
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
+        }
+    }
+
+    public static async Task<IResult> RetrieveEvidenceAuthorizedAsync(
+        HttpContext httpContext,
+        string caseId,
+        string? q,
+        int? limit,
+        IProcessSummaryCallerContextResolver callerResolver,
+        LegalDocumentQueryService service,
+        CancellationToken cancellationToken)
+    {
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var evidence = await service.RetrieveEvidenceAsync(
+                caseId,
+                q ?? string.Empty,
+                limit ?? 20,
+                cancellationToken);
+            return Results.Ok(evidence
+                .Where(item => caller.IsAuthorizedForEvidenceSource(item.SourceName))
+                .Select(ToEvidenceResult)
+                .ToArray());
+        }
+        catch (ArgumentException exception)
+        {
+            return InvalidRequest(exception);
+        }
+    }
+
     public static async Task<IResult> ListDocumentsAsync(
         string caseId,
         int? page,

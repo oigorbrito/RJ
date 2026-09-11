@@ -1,7 +1,9 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using RJ.Application.Generation;
+using RJ.Application.Operations;
 using RJ.Application.Security;
 using RJ.Application.Sources;
 
@@ -9,6 +11,120 @@ namespace RJ.Api;
 
 public static class ProcessSummaryEndpoint
 {
+    public static async Task<IResult> SubmitAuthenticatedAsync(
+        HttpContext httpContext,
+        ProcessSummaryHttpRequest request,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        ProcessSummaryJobService service,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(callerResolver);
+        ArgumentNullException.ThrowIfNull(accessStore);
+        ArgumentNullException.ThrowIfNull(auditSink);
+        ArgumentNullException.ThrowIfNull(clock);
+
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            RecordAudit(auditSink, clock, "process_summary.submit", "unauthenticated", null, null, null);
+            return Results.Unauthorized();
+        }
+
+        var result = await SubmitAsync(ToInternalRequest(request, caller), service, cancellationToken);
+        if (result is IValueHttpResult { Value: ProcessSummaryJobResponse response }
+            && result is IStatusCodeHttpResult { StatusCode: StatusCodes.Status202Accepted })
+        {
+            if (!accessStore.TryBind(response.JobId, caller, response.CaseId))
+            {
+                RecordAudit(auditSink, clock, "process_summary.submit", "ownership_conflict", response.JobId, response.CaseId, caller);
+                return Results.Conflict(new ProcessSummaryError("Process summary request could not be completed."));
+            }
+
+            RecordAudit(auditSink, clock, "process_summary.submit", "allowed", response.JobId, response.CaseId, caller);
+        }
+
+        return result;
+    }
+
+    public static IResult GetJobAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(
+            httpContext,
+            jobId,
+            "process_summary.job.read",
+            callerResolver,
+            accessStore,
+            auditSink,
+            clock,
+            out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetJob(jobId, service);
+    }
+
+    public static IResult GetValidatedSummaryAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(
+            httpContext,
+            jobId,
+            "process_summary.validated_summary.read",
+            callerResolver,
+            accessStore,
+            auditSink,
+            clock,
+            out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetValidatedSummary(jobId, service);
+    }
+
+    public static IResult GetRefreshPlanAuthenticated(
+        HttpContext httpContext,
+        string jobId,
+        ProcessSummaryRefreshPlanRequest request,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        ProcessSummaryJobService service)
+    {
+        if (!TryAuthorizeJobAccess(
+            httpContext,
+            jobId,
+            "process_summary.refresh_plan.read",
+            callerResolver,
+            accessStore,
+            auditSink,
+            clock,
+            out var unauthorized))
+        {
+            return unauthorized!;
+        }
+
+        return GetRefreshPlan(jobId, request, service);
+    }
+
     public static async Task<IResult> SubmitAsync(
         ProcessSummaryRequest request,
         ProcessSummaryJobService service,
@@ -147,6 +263,93 @@ public static class ProcessSummaryEndpoint
         }
     }
 
+    private static bool TryAuthorizeJobAccess(
+        HttpContext httpContext,
+        string jobId,
+        string auditEventName,
+        IProcessSummaryCallerContextResolver callerResolver,
+        IProcessSummaryJobAccessStore accessStore,
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        out IResult? unauthorized)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(callerResolver);
+        ArgumentNullException.ThrowIfNull(accessStore);
+        ArgumentNullException.ThrowIfNull(auditSink);
+        ArgumentNullException.ThrowIfNull(clock);
+        unauthorized = null;
+
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            RecordAudit(auditSink, clock, auditEventName, "unauthenticated", jobId, null, null);
+            unauthorized = Results.Unauthorized();
+            return false;
+        }
+
+        try
+        {
+            if (!accessStore.CanAccess(jobId, caller))
+            {
+                RecordAudit(auditSink, clock, auditEventName, "not_found_or_denied", jobId, null, caller);
+                unauthorized = Results.NotFound();
+                return false;
+            }
+        }
+        catch (ArgumentException)
+        {
+            RecordAudit(auditSink, clock, auditEventName, "invalid_request", null, null, caller);
+            unauthorized = Results.BadRequest(new ProcessSummaryError("Invalid process summary job request."));
+            return false;
+        }
+
+        RecordAudit(auditSink, clock, auditEventName, "allowed", jobId, null, caller);
+        return true;
+    }
+
+    private static void RecordAudit(
+        IProcessSummaryAuditSink auditSink,
+        IProcessSummaryClock clock,
+        string eventName,
+        string decision,
+        string? jobId,
+        string? caseId,
+        CallerContext? caller)
+    {
+        auditSink.Record(new ProcessSummaryAuditEvent(
+            eventName,
+            decision,
+            jobId,
+            caseId,
+            caller is null ? null : Hash(caller.TenantId),
+            caller is null ? null : Hash(caller.SubjectId),
+            clock.UtcNow));
+    }
+
+    private static string Hash(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+
+    private static ProcessSummaryRequest ToInternalRequest(
+        ProcessSummaryHttpRequest request,
+        CallerContext caller)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(caller);
+        return new ProcessSummaryRequest(
+            request.IdempotencyKey,
+            request.SourceSystem,
+            request.SourceName,
+            request.SourceReference,
+            request.RawContent,
+            request.ObservedAt,
+            request.Instruction,
+            caller.TenantId,
+            caller.SubjectId,
+            caller.AuthorizedCaseIds,
+            caller.CanAccessSealedCases,
+            caller.AuthorizedEvidenceSourceNames,
+            request.AttachmentContents);
+    }
 
     private static ProcessSummaryJobResponse ToResponse(ProcessSummaryJob job) => new(
         job.JobId,
@@ -178,6 +381,19 @@ public static class ProcessSummaryEndpoint
             "Attachment content must reference observed attachment metadata." => exception.Message,
             _ => "Process summary request could not be completed."
         };
+}
+
+public sealed record ProcessSummaryHttpRequest(
+    string IdempotencyKey,
+    string SourceSystem,
+    string SourceName,
+    string SourceReference,
+    string RawContent,
+    string ObservedAt,
+    string Instruction,
+    IReadOnlyList<ProcessAttachmentContentRequest>? AttachmentContents = null)
+{
+    public IReadOnlyList<ProcessAttachmentContentRequest> AttachmentContents { get; } = AttachmentContents ?? [];
 }
 
 public sealed record ProcessSummaryRequest(
