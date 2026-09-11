@@ -31,9 +31,11 @@ try {
     $outputDir = Join-Path $artifactRoot 'raw'
     $reportDir = Join-Path $artifactRoot 'selftest'
     $policyDir = Join-Path $artifactRoot 'policies'
+    $configDir = Join-Path $artifactRoot 'configs'
     $reportPath = Join-Path $reportDir 'generation-report.json'
     $policyPath = Join-Path $policyDir 'g0.json'
-    New-Item -ItemType Directory -Path $reportDir,$policyDir -Force | Out-Null
+    $configPath = Join-Path $configDir 'g0.json'
+    New-Item -ItemType Directory -Path $reportDir,$policyDir,$configDir -Force | Out-Null
 
     try {
         $runtime = [System.Runtime.InteropServices.RuntimeInformation]::FrameworkDescription
@@ -43,11 +45,15 @@ try {
                 --model-config 'deterministic-selftest' --seed 'wave-j-fixed' --output $reportPath
         }
 
+        '{"modelId":"harness-selftest-v1","modelConfiguration":"deterministic-selftest"}' | Set-Content -LiteralPath $configPath -Encoding utf8NoBOM
+        $configSha = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
         $reportSha = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToLowerInvariant()
         @{
             treatmentId = 'G0'
             modelId = 'harness-selftest-v1'
             modelConfiguration = 'deterministic-selftest'
+            configurationReference = 'configs/g0.json'
+            configurationSha256 = $configSha
             claimRecallMetricId = 'claim_recall'
             citationValidityMetricId = 'citation_validity'
             groundednessMetricId = 'groundedness'
@@ -80,6 +86,7 @@ try {
 
         Write-Host "Wave J self-test report SHA-256: $reportSha"
         Write-Host "Wave J policy SHA-256: $policySha"
+        Write-Host "Wave J configuration SHA-256: $configSha"
         Write-Host "Wave J observation count: $($observations.Count)"
     }
     finally {
