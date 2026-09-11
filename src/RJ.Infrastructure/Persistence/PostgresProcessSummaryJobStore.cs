@@ -37,9 +37,12 @@ public sealed class PostgresProcessSummaryJobStore(NpgsqlDataSource dataSource) 
     }
 
     public async Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        string currentSummaryVersion,
+        DateTimeOffset expiredBefore,
         int limit,
         CancellationToken cancellationToken)
     {
+        var version = Require(currentSummaryVersion, nameof(currentSummaryVersion));
         if (limit <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(limit), limit, "Maintenance limit must be positive.");
@@ -48,9 +51,13 @@ public sealed class PostgresProcessSummaryJobStore(NpgsqlDataSource dataSource) 
         await using var command = dataSource.CreateCommand("""
             SELECT job_json::text
             FROM process_summary_jobs
+            WHERE updated_at < $1
+               OR job_json ->> 'summaryVersion' <> $2
             ORDER BY updated_at ASC, job_id ASC
-            LIMIT $1;
+            LIMIT $3;
             """);
+        command.Parameters.AddWithValue(expiredBefore);
+        command.Parameters.AddWithValue(version);
         command.Parameters.AddWithValue(limit);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var jobs = new List<ProcessSummaryJob>();
