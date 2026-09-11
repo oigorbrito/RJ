@@ -199,24 +199,7 @@ public sealed class OpenAiGenerationModel : IGenerationModel
             throw new InvalidOperationException("OpenAI response was not a JSON object.");
         }
 
-        string? output = null;
-        if (root.TryGetProperty("output_text", out var outputTextElement))
-        {
-            output = outputTextElement.GetString();
-        }
-        else if (root.TryGetProperty("output", out var outputElement)
-                 && outputElement.ValueKind == JsonValueKind.Array)
-        {
-            output = outputElement
-                .EnumerateArray()
-                .SelectMany(item => item.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array
-                    ? content.EnumerateArray()
-                    : [])
-                .Where(item => item.TryGetProperty("text", out _))
-                .Select(item => item.GetProperty("text").GetString())
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        }
-
+        var output = ExtractOutputText(root);
         if (string.IsNullOrWhiteSpace(output))
         {
             throw new InvalidOperationException("OpenAI response did not contain structured text output.");
@@ -260,6 +243,42 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         }
 
         return new GenerationModelOutput(abstained, abstentionReason, claims);
+    }
+
+    private static string? ExtractOutputText(JsonElement root)
+    {
+        if (root.TryGetProperty("output_text", out var outputTextElement)
+            && outputTextElement.ValueKind == JsonValueKind.String)
+        {
+            return outputTextElement.GetString();
+        }
+
+        if (!root.TryGetProperty("output", out var outputElement)
+            || outputElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var outputItem in outputElement.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("content", out var contentElement)
+                || contentElement.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var contentItem in contentElement.EnumerateArray())
+            {
+                if (contentItem.TryGetProperty("text", out var textElement)
+                    && textElement.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(textElement.GetString()))
+                {
+                    return textElement.GetString();
+                }
+            }
+        }
+
+        return null;
     }
 
     private static JsonDocument ParseJson(string json, string message)
