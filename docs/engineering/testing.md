@@ -38,3 +38,16 @@ Coverage percentage is diagnostic information only and is not an acceptance crit
 - The current count of five demo cases is a `PROJECT_DECISION`; it is not an empirical sample-size claim.
 - The API startup wait window is a `PROJECT_DECISION`; it is not an empirically calibrated performance threshold.
 - Automating this gate is `DERIVED_FROM_METHOD` only in the narrow sense that it makes the declared closure protocol repeatable and preserves execution evidence; PowerShell, the file layout, and the endpoint names are not methodological requirements.
+
+## RJudi MVP wave 3 live-generation gate
+
+- Gate version: `RJUDI_MVP_WAVE_3_V1`
+- Canonical command: `scripts/test-rjudi-mvp-wave-3.ps1`
+- Scope: API runtime provider selection, OpenAI execution through `IGenerationModel`, structured generation, citation-boundary enforcement, downstream RJudi validation, and retrieval of the validated summary for the controlled Judit fixture.
+- Preconditions: reachable PostgreSQL through `RJ_POSTGRES_CONNECTION`, local `RJ_GENERATION_MODEL`, local `OPENAI_API_KEY`, provider network access, and a free local gate port (default `5002`).
+- The API key must never be emitted into gate output or artifacts.
+- The gate first builds the repository and runs `RJ.ApiTests`, then migrates/seeds the local database, starts the API from the current checkout with `RJ_GENERATION_PROVIDER=openai`, submits `demo-data/process-summary-openai-case.json`, and requires a validated result containing at least one claim and at least one citation.
+- The gate records commit, branch, worktree state, .NET environment, configured model identifier, fixture SHA-256, timestamps, and non-secret observations into `.artifacts/rjudi-mvp-wave-3/`.
+- Missing provider credentials or unavailable provider/network access are `BLOCKED`, not `PASS` and not evidence of model failure.
+- A PASS demonstrates only the scoped live path for the controlled fixture and configured environment. It does not establish comparative model superiority, production legal accuracy, or generalization to other corpora.
+- The specific provider, model identifier, fixture, port, and startup window are `PROJECT_DECISION` values. Requiring an executed, preserved gate before a live-generation claim is treated as `DERIVED_FROM_METHOD` under the repository reproducibility policy.
