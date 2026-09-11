@@ -33,9 +33,10 @@ public sealed record ProcessSummaryMaintenanceOptions(
         if (!double.TryParse(intervalRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out var intervalSeconds)
             || intervalSeconds <= 0
             || double.IsNaN(intervalSeconds)
-            || double.IsInfinity(intervalSeconds))
+            || double.IsInfinity(intervalSeconds)
+            || intervalSeconds > TimeSpan.MaxValue.TotalSeconds)
         {
-            throw new InvalidOperationException($"{IntervalSecondsKey} must be a positive finite number.");
+            throw new InvalidOperationException($"{IntervalSecondsKey} must be a positive finite interval representable by TimeSpan.");
         }
 
         if (!int.TryParse(batchRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var batchSize)
