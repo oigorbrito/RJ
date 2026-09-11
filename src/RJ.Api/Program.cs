@@ -68,13 +68,19 @@ app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
-app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
 
-app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
-app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync);
-app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync);
-app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAsync);
-app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync);
+app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
 
 app.MapPost("/api/process-summaries/jobs", ProcessSummaryEndpoint.SubmitAuthenticatedAsync);
 app.MapGet("/api/process-summaries/jobs/{jobId}", ProcessSummaryEndpoint.GetJobAuthenticated);
