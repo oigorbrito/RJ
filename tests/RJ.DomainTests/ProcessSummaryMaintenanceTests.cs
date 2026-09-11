@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Generation;
 using RJ.Application.Operations;
 using RJ.Application.Security;
@@ -9,7 +10,7 @@ public sealed class ProcessSummaryMaintenanceTests
     [Fact]
     public async Task Fresh_job_is_filtered_before_maintenance_evaluation()
     {
-        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
         var store = new InMemoryProcessSummaryJobStore();
         await AddAsync(store, Job("job-fresh", ProcessSummaryPrompt.PromptVersion, now.AddDays(-1)));
         var dispatcher = new RecordingDispatcher();
@@ -26,7 +27,7 @@ public sealed class ProcessSummaryMaintenanceTests
     [Fact]
     public async Task Previous_summary_version_dispatches_refresh_with_stable_work_id()
     {
-        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
         var store = new InMemoryProcessSummaryJobStore();
         var job = Job("job-stale", "rjudi-process-summary-previous", now.AddDays(-1));
         await AddAsync(store, job);
@@ -57,7 +58,7 @@ public sealed class ProcessSummaryMaintenanceTests
     [Fact]
     public async Task Expired_job_dispatches_rebuild_and_validated_summary_is_not_published()
     {
-        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
         var retention = ProcessSecurityPolicy.DefaultRetentionPolicy();
         var expiredJob = Job(
             "job-expired",
@@ -85,7 +86,7 @@ public sealed class ProcessSummaryMaintenanceTests
     [Fact]
     public async Task Fresh_jobs_cannot_starve_actionable_candidate_from_bounded_batch()
     {
-        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
         var store = new InMemoryProcessSummaryJobStore();
         for (var index = 0; index < 5; index++)
         {
@@ -108,7 +109,7 @@ public sealed class ProcessSummaryMaintenanceTests
     [Fact]
     public async Task Maintenance_batch_uses_deterministic_oldest_first_order()
     {
-        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture);
         var store = new InMemoryProcessSummaryJobStore();
         await AddAsync(store, Job("job-newer", "old-version", now.AddDays(-2)));
         await AddAsync(store, Job("job-older", "old-version", now.AddDays(-3)));

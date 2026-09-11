@@ -1,3 +1,4 @@
+using System.Globalization;
 using Npgsql;
 using RJ.Application.Ingestion;
 using RJ.Domain.Cases;
@@ -286,7 +287,7 @@ public sealed class PostgresLegalDocumentWriterTests
             "SELECT count(*) FROM legal_documents WHERE case_id = @case_id;");
         command.Parameters.AddWithValue("case_id", caseId);
         var result = await command.ExecuteScalarAsync();
-        return Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+        return Convert.ToInt64(result, CultureInfo.InvariantCulture);
     }
 
     private static async Task<(string SourceName, string RawContent, string Content, string ContentSha256)?> ReadStoredAsync(

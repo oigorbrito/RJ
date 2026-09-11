@@ -4,12 +4,10 @@ namespace RJ.DomainTests;
 
 public sealed class EmpiricalSelectionServiceTests
 {
-    private readonly EmpiricalSelectionService _service = new();
-
     [Fact]
     public void Compare_selects_challenger_only_when_it_pareto_dominates()
     {
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             Metrics(),
@@ -29,7 +27,7 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_keeps_baseline_when_baseline_pareto_dominates()
     {
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("g0", EmpiricalTreatmentKind.Generation),
             Treatment("g1", EmpiricalTreatmentKind.Generation),
             Metrics(),
@@ -46,7 +44,7 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_returns_no_clear_winner_for_tradeoff_without_weighting()
     {
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r2", EmpiricalTreatmentKind.Retrieval),
             Metrics(),
@@ -64,7 +62,7 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_returns_no_clear_winner_when_measurements_are_equal()
     {
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             Metrics(),
@@ -82,7 +80,7 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_blocks_unpaired_case_instead_of_dropping_it()
     {
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             Metrics(),
@@ -106,7 +104,7 @@ public sealed class EmpiricalSelectionServiceTests
             90,
             status: EmpiricalExecutionStatus.NotTested);
 
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             Metrics(),
@@ -127,7 +125,7 @@ public sealed class EmpiricalSelectionServiceTests
             status: EmpiricalExecutionStatus.Fail,
             failedGates: ["no_oracle_leakage"]);
 
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("g0", EmpiricalTreatmentKind.Generation),
             Treatment("g1", EmpiricalTreatmentKind.Generation),
             Metrics(),
@@ -150,7 +148,7 @@ public sealed class EmpiricalSelectionServiceTests
                 ["quality"] = 0.85
             });
 
-        var report = _service.Compare(
+        var report = EmpiricalSelectionService.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
             Treatment("r1", EmpiricalTreatmentKind.Retrieval),
             Metrics(),

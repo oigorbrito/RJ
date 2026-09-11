@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using RJ.Application.Benchmarking;
 
@@ -40,7 +41,7 @@ public sealed class Eval010CorpusAdmissionTests
         var manifest = new Eval010CorpusManifest(
             Eval010CorpusManifest.SupportedFormatVersion,
             "eval010-test-corpus-v1",
-            DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture),
             cases);
         var service = new Eval010CorpusAdmissionService(new DictionaryArtifactReader(artifacts));
 
@@ -68,7 +69,7 @@ public sealed class Eval010CorpusAdmissionTests
         var manifest = new Eval010CorpusManifest(
             Eval010CorpusManifest.SupportedFormatVersion,
             "eval010-test-corpus-v1",
-            DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture),
             cases);
         var catalogCases = cases.Select((item, index) => CatalogCase(item, index == 0 ? item.OracleReference : item.SourceReference)).ToArray();
         var catalog = new ExternalGenerationBenchmarkCatalog(
@@ -88,11 +89,11 @@ public sealed class Eval010CorpusAdmissionTests
         return new Eval010CorpusManifest(
             Eval010CorpusManifest.SupportedFormatVersion,
             "eval010-test-corpus-v1",
-            DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture),
             Enumerable.Range(1, count).Select(index => Case(index, artifacts)).ToArray());
     }
 
-    private static Eval010CorpusCase Case(int index, IDictionary<string, byte[]> artifacts)
+    private static Eval010CorpusCase Case(int index, Dictionary<string, byte[]> artifacts)
     {
         var sourceReference = $"sources/case-{index:D2}.json";
         var oracleReference = $"oracles/case-{index:D2}.json";
@@ -115,12 +116,12 @@ public sealed class Eval010CorpusAdmissionTests
             ExternalGenerationBenchmarkCatalog.ComputeSha256(review),
             $"oracle-author-{index:D2}",
             $"oracle-reviewer-{index:D2}",
-            DateTimeOffset.Parse("2026-09-10T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+            DateTimeOffset.Parse("2026-09-10T00:00:00Z", CultureInfo.InvariantCulture));
     }
 
     private static string ValidCnj(int index)
     {
-        var processNumber = (6003000 + index).ToString("D7", System.Globalization.CultureInfo.InvariantCulture);
+        var processNumber = (6003000 + index).ToString("D7", CultureInfo.InvariantCulture);
         var body = $"{processNumber}20268160021";
         var remainder = 0;
         foreach (var character in body + "00")

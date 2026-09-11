@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Sources;
 
 namespace RJ.DomainTests;
@@ -33,21 +34,21 @@ public sealed class DataJudPublicApiContractTests
                   "numeroProcesso": "60031603620268160021",
                   "grau": "G1",
                   "nivelSigilo": 0,
-                  "classe": { "codigo": 1116, "nome": "Procedimento Comum Cível" },
+                  "classe": { "codigo": 1116, "nome": "Procedimento Comum CÃ­vel" },
                   "assuntos": [
                     { "codigo": 10433, "nome": "Direito Civil" }
                   ],
                   "orgaoJulgador": {
                     "codigo": 123,
-                    "nome": "1ª Vara Cível de Cascavel",
+                    "nome": "1Âª Vara CÃ­vel de Cascavel",
                     "codigoMunicipioIBGE": 4104808
                   },
                   "movimentos": [
                     {
                       "codigo": 26,
-                      "nome": "Distribuição",
+                      "nome": "DistribuiÃ§Ã£o",
                       "dataHora": "2026-01-10T10:15:30Z",
-                      "orgaoJulgador": { "codigoOrgao": 123, "nomeOrgao": "1ª Vara Cível de Cascavel" }
+                      "orgaoJulgador": { "codigoOrgao": 123, "nomeOrgao": "1Âª Vara CÃ­vel de Cascavel" }
                     }
                   ]
                 }
@@ -64,10 +65,10 @@ public sealed class DataJudPublicApiContractTests
         Assert.Equal("G1", observation.Degree);
         Assert.Equal(0, observation.SecrecyLevel);
         Assert.Equal("123", observation.Court.Code);
-        Assert.Equal("1ª Vara Cível de Cascavel", observation.Court.Name);
+        Assert.Equal("1Âª Vara CÃ­vel de Cascavel", observation.Court.Name);
         Assert.Equal(4104808, observation.Court.MunicipalityIbgeCode);
         Assert.Equal("1116", observation.Classification.Code);
-        Assert.Equal("Procedimento Comum Cível", observation.Classification.Name);
+        Assert.Equal("Procedimento Comum CÃ­vel", observation.Classification.Name);
         Assert.Single(observation.Subjects);
         Assert.Single(observation.Movements);
         Assert.Equal(64, observation.SourceSha256.Length);
@@ -121,7 +122,7 @@ public sealed class DataJudPublicApiContractTests
             "CNJ DataJud public API",
             "https://api-publica.datajud.cnj.jus.br/api_publica_tjpr/_search",
             json,
-            DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+            DateTimeOffset.Parse("2026-09-11T00:00:00Z", CultureInfo.InvariantCulture));
 
     private static string MinimalPayload(string cnj) => $$"""
         {
@@ -133,9 +134,9 @@ public sealed class DataJudPublicApiContractTests
                   "numeroProcesso":"{{cnj}}",
                   "grau":"G1",
                   "nivelSigilo":0,
-                  "classe":{"codigo":1116,"nome":"Procedimento Comum Cível"},
+                  "classe":{"codigo":1116,"nome":"Procedimento Comum CÃ­vel"},
                   "assuntos":[],
-                  "orgaoJulgador":{"codigo":123,"nome":"1ª Vara Cível de Cascavel"},
+                  "orgaoJulgador":{"codigo":123,"nome":"1Âª Vara CÃ­vel de Cascavel"},
                   "movimentos":[]
                 }
               }

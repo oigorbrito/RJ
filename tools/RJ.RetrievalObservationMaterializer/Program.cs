@@ -3,7 +3,7 @@ using RJ.Application.Benchmarking;
 
 if (args.Length != 8)
 {
-    Console.Error.WriteLine("Usage: RJ.GenerationObservationMaterializer <generation-report.json> <expected-report-sha256> <source-report-reference> <recorded-at> <policy.json> <expected-policy-sha256> <policy-reference> <output-dir>");
+    Console.Error.WriteLine("Usage: RJ.RetrievalObservationMaterializer <retrieval-report.json> <expected-report-sha256> <source-report-reference> <recorded-at> <policy.json> <expected-policy-sha256> <policy-reference> <output-dir>");
     return 2;
 }
 
@@ -21,7 +21,7 @@ try
 {
     if (!File.Exists(reportPath) || !File.Exists(policyPath))
     {
-        Console.Error.WriteLine("Generation report or materialization policy is unavailable.");
+        Console.Error.WriteLine("Retrieval report or materialization policy is unavailable.");
         return 2;
     }
 
@@ -32,17 +32,17 @@ try
     }
 
     var reportBytes = await File.ReadAllBytesAsync(reportPath);
-    VerifySha(reportBytes, expectedReportSha, "generation report");
-    var report = GenerationBenchmarkJson.Parse(reportBytes);
+    VerifySha(reportBytes, expectedReportSha, "retrieval report");
+    var report = RetrievalBenchmarkJson.Parse(reportBytes);
 
     var policyBytes = await File.ReadAllBytesAsync(policyPath);
     VerifySha(policyBytes, expectedPolicySha, "materialization policy");
-    var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
-        ?? throw new InvalidOperationException("Materialization policy produced no document.");
+    var policy = JsonSerializer.Deserialize<RetrievalEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
+        ?? throw new InvalidOperationException("Retrieval materialization policy produced no document.");
     policy.Validate().RequireMatches(report);
     RequireSafeFileToken(policy.TreatmentId, "treatment-id");
 
-var materialized = GenerationEmpiricalObservationMaterializer.Materialize(
+var materialized = RetrievalEmpiricalObservationMaterializer.Materialize(
         report,
         sourceReportReference,
         expectedReportSha,
@@ -82,8 +82,7 @@ var materialized = GenerationEmpiricalObservationMaterializer.Materialize(
     Console.WriteLine(JsonSerializer.Serialize(new
     {
         treatmentId = policy.TreatmentId,
-        modelId = policy.ModelId,
-        modelConfiguration = policy.ModelConfiguration,
+        implementationId = policy.ImplementationId,
         observationCount = materialized.Count,
         indexPath,
         indexSha256 = EmpiricalSelectionManifest.ComputeSha256(indexBytes)

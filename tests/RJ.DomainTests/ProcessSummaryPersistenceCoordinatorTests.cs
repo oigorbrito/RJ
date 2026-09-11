@@ -1,3 +1,4 @@
+using System.Globalization;
 using RJ.Application.Generation;
 using RJ.Application.Operations;
 using RJ.Application.Security;
@@ -8,7 +9,7 @@ public sealed class ProcessSummaryPersistenceCoordinatorTests
 {
     private static readonly DateTimeOffset ObservedAt = DateTimeOffset.Parse(
         "2026-09-11T00:00:00Z",
-        System.Globalization.CultureInfo.InvariantCulture);
+        CultureInfo.InvariantCulture);
 
     [Fact]
     public async Task Coordinator_replays_persisted_job_without_regeneration()

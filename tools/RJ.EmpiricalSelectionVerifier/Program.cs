@@ -84,6 +84,12 @@ try
         var raw = EmpiricalRawObservationArtifact.Parse(rawBytes).Validate();
         raw.RequireMatches(observation);
 
+        var treatment = StringComparer.Ordinal.Equals(raw.TreatmentId, manifest.Baseline.TreatmentId)
+            ? manifest.Baseline
+            : StringComparer.Ordinal.Equals(raw.TreatmentId, manifest.Challenger.TreatmentId)
+                ? manifest.Challenger
+                : throw new InvalidOperationException($"Unknown observation treatment '{raw.TreatmentId}'.");
+
         var sourceBytes = await VerifyArtifactAsync(
             artifactRoot,
             raw.SourceArtifactReference,
@@ -95,36 +101,21 @@ try
             raw.MaterializationPolicySha256,
             $"materialization policy for observation {observation.CaseId}/{observation.TreatmentId}");
 
-        var generationReport = GenerationBenchmarkJson.Parse(sourceBytes);
-        var generationPolicy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
-            ?? throw new InvalidOperationException("Generation materialization policy produced no document.");
-        generationPolicy.Validate().RequireMatches(generationReport);
-        if (!StringComparer.Ordinal.Equals(generationPolicy.TreatmentId, raw.TreatmentId))
+        byte[] expectedBytes = treatment.Kind switch
         {
-            throw new InvalidOperationException(
-                $"Materialization policy treatment '{generationPolicy.TreatmentId}' does not match raw observation treatment '{raw.TreatmentId}'.");
-        }
+            EmpiricalTreatmentKind.Generation => RematerializeGeneration(raw, sourceBytes, policyBytes, treatment, manifest.GitCommit, manifest.Runtime, policyJsonOptions),
+            EmpiricalTreatmentKind.Retrieval => RematerializeRetrieval(raw, sourceBytes, policyBytes, treatment, manifest.GitCommit, manifest.Runtime, policyJsonOptions),
+            _ => throw new InvalidOperationException($"Unsupported empirical treatment kind '{treatment.Kind}'.")
+        };
 
-        var rematerialized = new GenerationEmpiricalObservationMaterializer().Materialize(
-            generationReport,
-            raw.SourceArtifactReference,
-            raw.SourceArtifactSha256,
-            raw.MaterializationPolicyReference,
-            raw.MaterializationPolicySha256,
-            raw.RecordedAt,
-            generationPolicy);
-        var expected = rematerialized.SingleOrDefault(item => StringComparer.Ordinal.Equals(item.CaseId, raw.CaseId))
-            ?? throw new InvalidOperationException(
-                $"Source generation report does not contain observation case '{raw.CaseId}'.");
-
-        if (!rawBytes.AsSpan().SequenceEqual(expected.ArtifactUtf8Json))
+        if (!rawBytes.AsSpan().SequenceEqual(expectedBytes))
         {
             throw new InvalidOperationException(
                 $"Raw observation '{raw.CaseId}/{raw.TreatmentId}' is not the deterministic materialization of its source report and policy.");
         }
     }
 
-    var report = new EmpiricalSelectionService().Compare(
+var report = EmpiricalSelectionService.Compare(
         manifest.Baseline,
         manifest.Challenger,
         manifest.Metrics,
@@ -137,12 +128,7 @@ try
     });
     Console.WriteLine(json);
 
-    if (report.Decision == EmpiricalSelectionDecision.Blocked)
-    {
-        return 2;
-    }
-
-    return 0;
+    return report.Decision == EmpiricalSelectionDecision.Blocked ? 2 : 0;
 }
 catch (JsonException exception)
 {
@@ -168,6 +154,72 @@ catch (UnauthorizedAccessException exception)
 {
     Console.Error.WriteLine(exception.Message);
     return 3;
+}
+
+static byte[] RematerializeGeneration(
+    EmpiricalRawObservationArtifact raw,
+    byte[] sourceBytes,
+    byte[] policyBytes,
+    EmpiricalTreatmentDefinition treatment,
+    string expectedGitCommit,
+    string expectedRuntime,
+    JsonSerializerOptions policyJsonOptions)
+{
+    var report = GenerationBenchmarkJson.Parse(sourceBytes);
+    if (!StringComparer.Ordinal.Equals(report.Metadata.GitCommit.ToLowerInvariant(), expectedGitCommit.ToLowerInvariant())
+        || !StringComparer.Ordinal.Equals(report.Metadata.Runtime, expectedRuntime))
+    {
+        throw new InvalidOperationException("Generation benchmark source commit/runtime does not match selection manifest.");
+    }
+
+    var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
+        ?? throw new InvalidOperationException("Generation materialization policy produced no document.");
+    policy.Validate().RequireMatches(report);
+    policy.RequireMatches(treatment);
+
+var rematerialized = GenerationEmpiricalObservationMaterializer.Materialize(
+        report,
+        raw.SourceArtifactReference,
+        raw.SourceArtifactSha256,
+        raw.MaterializationPolicyReference,
+        raw.MaterializationPolicySha256,
+        raw.RecordedAt,
+        policy);
+    return rematerialized.SingleOrDefault(item => StringComparer.Ordinal.Equals(item.CaseId, raw.CaseId))?.ArtifactUtf8Json
+        ?? throw new InvalidOperationException($"Source generation report does not contain observation case '{raw.CaseId}'.");
+}
+
+static byte[] RematerializeRetrieval(
+    EmpiricalRawObservationArtifact raw,
+    byte[] sourceBytes,
+    byte[] policyBytes,
+    EmpiricalTreatmentDefinition treatment,
+    string expectedGitCommit,
+    string expectedRuntime,
+    JsonSerializerOptions policyJsonOptions)
+{
+    var report = RetrievalBenchmarkJson.Parse(sourceBytes);
+    if (!StringComparer.Ordinal.Equals(report.Execution.GitCommit, expectedGitCommit.ToLowerInvariant())
+        || !StringComparer.Ordinal.Equals(report.Execution.Runtime, expectedRuntime))
+    {
+        throw new InvalidOperationException("Retrieval benchmark source commit/runtime does not match selection manifest.");
+    }
+
+    var policy = JsonSerializer.Deserialize<RetrievalEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
+        ?? throw new InvalidOperationException("Retrieval materialization policy produced no document.");
+    policy.Validate().RequireMatches(report);
+    policy.RequireMatches(treatment);
+
+var rematerialized = RetrievalEmpiricalObservationMaterializer.Materialize(
+        report,
+        raw.SourceArtifactReference,
+        raw.SourceArtifactSha256,
+        raw.MaterializationPolicyReference,
+        raw.MaterializationPolicySha256,
+        raw.RecordedAt,
+        policy);
+    return rematerialized.SingleOrDefault(item => StringComparer.Ordinal.Equals(item.CaseId, raw.CaseId))?.ArtifactUtf8Json
+        ?? throw new InvalidOperationException($"Source retrieval report does not contain observation case '{raw.CaseId}'.");
 }
 
 static async Task<byte[]> VerifyArtifactAsync(

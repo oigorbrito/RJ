@@ -158,7 +158,7 @@ public sealed class Wave1CorpusContractTests
         var root = gate.RootElement;
 
         Assert.Equal("rjudi-m1-gate-v1", root.GetProperty("gate_version").GetString());
-        Assert.Equal("PASS_LOCAL_CORE_ONLY", root.GetProperty("status").GetString());
+        Assert.Equal("NOT_TESTED", root.GetProperty("status").GetString());
         Assert.Equal("scripts/test-rjudi-m1.ps1", root.GetProperty("canonical_script").GetString());
         Assert.True(root.GetProperty("preserves_existing_local_rag_mvp").GetBoolean());
         Assert.Equal("c627a1bcdc87ff9b0bbd5ccc0b7d108daa5e324d", root.GetProperty("base_commit").GetString());
@@ -257,7 +257,7 @@ public sealed class Wave1CorpusContractTests
         var root = gate.RootElement;
 
         Assert.Equal("rjudi-empirical-selection-gate-v1", root.GetProperty("gate_version").GetString());
-        Assert.Equal("BLOCKED", root.GetProperty("status").GetString());
+        Assert.Equal("PROCEDURE_IMPLEMENTED_SELECTION_BLOCKED", root.GetProperty("status").GetString());
         Assert.Contains(
             root.GetProperty("blocked_by").EnumerateArray(),
             item => item.GetProperty("blocker_id").GetString() == "RJ-BLK-003"
@@ -266,16 +266,16 @@ public sealed class Wave1CorpusContractTests
         var required = root.GetProperty("required_before_selection").EnumerateArray().Select(item => item.GetString()).ToArray();
         Assert.Contains("30_50_admitted_legal_process_corpus", required);
         Assert.Contains("reviewed_oracle_artifacts", required);
-        Assert.Contains("catalog_sha256_verified", required);
-        Assert.Contains("paired_candidate_reports", required);
+        Assert.Contains("corpus_manifest_sha256_verified", required);
+        Assert.Contains("exact_corpus_case_set_has_one_baseline_and_one_challenger_observation_per_case", required);
         Assert.Contains("failure_retention_artifacts", required);
-        Assert.Contains("non_compensable_gate_pass", required);
-        Assert.Contains("retrieval_latency_cost_privacy_measurements", required);
-        Assert.Contains("generation_latency_cost_privacy_measurements", required);
+        Assert.Contains("non_compensable_gate_results_by_case", required);
+        Assert.Contains("retrieval_latency_cost_privacy_measurements_when_retrieval_treatments_are_compared", required);
+        Assert.Contains("generation_latency_cost_privacy_measurements_when_generation_treatments_are_compared", required);
 
         var forbidden = root.GetProperty("forbidden_conclusions").EnumerateArray().Select(item => item.GetString()).ToArray();
-        Assert.Contains("retrieval_provider_selected", forbidden);
-        Assert.Contains("generation_provider_selected", forbidden);
+        Assert.Contains("retrieval_provider_selected_without_complete_paired_manifest", forbidden);
+        Assert.Contains("generation_provider_selected_without_complete_paired_manifest", forbidden);
         Assert.Contains("vector_search_required", forbidden);
         Assert.Contains("hybrid_reranker_promoted", forbidden);
         Assert.Contains("openai_promoted_to_production", forbidden);
@@ -287,13 +287,11 @@ public sealed class Wave1CorpusContractTests
         Assert.Contains("single_case_fixture_validation", allowed);
         Assert.Contains("self_test_or_deterministic_fake_execution", allowed);
 
-        var localEvidence = root.GetProperty("local_evidence_that_does_not_unblock").EnumerateArray().Select(item => item.GetString()).ToArray();
-        Assert.Contains("rjudi-m1-gate-v1", localEvidence);
-        Assert.Contains("rjudi-process-benchmark-protocol-v1", localEvidence);
-        Assert.Contains("rjudi-process-generation-benchmark-v1", localEvidence);
-        Assert.Contains("rj-local-mvp-gate-operational-v1", localEvidence);
+        var implemented = root.GetProperty("implemented_procedure").EnumerateArray().Select(item => item.GetString()).ToArray();
+        Assert.Contains("external_empirical_selection_verifier", implemented);
+        Assert.Contains("runtime_verified", implemented);
         Assert.Contains("RJ-BLK-003", blockerRegister);
-        Assert.Contains("authorized real legal corpus plus reviewed oracle artifacts", blockerRegister);
+        Assert.Contains("authorized 30–50 case paired execution", blockerRegister);
     }
 
     private static bool ResolveOracle(JsonElement root, string oraclePath)

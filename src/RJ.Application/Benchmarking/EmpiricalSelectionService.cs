@@ -2,7 +2,7 @@ namespace RJ.Application.Benchmarking;
 
 public sealed class EmpiricalSelectionService
 {
-    public EmpiricalSelectionReport Compare(
+    public static EmpiricalSelectionReport Compare(
         EmpiricalTreatmentDefinition baseline,
         EmpiricalTreatmentDefinition challenger,
         IReadOnlyList<EmpiricalMetricDefinition> metrics,
