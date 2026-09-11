@@ -59,6 +59,26 @@ For computational evidence, preserve the execution information needed to underst
 
 Artifacts used to support empirical claims should be documented, consistent with the claimed result, sufficiently complete for the stated evaluation, and exercisable when the environment permits. External dependencies or unavailable data must be recorded explicitly rather than silently treated as success.
 
+## Wave closure evidence
+
+A project wave may be declared `PASS` only when its predeclared acceptance behavior has actually been executed and the resulting evidence is preserved or reproducibly obtainable. This is `DERIVED_FROM_METHOD`: it operationalizes the reproducibility and artifact-evidence requirements above; it does not make the project's wave decomposition itself a scientific requirement.
+
+For a computational wave closure, preserve when applicable:
+
+- exact git commit and worktree state;
+- exact dataset or fixture identity and hash;
+- runtime and relevant dependency environment;
+- canonical execution command;
+- raw stdout/stderr or an equivalent machine-readable observation artifact;
+- each acceptance observation needed to support the closure claim;
+- deviations, external blockers, and side effects observed during execution.
+
+A previously observed failure remains evidence. A later successful rerun may close the wave, but must not erase, rewrite, or relabel the earlier failure as if it had not occurred.
+
+Project-selected fixture counts, timeouts, file names, endpoint names, technologies, and architectural structures remain `PROJECT_DECISION` unless an explicit methodological criterion independently requires them. Such values must not be presented as empirically justified merely because they appear in an executable gate.
+
+A convenience script may automate a closure protocol. The script itself is an implementation artifact; methodological support applies to the preservation and repeatability of the protocol, not to the particular scripting language or command structure.
+
 ## Architecture boundary
 
 Empirical methodology governs how evidence is designed, collected, interpreted, and reproduced. It does not by itself select a programming language, framework, database, provider, library, class structure, file name, or architectural abstraction.
