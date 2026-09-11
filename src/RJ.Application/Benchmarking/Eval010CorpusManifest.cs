@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using RJ.Domain.Cases;
 
 namespace RJ.Application.Benchmarking;
 
@@ -101,13 +102,14 @@ public sealed record Eval010CorpusManifest(
 
     public static string NormalizeCnj(string value)
     {
-        var normalized = new string(Require(value, "cnj").Where(char.IsDigit).ToArray());
-        if (normalized.Length != 20)
+        try
         {
-            throw new InvalidOperationException("EVAL-010 CNJ must contain exactly 20 digits after formatting is removed.");
+            return new LegalCaseCnj(Require(value, "cnj")).Digits;
         }
-
-        return normalized;
+        catch (ArgumentException exception)
+        {
+            throw new InvalidOperationException("EVAL-010 CNJ is not a valid canonical CNJ number.", exception);
+        }
     }
 
     private static string Require(string value, string field)
