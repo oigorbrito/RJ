@@ -84,7 +84,8 @@ public sealed class GenerationEmpiricalObservationMaterializerTests
             "Gx",
             EmpiricalTreatmentKind.Generation,
             "configs/gx.json",
-            new string('e', 64));
+            new string('e', 64),
+            "generation challenger");
 
         Assert.Throws<InvalidOperationException>(() => Policy().RequireMatches(treatment));
     }
