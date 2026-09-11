@@ -37,6 +37,16 @@ try
         "corpus manifest");
     await VerifyArtifactAsync(
         artifactRoot,
+        manifest.Baseline.ConfigurationReference,
+        manifest.Baseline.ConfigurationSha256,
+        $"baseline configuration {manifest.Baseline.TreatmentId}");
+    await VerifyArtifactAsync(
+        artifactRoot,
+        manifest.Challenger.ConfigurationReference,
+        manifest.Challenger.ConfigurationSha256,
+        $"challenger configuration {manifest.Challenger.TreatmentId}");
+    await VerifyArtifactAsync(
+        artifactRoot,
         manifest.DependencyEvidenceReference,
         manifest.DependencyEvidenceSha256,
         "dependency evidence");
@@ -48,11 +58,13 @@ try
 
     foreach (var observation in manifest.Observations)
     {
-        await VerifyArtifactAsync(
+        var rawBytes = await VerifyArtifactAsync(
             artifactRoot,
             observation.ArtifactReference,
             observation.ArtifactSha256,
             $"observation {observation.CaseId}/{observation.TreatmentId}");
+        var raw = EmpiricalRawObservationArtifact.Parse(rawBytes).Validate();
+        raw.RequireMatches(observation);
     }
 
     var report = new EmpiricalSelectionService().Compare(
@@ -75,6 +87,11 @@ try
 
     return 0;
 }
+catch (JsonException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 3;
+}
 catch (InvalidOperationException exception)
 {
     Console.Error.WriteLine(exception.Message);
@@ -96,7 +113,7 @@ catch (UnauthorizedAccessException exception)
     return 3;
 }
 
-static async Task VerifyArtifactAsync(
+static async Task<byte[]> VerifyArtifactAsync(
     string artifactRoot,
     string artifactReference,
     string expectedSha256,
@@ -115,6 +132,8 @@ static async Task VerifyArtifactAsync(
         throw new InvalidOperationException(
             $"{label} SHA-256 mismatch for '{artifactReference}': expected {expectedSha256.ToLowerInvariant()}, observed {actual}.");
     }
+
+    return bytes;
 }
 
 static string ResolveUnderRoot(string root, string reference)
