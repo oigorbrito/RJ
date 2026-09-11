@@ -15,6 +15,7 @@ var recordedAtText = args[4].Trim();
 var policyPath = Path.GetFullPath(args[5]);
 var expectedPolicySha = args[6].Trim().ToLowerInvariant();
 var outputDir = Path.GetFullPath(args[7]);
+var policyJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
 try
 {
@@ -38,7 +39,7 @@ try
 
     var policyBytes = await File.ReadAllBytesAsync(policyPath);
     VerifySha(policyBytes, expectedPolicySha, "materialization policy");
-    var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, JsonOptions)
+    var policy = JsonSerializer.Deserialize<GenerationEmpiricalObservationPolicy>(policyBytes, policyJsonOptions)
         ?? throw new InvalidOperationException("Materialization policy produced no document.");
     policy.Validate();
 
@@ -131,8 +132,3 @@ static void RequireSafeFileToken(string value, string label)
         throw new ArgumentException($"{label} cannot contain path traversal or invalid filename characters.", label);
     }
 }
-
-static readonly JsonSerializerOptions JsonOptions = new()
-{
-    PropertyNameCaseInsensitive = true
-};
