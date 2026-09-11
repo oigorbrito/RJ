@@ -7,7 +7,7 @@ namespace RJ.DomainTests;
 public sealed class ProcessSummaryMaintenanceTests
 {
     [Fact]
-    public async Task Fresh_job_is_evaluated_without_dispatch()
+    public async Task Fresh_job_is_filtered_before_maintenance_evaluation()
     {
         var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
         var store = new InMemoryProcessSummaryJobStore();
@@ -18,7 +18,7 @@ public sealed class ProcessSummaryMaintenanceTests
 
         var result = await service.RunOnceAsync(10, CancellationToken.None);
 
-        Assert.Equal(1, result.EvaluatedCount);
+        Assert.Equal(0, result.EvaluatedCount);
         Assert.Equal(0, result.DispatchedCount);
         Assert.Empty(dispatcher.Items);
     }
@@ -80,6 +80,29 @@ public sealed class ProcessSummaryMaintenanceTests
         Assert.Contains(
             telemetry.Events,
             item => StringComparer.Ordinal.Equals(item.EventName, "process_summary.retention_blocked_publication"));
+    }
+
+    [Fact]
+    public async Task Fresh_jobs_cannot_starve_actionable_candidate_from_bounded_batch()
+    {
+        var now = DateTimeOffset.Parse("2026-09-11T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        var store = new InMemoryProcessSummaryJobStore();
+        for (var index = 0; index < 5; index++)
+        {
+            await AddAsync(store, Job($"fresh-{index}", ProcessSummaryPrompt.PromptVersion, now.AddDays(-5 + index)));
+        }
+        await AddAsync(store, Job("job-stale", "old-version", now.AddHours(-1)));
+        var dispatcher = new RecordingDispatcher();
+        var service = new ProcessSummaryMaintenanceService(
+            store,
+            new FixedClock(now),
+            dispatcher,
+            new InMemoryProcessSummaryTelemetry());
+
+        var result = await service.RunOnceAsync(1, CancellationToken.None);
+
+        Assert.Equal(1, result.EvaluatedCount);
+        Assert.Equal("job-stale", Assert.Single(result.WorkItems).JobId);
     }
 
     [Fact]
