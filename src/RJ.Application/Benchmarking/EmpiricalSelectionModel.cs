@@ -31,10 +31,12 @@ public enum EmpiricalSelectionDecision
 public sealed record EmpiricalTreatmentDefinition(
     string TreatmentId,
     EmpiricalTreatmentKind Kind,
+    string ConfigurationReference,
     string ConfigurationSha256,
     string Description)
 {
     public string TreatmentId { get; } = Require(TreatmentId, nameof(TreatmentId));
+    public string ConfigurationReference { get; } = Require(ConfigurationReference, nameof(ConfigurationReference));
     public string ConfigurationSha256 { get; } = RequireSha256(ConfigurationSha256, nameof(ConfigurationSha256));
     public string Description { get; } = Require(Description, nameof(Description));
 
