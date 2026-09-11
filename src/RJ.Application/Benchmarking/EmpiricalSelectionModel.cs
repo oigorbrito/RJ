@@ -36,6 +36,9 @@ public sealed record EmpiricalTreatmentDefinition(
     string Description)
 {
     public string TreatmentId { get; } = Require(TreatmentId, nameof(TreatmentId));
+    public EmpiricalTreatmentKind Kind { get; } = Enum.IsDefined(Kind)
+        ? Kind
+        : throw new ArgumentOutOfRangeException(nameof(Kind), Kind, "Unsupported empirical treatment kind.");
     public string ConfigurationReference { get; } = Require(ConfigurationReference, nameof(ConfigurationReference));
     public string ConfigurationSha256 { get; } = RequireSha256(ConfigurationSha256, nameof(ConfigurationSha256));
     public string Description { get; } = Require(Description, nameof(Description));
@@ -68,6 +71,9 @@ public sealed record EmpiricalMetricDefinition(
     bool Required)
 {
     public string MetricId { get; } = EmpiricalTreatmentDefinition.Require(MetricId, nameof(MetricId));
+    public EmpiricalMetricDirection Direction { get; } = Enum.IsDefined(Direction)
+        ? Direction
+        : throw new ArgumentOutOfRangeException(nameof(Direction), Direction, "Unsupported empirical metric direction.");
 }
 
 public sealed record EmpiricalCaseObservation(
@@ -81,6 +87,9 @@ public sealed record EmpiricalCaseObservation(
 {
     public string CaseId { get; } = EmpiricalTreatmentDefinition.Require(CaseId, nameof(CaseId));
     public string TreatmentId { get; } = EmpiricalTreatmentDefinition.Require(TreatmentId, nameof(TreatmentId));
+    public EmpiricalExecutionStatus Status { get; } = Enum.IsDefined(Status)
+        ? Status
+        : throw new ArgumentOutOfRangeException(nameof(Status), Status, "Unsupported empirical execution status.");
 
     public IReadOnlyDictionary<string, double> Measurements { get; } =
         Measurements ?? throw new ArgumentNullException(nameof(Measurements));
