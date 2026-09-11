@@ -99,10 +99,12 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_blocks_not_tested_observation_instead_of_treating_it_as_pass()
     {
-        var notTested = Observation("case-1", "r1", 0.85, 90) with
-        {
-            Status = EmpiricalExecutionStatus.NotTested
-        };
+        var notTested = Observation(
+            "case-1",
+            "r1",
+            0.85,
+            90,
+            status: EmpiricalExecutionStatus.NotTested);
 
         var report = _service.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
@@ -117,11 +119,13 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_keeps_safe_baseline_when_challenger_fails_non_compensable_gate()
     {
-        var failed = Observation("case-1", "g1", 0.95, 70) with
-        {
-            Status = EmpiricalExecutionStatus.Fail,
-            FailedNonCompensableGates = ["no_oracle_leakage"]
-        };
+        var failed = Observation(
+            "case-1",
+            "g1",
+            0.95,
+            70,
+            status: EmpiricalExecutionStatus.Fail,
+            failedGates: ["no_oracle_leakage"]);
 
         var report = _service.Compare(
             Treatment("g0", EmpiricalTreatmentKind.Generation),
@@ -136,13 +140,15 @@ public sealed class EmpiricalSelectionServiceTests
     [Fact]
     public void Compare_blocks_missing_required_metric()
     {
-        var challenger = Observation("case-1", "r1", 0.85, 90) with
-        {
-            Measurements = new Dictionary<string, double>
+        var challenger = Observation(
+            "case-1",
+            "r1",
+            0.85,
+            90,
+            measurements: new Dictionary<string, double>
             {
                 ["quality"] = 0.85
-            }
-        };
+            });
 
         var report = _service.Compare(
             Treatment("r0", EmpiricalTreatmentKind.Retrieval),
@@ -168,17 +174,20 @@ public sealed class EmpiricalSelectionServiceTests
         string caseId,
         string treatmentId,
         double quality,
-        double latency) =>
+        double latency,
+        EmpiricalExecutionStatus status = EmpiricalExecutionStatus.Pass,
+        IReadOnlyList<string>? failedGates = null,
+        IReadOnlyDictionary<string, double>? measurements = null) =>
         new(
             caseId,
             treatmentId,
-            EmpiricalExecutionStatus.Pass,
-            new Dictionary<string, double>
+            status,
+            measurements ?? new Dictionary<string, double>
             {
                 ["quality"] = quality,
                 ["latency_ms"] = latency
             },
-            [],
+            failedGates ?? [],
             $"artifacts/{caseId}/{treatmentId}.json",
             Sha($"{caseId}:{treatmentId}"));
 
