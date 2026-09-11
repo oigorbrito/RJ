@@ -33,6 +33,7 @@ public sealed class EmpiricalSelectionManifestTests
         Assert.Equal(EmpiricalMetricDirection.HigherIsBetter, parsed.Metrics[0].Direction);
         Assert.Equal(EmpiricalExecutionStatus.Pass, parsed.Observations[0].Status);
         Assert.Equal(manifest.CorpusManifestSha256, parsed.CorpusManifestSha256);
+        Assert.Equal("configs/r0.json", parsed.Baseline.ConfigurationReference);
     }
 
     [Fact]
@@ -67,7 +68,7 @@ public sealed class EmpiricalSelectionManifestTests
     public void Treatment_and_observation_require_exact_sha256()
     {
         Assert.Throws<ArgumentException>(() =>
-            new EmpiricalTreatmentDefinition("r0", EmpiricalTreatmentKind.Retrieval, "not-a-hash", "baseline"));
+            new EmpiricalTreatmentDefinition("r0", EmpiricalTreatmentKind.Retrieval, "configs/r0.json", "not-a-hash", "baseline"));
 
         Assert.Throws<ArgumentException>(() =>
             new EmpiricalCaseObservation(
@@ -103,7 +104,7 @@ public sealed class EmpiricalSelectionManifestTests
             [Observation("r0"), Observation("r1")]);
 
     private static EmpiricalTreatmentDefinition Treatment(string id, EmpiricalTreatmentKind kind) =>
-        new(id, kind, Sha($"config:{id}"), $"Treatment {id}");
+        new(id, kind, $"configs/{id}.json", Sha($"config:{id}"), $"Treatment {id}");
 
     private static EmpiricalCaseObservation Observation(
         string treatmentId,
