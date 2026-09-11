@@ -1,0 +1,61 @@
+{
+  "gate_id": "rjudi-wave-g-eval010-corpus-admission-v1",
+  "status": "NOT_TESTED",
+  "base_commit": "ba85b3844af2fb26ad67e3e7234c192e71712e3d",
+  "scope": "EVAL-010 frozen 30-50 case corpus admission, immutable artifact hashing, independent oracle review and hard oracle-isolation gate",
+  "method_classification": {
+    "pre_specified_30_50_case_range": "SUPPORTED_BY_SPEC",
+    "immutable_source_oracle_review_hashes": "REPRODUCIBILITY_SUPPORTED",
+    "independent_oracle_review_metadata": "DERIVED_FROM_METHOD",
+    "oracle_isolation_hard_gate": "DERIVED_FROM_METHOD",
+    "filesystem_verifier_and_environment_names": "PROJECT_DECISION"
+  },
+  "required_manifest_contract": {
+    "format_version": "rjudi-eval010-corpus-v1",
+    "case_count_min": 30,
+    "case_count_max": 50,
+    "unique_case_ids": true,
+    "unique_cnjs": true,
+    "source_sha256_required": true,
+    "oracle_sha256_required": true,
+    "oracle_review_sha256_required": true,
+    "distinct_source_oracle_review_references": true,
+    "oracle_author_and_reviewer_must_differ": true,
+    "oracle_review_timestamp_required": true
+  },
+  "non_compensable_gates": [
+    "every source artifact hash matches",
+    "every oracle artifact hash matches",
+    "every oracle-review artifact hash matches",
+    "every benchmark case belongs to the frozen corpus when catalog supplied",
+    "benchmark oracle reference/hash matches frozen manifest",
+    "no generation-context evidence references an oracle artifact",
+    "no generation-context evidence references an oracle-review artifact"
+  ],
+  "required_commands": [
+    "dotnet build RJ.slnx --no-restore",
+    "dotnet test tests/RJ.DomainTests/RJ.DomainTests.csproj --no-restore --filter FullyQualifiedName~Eval010CorpusAdmissionTests|FullyQualifiedName~CorpusAdmission",
+    "git diff --check",
+    ".\\scripts\\test-rjudi-wave-g.ps1"
+  ],
+  "external_corpus_environment": [
+    "RJ_EVAL010_MANIFEST_PATH",
+    "RJ_EVAL010_ARTIFACT_ROOT"
+  ],
+  "optional_environment": [
+    "RJ_EVAL010_BENCHMARK_CATALOG_PATH"
+  ],
+  "blocked_exit_code_without_real_corpus": 2,
+  "verifier_success_exit_code": 0,
+  "verifier_failure_exit_code": 3,
+  "decision_rule": "all non-compensable admission and isolation gates must pass per case; failures cannot be averaged away",
+  "later_treatment_tie_rule": "NO_CLEAR_WINNER when pre-specified measurements do not distinguish candidates without unresolved tradeoff",
+  "explicit_nonclaims": [
+    "no real 30-50 case corpus is bundled by this gate",
+    "no oracle quality is claimed before reviewed oracle artifacts are supplied",
+    "no cross-tribunal representativeness claim",
+    "no retrieval or generation treatment selection",
+    "no weighted composite score",
+    "no exact-head PASS until executable evidence exists"
+  ]
+}
