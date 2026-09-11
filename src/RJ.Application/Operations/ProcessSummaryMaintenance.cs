@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using RJ.Application.Generation;
 using RJ.Application.Security;
 
@@ -11,6 +13,7 @@ public interface IProcessSummaryRefreshDispatcher
 }
 
 public sealed record ProcessSummaryMaintenanceWorkItem(
+    string WorkId,
     string JobId,
     string CaseId,
     string SnapshotSha256,
@@ -54,6 +57,7 @@ public sealed class ProcessSummaryMaintenanceService(
             }
 
             var workItem = new ProcessSummaryMaintenanceWorkItem(
+                WorkId(job, plan.Action),
                 job.JobId,
                 job.CaseId,
                 job.SnapshotSha256,
@@ -77,7 +81,7 @@ public sealed class ProcessSummaryMaintenanceService(
                 {
                     ["action"] = plan.Action.ToString(),
                     ["freshness"] = freshness.Status.ToString(),
-                    ["dispatcher"] = dispatcher.GetType().Name
+                    ["work_id"] = workItem.WorkId
                 }));
         }
 
@@ -85,6 +89,17 @@ public sealed class ProcessSummaryMaintenanceService(
             jobs.Count,
             dispatched.Count,
             dispatched);
+    }
+
+    private static string WorkId(ProcessSummaryJob job, ProcessSummaryRefreshAction action)
+    {
+        var canonical = string.Join(
+            '\u001f',
+            job.JobId,
+            job.SnapshotSha256,
+            job.SummaryVersion,
+            action.ToString());
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
 }
 
