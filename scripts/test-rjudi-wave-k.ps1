@@ -23,6 +23,10 @@ try {
     }
     Invoke-Step 'git diff check' { git diff --check }
 
+    $head = (git rev-parse HEAD).Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0 -or $head.Length -ne 40) { throw 'Unable to resolve exact git HEAD.' }
+    $runtime = [System.Runtime.InteropServices.RuntimeInformation]::FrameworkDescription
+
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("rjudi-wave-k-" + [Guid]::NewGuid().ToString('N'))
     $artifactRoot = Join-Path $tempRoot 'artifacts'
     $reportDir = Join-Path $artifactRoot 'selftest'
@@ -41,6 +45,10 @@ try {
         @{
             formatVersion = 'rjudi-retrieval-benchmark-report-v1'
             catalogVersion = 'wave-k-selftest-catalog-v1'
+            execution = @{
+                gitCommit = $head
+                runtime = $runtime
+            }
             treatment = @{
                 treatmentId = 'R0-selftest'
                 implementationId = 'fake-retrieval-selftest-v1'
@@ -105,6 +113,8 @@ try {
             throw 'Retrieval measurement materialization drift.'
         }
 
+        Write-Host "Wave K self-test HEAD: $head"
+        Write-Host "Wave K self-test runtime: $runtime"
         Write-Host "Wave K self-test report SHA-256: $reportSha"
         Write-Host "Wave K policy SHA-256: $policySha"
         Write-Host "Wave K configuration SHA-256: $configSha"
