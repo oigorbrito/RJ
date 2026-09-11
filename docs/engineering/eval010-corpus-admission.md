@@ -30,6 +30,8 @@ Source evidence is the only factual material eligible to enter generation contex
 - distinct oracle reviewer identifier;
 - oracle review timestamp.
 
+The exact manifest bytes are also frozen by an externally supplied SHA-256. A manifest-byte change invalidates the prior admission result even when internal artifact hashes still happen to match.
+
 Author/reviewer identifiers may be project-controlled pseudonymous IDs; the contract requires only that the review was attributed to a different identifier from the oracle author.
 
 No corpus-size result is inferred from data after execution. A corpus outside the pre-specified 30–50 range is rejected before benchmark execution.
@@ -70,9 +72,12 @@ Usage:
 ```powershell
 dotnet run --project tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csproj -- `
   <manifest.json> `
+  <manifest-sha256> `
   <artifact-root> `
   [benchmark-catalog.json]
 ```
+
+Before parsing the manifest, the verifier hashes the exact manifest bytes and requires equality with `<manifest-sha256>`.
 
 Artifact references are resolved under the supplied root. References that escape that root are rejected.
 
@@ -80,9 +85,9 @@ Exit codes:
 
 - `0`: all supplied corpus admission gates pass;
 - `2`: invocation/precondition error;
-- `3`: manifest, hash, artifact, catalog or oracle-isolation failure.
+- `3`: manifest digest, manifest structure, artifact hash, catalog or oracle-isolation failure.
 
-The tool prints a per-case admission report. It does not promote any retrieval/generation treatment.
+On success the output envelope records the exact manifest SHA-256 plus the per-case admission report. The tool does not promote any retrieval/generation treatment.
 
 ## Canonical gate
 
@@ -99,6 +104,7 @@ The gate first runs work independent of the external corpus:
 Only after those steps does it require:
 
 - `RJ_EVAL010_MANIFEST_PATH`;
+- `RJ_EVAL010_MANIFEST_SHA256`;
 - `RJ_EVAL010_ARTIFACT_ROOT`.
 
 Optional:
@@ -118,7 +124,7 @@ To unblock EVAL-010, supply an authorized immutable corpus containing 30–50 ca
 - oracle author/reviewer IDs;
 - review timestamp.
 
-The corpus manifest itself must be versioned/frozen. Any artifact-byte change requires a new manifest version/hash evidence and invalidates prior admission results for that artifact.
+Also supply the SHA-256 of the exact frozen manifest bytes. Any manifest-byte or artifact-byte change invalidates the affected prior admission evidence and requires a new frozen digest/version.
 
 ## Explicit nonclaims
 
