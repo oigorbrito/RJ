@@ -48,8 +48,8 @@ The binary bytes must be re-read and match both hash and length before content i
 - extractor id/version;
 - extraction method;
 - immutable extracted-text reference;
-- exact extracted-text SHA-256;
-- exact UTF-16 text length;
+- exact extracted-text SHA-256 over the UTF-8 bytes;
+- exact .NET `string.Length` (UTF-16 code-unit length) after strict UTF-8 decoding;
 - extraction timestamp;
 - whether OCR was used;
 - OCR engine id/version when OCR was used.
@@ -57,6 +57,14 @@ The binary bytes must be re-read and match both hash and length before content i
 OCR metadata is mandatory when `ocrUsed=true` and prohibited when OCR was not used.
 
 No parser or OCR provider is selected by this wave. Provider choice remains a project/empirical decision after real evidence exists.
+
+## Derivation provenance
+
+A successful admission also produces `AttachmentDerivationProvenance`, preserving the immutable chain:
+
+`binary source reference + binary SHA-256 -> extractor id/version/method -> optional OCR engine/version -> extracted-text reference + extracted-text SHA-256`.
+
+This derivation record is separate from `ProcessAttachmentContent`. The existing content/chunking contract remains unchanged, while the binary-to-text derivation remains auditable.
 
 ## Admission rules
 
@@ -70,9 +78,14 @@ No parser or OCR provider is selected by this wave. Provider choice remains a pr
 - extracted text bytes are strict UTF-8;
 - extracted text length/hash match the frozen evidence;
 - extracted text is non-empty;
-- resulting `ProcessAttachmentContent` is accepted by the existing metadata/content admission rule.
+- resulting `ProcessAttachmentContent` is accepted by the existing metadata/content admission rule;
+- derivation provenance can be constructed from the verified evidence.
 
-Only after all gates pass is `ProcessAttachmentContent` produced for the existing chunking/context pipeline.
+Only after all gates pass are both `ProcessAttachmentContent` and its derivation provenance produced.
+
+## Frozen manifest and canonical case identity
+
+`AttachmentAdmissionManifest` freezes the canonical source reference/hash/timestamp, binary evidence and extraction evidence. Because the existing `JuditProcessSourceAdapter` derives `LegalCaseId` from the canonical source reference file name, the manifest requires `Path.GetFileNameWithoutExtension(canonicalSourceReference) == binary.caseId`. This converts an existing adapter convention into an explicit admission rule rather than a hidden verifier dependency.
 
 ## External verifier
 
@@ -125,9 +138,10 @@ To unblock ATT-001, supply:
 
 - authorized immutable attachment binary;
 - canonical source fixture containing the corresponding attachment metadata;
+- canonical source reference whose file-name stem equals the case id;
 - binary SHA-256 and byte length;
 - extracted UTF-8 text artifact;
-- independently reviewable expected extracted-text SHA-256/length;
+- independently reviewable expected extracted-text SHA-256 and .NET string length;
 - extractor id/version/method;
 - OCR engine id/version if OCR was used;
 - acquisition/extraction timestamps;
