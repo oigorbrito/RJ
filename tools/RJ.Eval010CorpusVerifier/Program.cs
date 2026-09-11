@@ -7,10 +7,22 @@ if (args.Length is < 3 or > 4)
     return 2;
 }
 
-var manifestPath = Path.GetFullPath(args[0]);
-var expectedManifestSha256 = NormalizeSha256(args[1]);
-var artifactRoot = Path.GetFullPath(args[2]);
-var catalogPath = args.Length == 4 ? Path.GetFullPath(args[3]) : null;
+string manifestPath;
+string expectedManifestSha256;
+string artifactRoot;
+string? catalogPath;
+try
+{
+    manifestPath = Path.GetFullPath(args[0]);
+    expectedManifestSha256 = NormalizeSha256(args[1]);
+    artifactRoot = Path.GetFullPath(args[2]);
+    catalogPath = args.Length == 4 ? Path.GetFullPath(args[3]) : null;
+}
+catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+{
+    Console.Error.WriteLine($"EVAL-010 verifier precondition failed: {exception.Message}");
+    return 2;
+}
 
 if (!File.Exists(manifestPath))
 {
