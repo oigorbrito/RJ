@@ -81,9 +81,33 @@ public sealed class ProcessSummaryPersistenceCoordinator(
         CancellationToken cancellationToken)
     {
         var job = await GetJobAsync(jobId, cancellationToken);
-        return job is { Status: ProcessSummaryJobStatus.Validated, Validation.IsValid: true }
-            ? job.Output
-            : null;
+        if (job is not { Status: ProcessSummaryJobStatus.Validated, Validation.IsValid: true })
+        {
+            return null;
+        }
+
+        var freshness = ProcessSummaryFreshnessPolicy.Evaluate(
+            job,
+            job.SnapshotSha256,
+            ProcessSummaryPrompt.PromptVersion,
+            clock.UtcNow,
+            ProcessSecurityPolicy.DefaultRetentionPolicy());
+        if (freshness.Status == ProcessSummaryFreshnessStatus.Expired)
+        {
+            telemetry.Record(Event(
+                "process_summary.retention_blocked_publication",
+                ProcessSummaryJobTelemetryStatus.Freshness,
+                job,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["decision"] = freshness.Status.ToString(),
+                    ["publication"] = "blocked",
+                    ["policy_id"] = ProcessSecurityPolicy.DefaultRetentionPolicy().PolicyId
+                }));
+            return null;
+        }
+
+        return job.Output;
     }
 
     public async Task<ProcessSummaryRefreshPlan?> GetRefreshPlanAsync(

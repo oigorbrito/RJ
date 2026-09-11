@@ -36,6 +36,9 @@ builder.Services.AddSingleton<IProcessSummaryCallerContextResolver, ClaimsProces
 builder.Services.AddSingleton<IProcessSummaryJobStore, PostgresProcessSummaryJobStore>();
 builder.Services.AddSingleton<IProcessSummaryJobAccessStore, PostgresProcessSummaryJobAccessStore>();
 builder.Services.AddSingleton<ProcessSummaryPersistenceCoordinator>();
+builder.Services.AddSingleton<IProcessSummaryRefreshDispatcher, LoggingProcessSummaryRefreshDispatcher>();
+builder.Services.AddSingleton<ProcessSummaryMaintenanceService>();
+builder.Services.AddHostedService<ProcessSummaryMaintenanceHostedService>();
 builder.Services.AddSingleton<IProcessAttachmentContentStore, EmptyProcessAttachmentContentStore>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
