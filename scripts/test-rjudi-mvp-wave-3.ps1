@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
 function Fail([string]$Message) {
     Write-Error $Message
@@ -81,7 +82,7 @@ try {
 
     Write-Host "[wave3] starting API provider=openai model=$env:RJ_GENERATION_MODEL url=$ApiUrl"
     $apiProcess = Start-Process dotnet `
-        -ArgumentList @("run", "--project", ".\src\RJ.Api\RJ.Api.csproj", "--no-build") `
+        -ArgumentList @("run", "--project", ".\src\RJ.Api\RJ.Api.csproj", "--configuration", "Release", "--no-build") `
         -WorkingDirectory $repoRoot `
         -RedirectStandardOutput $apiOut `
         -RedirectStandardError $apiErr `
@@ -108,7 +109,11 @@ try {
     Write-Host "[wave3] API healthy"
     $steps.Add([pscustomobject]@{ name = "api-health-openai"; status = "PASS"; exitCode = 0 })
 
-    $rawProcess = Get-Content $fixtureFullPath -Raw
+    Write-Host "[wave3] loading controlled fixture"
+    $rawProcess = [System.IO.File]::ReadAllText($fixtureFullPath)
+    Write-Host "[wave3] fixture loaded chars=$($rawProcess.Length)"
+
+    Write-Host "[wave3] preparing request envelope"
     $request = @{
         idempotencyKey = "wave3-$timestamp"
         sourceSystem = "judit"
@@ -118,7 +123,10 @@ try {
         observedAt = "2026-09-11T17:50:00-03:00"
         instruction = "Produza um resumo objetivo do processo, destacando situação atual e principais acontecimentos."
     }
-    $body = $request | ConvertTo-Json -Depth 20
+
+    Write-Host "[wave3] serializing request body"
+    $body = $request | ConvertTo-Json -Depth 20 -Compress
+    Write-Host "[wave3] request body ready chars=$($body.Length)"
 
     Write-Host "[wave3] submitting live OpenAI process summary (bounded request timeout: 90s)"
     try {
@@ -137,6 +145,7 @@ try {
         throw
     }
 
+    Write-Host "[wave3] submission returned status=$($submission.status) isValid=$($submission.isValid)"
     if ([string]::IsNullOrWhiteSpace($submission.jobId)) {
         Fail "Process-summary submission did not return jobId."
     }
