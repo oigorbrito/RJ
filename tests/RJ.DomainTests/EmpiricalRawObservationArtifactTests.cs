@@ -30,14 +30,18 @@ public sealed class EmpiricalRawObservationArtifactTests
                 ["latency_ms"] = 100
             },
             [],
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"));
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            "reports/r1-generation.json",
+            new string('b', 64),
+            "policies/r1.json",
+            new string('c', 64));
 
         var error = Assert.Throws<InvalidOperationException>(() => raw.Validate().RequireMatches(manifest));
         Assert.Contains("measurements", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Parse_preserves_string_execution_status()
+    public void Parse_preserves_string_execution_status_and_provenance()
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(Raw(), new JsonSerializerOptions
         {
@@ -49,6 +53,28 @@ public sealed class EmpiricalRawObservationArtifactTests
         Assert.Equal(EmpiricalExecutionStatus.Pass, parsed.Status);
         Assert.Equal("case-1", parsed.CaseId);
         Assert.Equal("r1", parsed.TreatmentId);
+        Assert.Equal("reports/r1-generation.json", parsed.SourceArtifactReference);
+        Assert.Equal(new string('b', 64), parsed.SourceArtifactSha256);
+        Assert.Equal("policies/r1.json", parsed.MaterializationPolicyReference);
+        Assert.Equal(new string('c', 64), parsed.MaterializationPolicySha256);
+    }
+
+    [Fact]
+    public void Validate_rejects_invalid_policy_provenance()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new EmpiricalRawObservationArtifact(
+                EmpiricalRawObservationArtifact.SupportedFormatVersion,
+                "case-1",
+                "r1",
+                EmpiricalExecutionStatus.Pass,
+                new Dictionary<string, double> { ["quality"] = 1.0 },
+                [],
+                DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+                "reports/r1-generation.json",
+                new string('b', 64),
+                "policies/r1.json",
+                "bad-hash"));
     }
 
     private static EmpiricalCaseObservation Observation() =>
@@ -77,5 +103,9 @@ public sealed class EmpiricalRawObservationArtifactTests
                 ["latency_ms"] = 100
             },
             [],
-            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"));
+            DateTimeOffset.Parse("2026-09-11T12:00:00-03:00"),
+            "reports/r1-generation.json",
+            new string('b', 64),
+            "policies/r1.json",
+            new string('c', 64));
 }
