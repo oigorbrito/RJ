@@ -1,42 +1,69 @@
 {
   "gate_version": "rjudi-empirical-selection-gate-v1",
-  "scope": "retrieval and generation provider selection",
-  "status": "BLOCKED",
+  "scope": "retrieval and generation treatment selection",
+  "status": "PROCEDURE_IMPLEMENTED_SELECTION_BLOCKED",
   "blocked_by": [
     {
       "blocker_id": "RJ-BLK-003",
       "source": "docs/engineering/blockers.md",
-      "reason": "No authorized 30-50 legal-process corpus with independently reviewed oracle artifacts is available."
+      "reason": "No authorized admitted 30-50 legal-process corpus with independently reviewed oracle artifacts and paired raw treatment observations is available."
     }
+  ],
+  "implemented_procedure": [
+    "typed_baseline_and_challenger_identity_with_configuration_sha256",
+    "typed_PASS_FAIL_BLOCKED_NOT_TESTED_observations",
+    "raw_observation_artifact_sha256",
+    "paired_case_set_enforcement",
+    "pre_specified_required_metric_direction",
+    "non_compensable_gate_precedence",
+    "strict_case_by_metric_pareto_comparison",
+    "NO_CLEAR_WINNER_for_tradeoff_or_equal_evidence",
+    "immutable_corpus_dependency_command_and_manifest_hashes",
+    "external_empirical_selection_verifier",
+    "canonical_wave_i_gate"
   ],
   "required_before_selection": [
     "30_50_admitted_legal_process_corpus",
     "reviewed_oracle_artifacts",
-    "catalog_sha256_verified",
-    "paired_candidate_reports",
+    "corpus_manifest_sha256_verified",
+    "baseline_configuration_sha256_verified",
+    "challenger_configuration_sha256_verified",
+    "paired_raw_observation_artifacts_sha256_verified",
     "failure_retention_artifacts",
-    "non_compensable_gate_pass",
-    "retrieval_latency_cost_privacy_measurements",
-    "generation_latency_cost_privacy_measurements"
+    "non_compensable_gate_results_by_case",
+    "retrieval_latency_cost_privacy_measurements_when_retrieval_treatments_are_compared",
+    "generation_latency_cost_privacy_measurements_when_generation_treatments_are_compared",
+    "dependency_and_command_evidence_sha256_verified"
   ],
   "currently_allowed": [
     "local_deterministic_core_validation",
     "benchmark_harness_validation",
     "single_case_fixture_validation",
-    "self_test_or_deterministic_fake_execution"
+    "self_test_or_deterministic_fake_execution",
+    "empirical_selection_contract_and_verifier_validation"
   ],
   "forbidden_conclusions": [
-    "retrieval_provider_selected",
-    "generation_provider_selected",
+    "retrieval_provider_selected_without_complete_paired_manifest",
+    "generation_provider_selected_without_complete_paired_manifest",
     "vector_search_required",
     "hybrid_reranker_promoted",
     "openai_promoted_to_production",
+    "manual_weighted_score_breaks_NO_CLEAR_WINNER",
     "production_ready"
   ],
-  "local_evidence_that_does_not_unblock": [
-    "rjudi-m1-gate-v1",
-    "rjudi-process-benchmark-protocol-v1",
-    "rjudi-process-generation-benchmark-v1",
-    "rj-local-mvp-gate-operational-v1"
+  "decision_rule": {
+    "hard_gates": "non-compensable and evaluated before numeric comparison",
+    "numeric_comparison": "strict Pareto comparison over every pre-specified required case-by-metric coordinate",
+    "challenger_promotion": "never worse on any required coordinate and better on at least one, after hard gates pass",
+    "tradeoff": "NO_CLEAR_WINNER",
+    "equal_measurements": "NO_CLEAR_WINNER",
+    "missing_or_unexecuted_evidence": "BLOCKED",
+    "weighted_scores": "forbidden"
+  },
+  "canonical_command": ".\\scripts\\test-rjudi-wave-i.ps1",
+  "external_inputs": [
+    "RJ_EMPIRICAL_SELECTION_MANIFEST_PATH",
+    "RJ_EMPIRICAL_SELECTION_MANIFEST_SHA256",
+    "RJ_EMPIRICAL_SELECTION_ARTIFACT_ROOT"
   ]
 }
