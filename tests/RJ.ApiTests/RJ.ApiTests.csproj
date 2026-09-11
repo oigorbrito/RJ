@@ -12,5 +12,6 @@
     <ProjectReference Include="..\..\src\RJ.Api\RJ.Api.csproj" />
     <ProjectReference Include="..\..\src\RJ.Application\RJ.Application.csproj" />
     <ProjectReference Include="..\..\src\RJ.Domain\RJ.Domain.csproj" />
+    <ProjectReference Include="..\..\src\RJ.Infrastructure\RJ.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
