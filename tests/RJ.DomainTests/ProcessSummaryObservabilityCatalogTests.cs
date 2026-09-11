@@ -10,7 +10,9 @@ public sealed class ProcessSummaryObservabilityCatalogTests
         "process_summary_validation_failures_total",
         "process_summary_duration_ms",
         "process_summary_staleness_total",
-        "process_summary_refresh_plans_total"
+        "process_summary_refresh_plans_total",
+        "process_summary_maintenance_dispatches_total",
+        "process_summary_retention_blocks_total"
     ];
 
     private static readonly string[] ForbiddenPayloads =
@@ -65,6 +67,15 @@ public sealed class ProcessSummaryObservabilityCatalogTests
             item.Name == "process_summary.freshness"
             && item.Attributes.Contains("job_id")
             && item.Attributes.Contains("decision"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.maintenance_dispatch"
+            && item.Attributes.Contains("work_id")
+            && item.Attributes.Contains("action")
+            && item.Attributes.Contains("freshness"));
+        Assert.Contains(catalog.Traces, item =>
+            item.Name == "process_summary.retention_blocked_publication"
+            && item.Attributes.Contains("policy_id")
+            && item.Attributes.Contains("publication"));
         Assert.Contains(catalog.Traces, item =>
             item.Name == "process_summary.validate"
             && item.Attributes.Contains("attempts")
