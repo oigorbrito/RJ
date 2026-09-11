@@ -2,9 +2,10 @@
   "gate_id": "rjudi-wave-g-eval010-corpus-admission-v1",
   "status": "NOT_TESTED",
   "base_commit": "ba85b3844af2fb26ad67e3e7234c192e71712e3d",
-  "scope": "EVAL-010 frozen 30-50 case corpus admission, immutable artifact hashing, independent oracle review and hard oracle-isolation gate",
+  "scope": "EVAL-010 frozen 30-50 case corpus admission, frozen manifest digest, immutable artifact hashing, independent oracle review and hard oracle-isolation gate",
   "method_classification": {
     "pre_specified_30_50_case_range": "SUPPORTED_BY_SPEC",
+    "frozen_manifest_digest": "REPRODUCIBILITY_SUPPORTED",
     "immutable_source_oracle_review_hashes": "REPRODUCIBILITY_SUPPORTED",
     "independent_oracle_review_metadata": "DERIVED_FROM_METHOD",
     "oracle_isolation_hard_gate": "DERIVED_FROM_METHOD",
@@ -12,6 +13,7 @@
   },
   "required_manifest_contract": {
     "format_version": "rjudi-eval010-corpus-v1",
+    "manifest_sha256_required": true,
     "case_count_min": 30,
     "case_count_max": 50,
     "unique_case_ids": true,
@@ -24,6 +26,7 @@
     "oracle_review_timestamp_required": true
   },
   "non_compensable_gates": [
+    "exact manifest SHA-256 matches frozen digest",
     "every source artifact hash matches",
     "every oracle artifact hash matches",
     "every oracle-review artifact hash matches",
@@ -40,6 +43,7 @@
   ],
   "external_corpus_environment": [
     "RJ_EVAL010_MANIFEST_PATH",
+    "RJ_EVAL010_MANIFEST_SHA256",
     "RJ_EVAL010_ARTIFACT_ROOT"
   ],
   "optional_environment": [
