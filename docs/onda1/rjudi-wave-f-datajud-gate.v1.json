@@ -1,14 +1,14 @@
 {
   "gate_id": "rjudi-wave-f-datajud-source-v1",
   "status": "NOT_TESTED",
-  "scope": "Documented DataJud public API contract, deterministic query/parser, authentic fixture verifier and SRC-003 unblock protocol",
+  "scope": "Documented DataJud public API contract, deterministic query/parser, reproducible capture/verifier tool and SRC-003 unblock protocol",
   "base_commit": "cde8819b5d7a845793d569e3cbbecf588c9c4e78",
   "method_classification": {
     "official_endpoint_and_field_contract": "EMPIRICALLY_SUPPORTED",
     "raw_fixture_hash_and_observed_at_preservation": "REPRODUCIBILITY_SUPPORTED",
     "fail_closed_parser_and_verifier": "DERIVED_FROM_METHOD",
     "typed_partial_observation_instead_of_invented_complete_legal_case": "DERIVED_FROM_METHOD",
-    "tool_project_and_environment_variable_names": "PROJECT_DECISION"
+    "capture_tool_and_environment_variable_names": "PROJECT_DECISION"
   },
   "authoritative_sources": [
     "https://datajud-wiki.cnj.jus.br/api-publica/",
@@ -40,15 +40,23 @@
     "git diff --check",
     ".\\scripts\\test-rjudi-wave-f.ps1"
   ],
+  "capture_command": "dotnet run --project tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj -- capture <tribunal-alias> <cnj> <output.json>",
+  "capture_environment": [
+    "RJ_DATAJUD_API_KEY"
+  ],
   "authentic_fixture_environment": [
     "RJ_DATAJUD_FIXTURE_PATH",
     "RJ_DATAJUD_EXPECTED_CNJ",
     "RJ_DATAJUD_SOURCE_REFERENCE",
     "RJ_DATAJUD_OBSERVED_AT"
   ],
-  "blocked_exit_code_without_authentic_fixture": 2,
-  "verifier_success_exit_code": 0,
-  "verifier_contract_failure_exit_code": 3,
+  "exit_codes": {
+    "success": 0,
+    "blocked_or_precondition": 2,
+    "schema_or_cnj_contract_failure": 3,
+    "non_success_http_status": 4,
+    "network_or_transport_failure": 5
+  },
   "acceptance": [
     "solution builds on exact HEAD",
     "DataJudPublicApiContractTests pass",
@@ -56,6 +64,7 @@
     "authentic raw DataJud response is preserved outside synthetic contract tests",
     "fixture verifier exits 0 for the authentic response on the exact HEAD",
     "observation output records exact raw SHA-256, source reference and observed-at timestamp",
+    "capture metadata records no API key",
     "no complete LegalCase fields are invented from source absence"
   ],
   "explicit_nonclaims": [
