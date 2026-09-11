@@ -117,6 +117,43 @@ public sealed record EmpiricalSelectionManifest(
         return this;
     }
 
+    public EmpiricalSelectionManifest RequireMatchesCorpus(Eval010CorpusManifest corpus)
+    {
+        ArgumentNullException.ThrowIfNull(corpus);
+        corpus.Validate();
+
+        var corpusCaseIds = corpus.Cases
+            .Select(item => item.CaseId)
+            .ToHashSet(StringComparer.Ordinal);
+        var observationCaseIds = Observations
+            .Select(item => item.CaseId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (!corpusCaseIds.SetEquals(observationCaseIds))
+        {
+            var missing = corpusCaseIds.Except(observationCaseIds, StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToArray();
+            var extra = observationCaseIds.Except(corpusCaseIds, StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToArray();
+            throw new InvalidOperationException(
+                $"Selection observation case set must exactly match admitted EVAL-010 corpus. Missing: [{string.Join(", ", missing)}]; extra: [{string.Join(", ", extra)}].");
+        }
+
+        foreach (var caseId in corpusCaseIds)
+        {
+            var paired = Observations
+                .Where(item => StringComparer.Ordinal.Equals(item.CaseId, caseId))
+                .ToArray();
+            if (paired.Length != 2
+                || paired.Count(item => StringComparer.Ordinal.Equals(item.TreatmentId, Baseline.TreatmentId)) != 1
+                || paired.Count(item => StringComparer.Ordinal.Equals(item.TreatmentId, Challenger.TreatmentId)) != 1)
+            {
+                throw new InvalidOperationException(
+                    $"EVAL-010 case '{caseId}' must have exactly one baseline and one challenger observation.");
+            }
+        }
+
+        return this;
+    }
+
     public static string ComputeSha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
