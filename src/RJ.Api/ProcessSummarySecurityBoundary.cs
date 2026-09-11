@@ -63,23 +63,21 @@ public sealed class ClaimsProcessSummaryCallerContextResolver : IProcessSummaryC
     }
 }
 
-public interface IProcessSummaryJobAccessStore
-{
-    bool TryBind(string jobId, CallerContext caller, string caseId);
-
-    bool CanAccess(string jobId, CallerContext caller);
-}
-
 public sealed class InMemoryProcessSummaryJobAccessStore : IProcessSummaryJobAccessStore
 {
     private readonly Dictionary<string, ProcessSummaryJobAccessScope> scopes = new(StringComparer.Ordinal);
     private readonly object sync = new();
 
-    public bool TryBind(string jobId, CallerContext caller, string caseId)
+    public Task<bool> TryBindAsync(
+        string jobId,
+        CallerContext caller,
+        string caseId,
+        CancellationToken cancellationToken)
     {
         var normalizedJobId = Require(jobId, nameof(jobId));
         var normalizedCaseId = Require(caseId, nameof(caseId));
         ArgumentNullException.ThrowIfNull(caller);
+        cancellationToken.ThrowIfCancellationRequested();
         var candidate = new ProcessSummaryJobAccessScope(
             caller.TenantId,
             caller.SubjectId,
@@ -89,29 +87,34 @@ public sealed class InMemoryProcessSummaryJobAccessStore : IProcessSummaryJobAcc
         {
             if (scopes.TryGetValue(normalizedJobId, out var existing))
             {
-                return existing == candidate;
+                return Task.FromResult(existing == candidate);
             }
 
             scopes.Add(normalizedJobId, candidate);
-            return true;
+            return Task.FromResult(true);
         }
     }
 
-    public bool CanAccess(string jobId, CallerContext caller)
+    public Task<bool> CanAccessAsync(
+        string jobId,
+        CallerContext caller,
+        CancellationToken cancellationToken)
     {
         var normalizedJobId = Require(jobId, nameof(jobId));
         ArgumentNullException.ThrowIfNull(caller);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (sync)
         {
             if (!scopes.TryGetValue(normalizedJobId, out var scope))
             {
-                return false;
+                return Task.FromResult(false);
             }
 
-            return StringComparer.Ordinal.Equals(scope.TenantId, caller.TenantId)
+            return Task.FromResult(
+                StringComparer.Ordinal.Equals(scope.TenantId, caller.TenantId)
                 && StringComparer.Ordinal.Equals(scope.SubjectId, caller.SubjectId)
-                && caller.AuthorizedCaseIds.Contains(scope.CaseId, StringComparer.Ordinal);
+                && caller.AuthorizedCaseIds.Contains(scope.CaseId, StringComparer.Ordinal));
         }
     }
 
