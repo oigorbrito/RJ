@@ -36,6 +36,33 @@ public sealed class PostgresProcessSummaryJobStore(NpgsqlDataSource dataSource) 
         return Deserialize(await command.ExecuteScalarAsync(cancellationToken));
     }
 
+    public async Task<IReadOnlyList<ProcessSummaryJob>> ListForMaintenanceAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "Maintenance limit must be positive.");
+        }
+
+        await using var command = dataSource.CreateCommand("""
+            SELECT job_json::text
+            FROM process_summary_jobs
+            ORDER BY updated_at ASC, job_id ASC
+            LIMIT $1;
+            """);
+        command.Parameters.AddWithValue(limit);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var jobs = new List<ProcessSummaryJob>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            jobs.Add(Deserialize(reader.GetString(0))
+                ?? throw new InvalidOperationException("Stored process-summary job payload could not be deserialized."));
+        }
+
+        return jobs;
+    }
+
     public async Task<ProcessSummaryJobStoreWriteResult> TryCreateAsync(
         ProcessSummaryJobStoreEntry entry,
         CancellationToken cancellationToken)
