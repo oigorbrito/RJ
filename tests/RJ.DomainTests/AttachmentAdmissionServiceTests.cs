@@ -55,6 +55,12 @@ public sealed class AttachmentAdmissionServiceTests
         Assert.Empty(report.Failures);
         Assert.NotNull(report.AdmittedContent);
         Assert.Equal(textHash, report.AdmittedContent!.ContentSha256);
+        Assert.NotNull(report.Derivation);
+        Assert.Equal(binaryHash, report.Derivation!.BinarySha256);
+        Assert.Equal(textHash, report.Derivation.ExtractedTextSha256);
+        Assert.Equal("parser-test", report.Derivation.ExtractorId);
+        Assert.Equal("1.0.0", report.Derivation.ExtractorVersion);
+        Assert.False(report.Derivation.OcrUsed);
     }
 
     [Fact]
@@ -81,6 +87,7 @@ public sealed class AttachmentAdmissionServiceTests
         Assert.False(report.BinaryVerified);
         Assert.Contains(report.Failures, item => item.Contains("binary SHA-256 mismatch", StringComparison.Ordinal));
         Assert.Null(report.AdmittedContent);
+        Assert.Null(report.Derivation);
     }
 
     [Fact]
@@ -115,6 +122,7 @@ public sealed class AttachmentAdmissionServiceTests
         Assert.False(report.MetadataMatched);
         Assert.Contains(report.Failures, item => item.Contains("observed attachment metadata", StringComparison.Ordinal));
         Assert.Null(report.AdmittedContent);
+        Assert.Null(report.Derivation);
     }
 
     [Fact]
