@@ -39,7 +39,7 @@
       },
       {
         "id": "Gx",
-        "meaning": "externally supplied generation challenger with exact provider/model/configuration hash",
+        "meaning": "externally supplied generation challenger with exact provider/model/configuration artifact",
         "implementation_status": "REQUIRES_EMPIRICAL_EVALUATION",
         "selection_status": "EMPIRICAL_DECISION_PENDING"
       }
@@ -47,14 +47,17 @@
   },
   "selection_input_contract": {
     "format_version": "rjudi-empirical-selection-v1",
+    "raw_observation_format_version": "rjudi-empirical-raw-observation-v1",
     "manifest_sha256_required": true,
-    "corpus_manifest_sha256_required": true,
-    "treatment_configuration_sha256_required": true,
-    "raw_observation_artifact_sha256_required": true,
-    "dependency_evidence_sha256_required": true,
-    "command_evidence_sha256_required": true,
-    "exact_git_commit_required": true,
-    "runtime_required": true,
+    "corpus_manifest_reference_and_sha256_required": true,
+    "baseline_configuration_reference_and_sha256_required": true,
+    "challenger_configuration_reference_and_sha256_required": true,
+    "raw_observation_reference_and_sha256_required": true,
+    "raw_observation_content_must_match_manifest": true,
+    "dependency_evidence_reference_and_sha256_required": true,
+    "command_evidence_reference_and_sha256_required": true,
+    "exact_git_commit_required_and_verified": true,
+    "runtime_required_and_verified": true,
     "paired_case_set_required": true
   },
   "decision_rules": [
@@ -72,7 +75,7 @@
   ],
   "external_blocker": {
     "blocker_id": "RJ-BLK-003",
-    "reason": "No authorized admitted 30-50 case EVAL-010 corpus with independently reviewed structured oracle artifacts is available."
+    "reason": "No authorized admitted 30-50 case EVAL-010 corpus with independently reviewed structured oracle artifacts and complete paired treatment observations is available."
   },
   "canonical_command": ".\\scripts\\test-rjudi-wave-i.ps1",
   "status": "PROCEDURE_IMPLEMENTED_SELECTION_BLOCKED_BY_EXTERNAL_EVIDENCE"
