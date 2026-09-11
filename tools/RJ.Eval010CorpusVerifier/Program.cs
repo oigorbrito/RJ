@@ -95,6 +95,10 @@ sealed record Eval010VerificationEnvelope(
 
 sealed class RootedArtifactReader(string root) : IBenchmarkArtifactReader
 {
+    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
     private readonly string _root = EnsureTrailingSeparator(Path.GetFullPath(root));
 
     public async Task<ReadOnlyMemory<byte>> ReadAsync(string artifactReference, CancellationToken cancellationToken)
@@ -105,7 +109,7 @@ sealed class RootedArtifactReader(string root) : IBenchmarkArtifactReader
         }
 
         var candidate = Path.GetFullPath(Path.Combine(_root, artifactReference));
-        if (!candidate.StartsWith(_root, StringComparison.OrdinalIgnoreCase))
+        if (!candidate.StartsWith(_root, PathComparison))
         {
             throw new InvalidOperationException("Artifact reference escapes the configured corpus root.");
         }
