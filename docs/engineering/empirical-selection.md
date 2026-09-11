@@ -42,6 +42,17 @@ Before observing candidate results, the selection manifest must freeze:
 
 The entire selection manifest is itself verified by SHA-256 before the decision procedure runs.
 
+## Population binding
+
+The verifier parses the frozen `Eval010CorpusManifest` from Wave G and runs its existing validation. Therefore selection requires the same admitted population contract of 30–50 unique cases with independently reviewed structured oracle evidence.
+
+The selection observation case set must be exactly equal to the admitted EVAL-010 case set. Every admitted case must have exactly:
+
+- one baseline observation; and
+- one challenger observation.
+
+Missing a difficult case, adding an out-of-corpus case, duplicating a case/treatment pair, or evaluating only a subset blocks the comparison. Cases cannot be silently dropped after results are observed.
+
 ## Raw observations
 
 `EmpiricalCaseObservation` retains, per case and treatment:
@@ -61,9 +72,9 @@ The referenced raw artifact is typed as `rjudi-empirical-raw-observation-v1`. Th
 
 Therefore a valid file hash alone is insufficient if the manifest copied different metrics from that file.
 
-`NotTested` and `Blocked` are never interpreted as `Pass`.
+Every measurement ID present in an observation must have been declared in the manifest before results. An undeclared/post-hoc metric makes the manifest invalid rather than becoming a tie-breaker.
 
-A case missing from either treatment is not silently dropped. The comparison becomes `Blocked`.
+`NotTested` and `Blocked` are never interpreted as `Pass`.
 
 ## Hard gates
 
@@ -122,16 +133,18 @@ The verifier checks:
 2. manifest schema/invariants;
 3. manifest git commit equals the actually executed commit;
 4. manifest runtime equals `RuntimeInformation.FrameworkDescription` of the verifier process;
-5. EVAL-010 corpus manifest artifact hash;
-6. baseline configuration artifact hash;
-7. challenger configuration artifact hash;
-8. dependency-evidence artifact hash;
-9. command-evidence artifact hash;
-10. every raw observation artifact hash;
-11. raw observation contents exactly match the manifest observation;
-12. paired case set and required metric completeness;
-13. non-compensable gates;
-14. Pareto decision.
+5. EVAL-010 corpus manifest artifact hash and Wave G corpus validation;
+6. exact equality between the 30–50 admitted corpus case set and paired selection observations;
+7. baseline configuration artifact hash;
+8. challenger configuration artifact hash;
+9. dependency-evidence artifact hash;
+10. command-evidence artifact hash;
+11. every raw observation artifact hash;
+12. raw observation contents exactly match the manifest observation;
+13. all observation metrics were pre-declared;
+14. paired required metric completeness;
+15. non-compensable gates;
+16. Pareto decision.
 
 Exit codes:
 
@@ -153,7 +166,7 @@ The gate runs executable local work first:
 
 1. solution build;
 2. `EmpiricalSelectionServiceTests`;
-3. `EmpiricalSelectionManifestTests`;
+3. `EmpiricalSelectionManifestTests` including 30-case population binding;
 4. `EmpiricalRawObservationArtifactTests`;
 5. `git diff --check`;
 6. resolve exact `git rev-parse HEAD`.
@@ -169,6 +182,7 @@ If external evidence is absent, the gate returns `BLOCKED RJ-BLK-003` with exit 
 ## Reproducibility classification
 
 - paired same-case comparison: `REPRODUCIBILITY_SUPPORTED`;
+- exact admitted-population binding with no silent case omission: `REPRODUCIBILITY_SUPPORTED`;
 - immutable references + hashes for corpus/config/observations/commands/dependencies: `REPRODUCIBILITY_SUPPORTED`;
 - manifest commit/runtime verification against the executing environment: `REPRODUCIBILITY_SUPPORTED`;
 - raw observation → manifest content binding: `REPRODUCIBILITY_SUPPORTED`;
