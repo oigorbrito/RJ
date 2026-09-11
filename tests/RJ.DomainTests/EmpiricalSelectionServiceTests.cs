@@ -161,7 +161,7 @@ public sealed class EmpiricalSelectionServiceTests
     }
 
     private static EmpiricalTreatmentDefinition Treatment(string id, EmpiricalTreatmentKind kind) =>
-        new(id, kind, Sha(id), $"Treatment {id}");
+        new(id, kind, $"configs/{id}.json", Sha(id), $"Treatment {id}");
 
     private static IReadOnlyList<EmpiricalMetricDefinition> Metrics() =>
     [
