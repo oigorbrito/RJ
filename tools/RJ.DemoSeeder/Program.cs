@@ -5,6 +5,12 @@ using Npgsql;
 using RJ.Domain.Cases;
 using RJ.Infrastructure.Persistence;
 
+var jsonOptions = new JsonSerializerOptions
+{
+    PropertyNameCaseInsensitive = true,
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+};
+
 var connectionString = Environment.GetEnvironmentVariable("RJ_POSTGRES_CONNECTION")
     ?? throw new InvalidOperationException("RJ_POSTGRES_CONNECTION is required.");
 
@@ -18,7 +24,7 @@ if (!File.Exists(dataPath))
 }
 
 var json = await File.ReadAllTextAsync(dataPath);
-var cases = JsonSerializer.Deserialize<List<DemoCase>>(json, JsonOptions)
+var cases = JsonSerializer.Deserialize<List<DemoCase>>(json, jsonOptions)
     ?? throw new InvalidOperationException("Demo dataset is empty or invalid.");
 
 await using var dataSource = NpgsqlDataSource.Create(connectionString);
@@ -29,7 +35,7 @@ foreach (var item in cases)
 {
     var cnj = new LegalCaseCnj(item.Cnj).Value;
     var caseId = new LegalCaseId(item.CaseId).Value;
-    var canonicalJson = JsonSerializer.Serialize(item.Process, JsonOptions);
+    var canonicalJson = JsonSerializer.Serialize(item.Process, jsonOptions);
 
     await catalog.UpsertAsync(
         new ProcessCatalogEntry(caseId, cnj, item.SourceName, canonicalJson),
@@ -65,12 +71,6 @@ foreach (var item in cases)
 }
 
 Console.WriteLine($"DEMO_SEED_COMPLETE count={cases.Count}");
-
-static readonly JsonSerializerOptions JsonOptions = new()
-{
-    PropertyNameCaseInsensitive = true,
-    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-};
 
 public sealed record DemoCase(
     string CaseId,
