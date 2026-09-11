@@ -28,11 +28,6 @@ public sealed record RetrievalBenchmarkQuery(
             throw new InvalidOperationException($"Retrieval query '{QueryId}' must define expected evidence.");
         }
 
-        if (ExpectedEvidence.Any(item => item is null))
-        {
-            throw new InvalidOperationException($"Retrieval query '{QueryId}' contains null expected evidence.");
-        }
-
         if (ExpectedEvidence
             .Select(item => $"{item.DocumentId}\n{item.ContentSha256}")
             .Distinct(StringComparer.Ordinal)
@@ -56,11 +51,6 @@ public sealed record RetrievalBenchmarkCase(
         if (Queries.Count == 0)
         {
             throw new InvalidOperationException($"Retrieval benchmark case '{CaseId}' must contain at least one query.");
-        }
-
-        if (Queries.Any(item => item is null))
-        {
-            throw new InvalidOperationException($"Retrieval benchmark case '{CaseId}' contains a null query.");
         }
 
         if (Queries.Select(item => item.QueryId).Distinct(StringComparer.Ordinal).Count() != Queries.Count)
@@ -88,11 +78,6 @@ public sealed record RetrievalBenchmarkCatalog(
         if (Cases.Count == 0)
         {
             throw new InvalidOperationException("Retrieval benchmark catalog must contain at least one case.");
-        }
-
-        if (Cases.Any(item => item is null))
-        {
-            throw new InvalidOperationException("Retrieval benchmark catalog contains a null case.");
         }
 
         if (Cases.Select(item => item.CaseId).Distinct(StringComparer.Ordinal).Count() != Cases.Count)
@@ -159,9 +144,9 @@ public sealed record RetrievalBenchmarkReport(
         EmpiricalTreatmentDefinition.Require(CatalogVersion, nameof(CatalogVersion));
         ArgumentNullException.ThrowIfNull(Treatment);
         ArgumentNullException.ThrowIfNull(Cases);
-        if (Cases.Count == 0 || Cases.Any(item => item is null))
+        if (Cases.Count == 0)
         {
-            throw new InvalidOperationException("Retrieval benchmark report must contain non-null case reports.");
+            throw new InvalidOperationException("Retrieval benchmark report must contain case reports.");
         }
 
         if (Cases.Select(item => item.CaseId).Distinct(StringComparer.Ordinal).Count() != Cases.Count)
@@ -171,35 +156,94 @@ public sealed record RetrievalBenchmarkReport(
 
         foreach (var item in Cases)
         {
-            EmpiricalTreatmentDefinition.Require(item.CaseId, "caseId");
-            if (!item.ExecutionSucceeded)
-            {
-                if (item.QueryCount != 0 || item.Queries.Count != 0 || item.HitAt1 != 0 || item.HitAt3 != 0 || item.HitAt5 != 0 || item.Mrr != 0 || item.DurationMs < 0)
-                {
-                    throw new InvalidOperationException($"Failed retrieval case '{item.CaseId}' contains inconsistent measurements.");
-                }
-                continue;
-            }
-
-            if (item.QueryCount <= 0 || item.Queries.Count != item.QueryCount)
-            {
-                throw new InvalidOperationException($"Retrieval case '{item.CaseId}' has inconsistent query counts.");
-            }
-            if (item.HitAt1 < 0 || item.HitAt1 > item.HitAt3 || item.HitAt3 > item.HitAt5 || item.HitAt5 > item.QueryCount)
-            {
-                throw new InvalidOperationException($"Retrieval case '{item.CaseId}' has invalid hit counts.");
-            }
-            if (!double.IsFinite(item.Mrr) || item.Mrr < 0 || item.Mrr > 1 || !double.IsFinite(item.DurationMs) || item.DurationMs < 0)
-            {
-                throw new InvalidOperationException($"Retrieval case '{item.CaseId}' has invalid numeric measurements.");
-            }
-            if (item.Queries.Select(query => query.QueryId).Distinct(StringComparer.Ordinal).Count() != item.Queries.Count)
-            {
-                throw new InvalidOperationException($"Retrieval case '{item.CaseId}' contains duplicate query reports.");
-            }
+            ValidateCaseReport(item);
         }
 
         return this;
+    }
+
+    private static void ValidateCaseReport(RetrievalBenchmarkCaseReport item)
+    {
+        EmpiricalTreatmentDefinition.Require(item.CaseId, "caseId");
+        ArgumentNullException.ThrowIfNull(item.Queries);
+        if (!double.IsFinite(item.DurationMs) || item.DurationMs < 0)
+        {
+            throw new InvalidOperationException($"Retrieval case '{item.CaseId}' has invalid duration.");
+        }
+
+        if (!item.ExecutionSucceeded)
+        {
+            if (string.IsNullOrWhiteSpace(item.ErrorType)
+                || string.IsNullOrWhiteSpace(item.ErrorMessage)
+                || item.QueryCount != 0
+                || item.Queries.Count != 0
+                || item.HitAt1 != 0
+                || item.HitAt3 != 0
+                || item.HitAt5 != 0
+                || item.Mrr != 0)
+            {
+                throw new InvalidOperationException($"Failed retrieval case '{item.CaseId}' contains inconsistent execution evidence.");
+            }
+
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
+        {
+            throw new InvalidOperationException($"Successful retrieval case '{item.CaseId}' cannot contain an error message.");
+        }
+
+        if (item.QueryCount <= 0 || item.Queries.Count != item.QueryCount)
+        {
+            throw new InvalidOperationException($"Retrieval case '{item.CaseId}' has inconsistent query counts.");
+        }
+
+        if (item.Queries.Any(query => string.IsNullOrWhiteSpace(query.QueryId))
+            || item.Queries.Select(query => query.QueryId).Distinct(StringComparer.Ordinal).Count() != item.Queries.Count)
+        {
+            throw new InvalidOperationException($"Retrieval case '{item.CaseId}' contains invalid or duplicate query reports.");
+        }
+
+        foreach (var query in item.Queries)
+        {
+            ValidateQueryReport(item.CaseId, query);
+        }
+
+        var hitAt1 = item.Queries.Count(query => query.HitAt1);
+        var hitAt3 = item.Queries.Count(query => query.HitAt3);
+        var hitAt5 = item.Queries.Count(query => query.HitAt5);
+        if (item.HitAt1 != hitAt1 || item.HitAt3 != hitAt3 || item.HitAt5 != hitAt5)
+        {
+            throw new InvalidOperationException($"Retrieval case '{item.CaseId}' aggregate hit counts do not match query reports.");
+        }
+
+        var expectedMrr = item.Queries.Sum(query => query.FirstRelevantRank is int rank ? 1d / rank : 0d) / item.QueryCount;
+        if (!double.IsFinite(item.Mrr) || item.Mrr < 0 || item.Mrr > 1 || Math.Abs(item.Mrr - expectedMrr) > 1e-12)
+        {
+            throw new InvalidOperationException($"Retrieval case '{item.CaseId}' MRR does not match query reports.");
+        }
+    }
+
+    private static void ValidateQueryReport(string caseId, RetrievalBenchmarkQueryReport query)
+    {
+        if (query.FirstRelevantRank is null)
+        {
+            if (query.HitAt1 || query.HitAt3 || query.HitAt5)
+            {
+                throw new InvalidOperationException($"Retrieval case '{caseId}' query '{query.QueryId}' has hit flags without a relevant rank.");
+            }
+
+            return;
+        }
+
+        var rank = query.FirstRelevantRank.Value;
+        if (rank <= 0
+            || query.HitAt1 != (rank <= 1)
+            || query.HitAt3 != (rank <= 3)
+            || query.HitAt5 != (rank <= 5))
+        {
+            throw new InvalidOperationException($"Retrieval case '{caseId}' query '{query.QueryId}' has inconsistent rank/hit flags.");
+        }
     }
 }
 
@@ -227,10 +271,10 @@ public static class RetrievalBenchmarkJson
     }
 }
 
-public sealed class RetrievalBenchmarkRunner(ILegalDocumentSearch search)
+public sealed class RetrievalBenchmarkRunner(IIdentifiedLegalDocumentSearch search)
 {
     private const string CandidateExecutionFailureMessage = "Retrieval treatment execution failed.";
-    private readonly ILegalDocumentSearch _search = search ?? throw new ArgumentNullException(nameof(search));
+    private readonly IIdentifiedLegalDocumentSearch _search = search ?? throw new ArgumentNullException(nameof(search));
 
     public async Task<RetrievalBenchmarkReport> RunAsync(
         RetrievalBenchmarkCatalog catalog,
@@ -241,9 +285,16 @@ public sealed class RetrievalBenchmarkRunner(ILegalDocumentSearch search)
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(treatment);
         catalog.Validate();
-        if (limit < 5)
+        if (limit is < 5 or > 100)
         {
-            throw new ArgumentOutOfRangeException(nameof(limit), limit, "Retrieval benchmark limit must be at least 5 to measure hit@5.");
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "Retrieval benchmark limit must be between 5 and 100.");
+        }
+
+        var implementationId = EmpiricalTreatmentDefinition.Require(_search.ImplementationId, "search.ImplementationId");
+        if (!StringComparer.Ordinal.Equals(implementationId, treatment.ImplementationId))
+        {
+            throw new InvalidOperationException(
+                $"Retrieval treatment implementation '{treatment.ImplementationId}' does not match executed search implementation '{implementationId}'.");
         }
 
         var reports = new List<RetrievalBenchmarkCaseReport>(catalog.Cases.Count);
@@ -263,6 +314,7 @@ public sealed class RetrievalBenchmarkRunner(ILegalDocumentSearch search)
                 {
                     var hits = await _search.SearchAsync(new LegalCaseId(benchmarkCase.CaseId), query.Query, limit, cancellationToken);
                     ArgumentNullException.ThrowIfNull(hits);
+                    RequireCaseScopedHits(benchmarkCase.CaseId, hits);
                     var firstRelevantRank = FindFirstRelevantRank(hits, query.ExpectedEvidence);
                     if (firstRelevantRank is int rank)
                     {
@@ -321,18 +373,30 @@ public sealed class RetrievalBenchmarkRunner(ILegalDocumentSearch search)
             reports).Validate();
     }
 
+    private static void RequireCaseScopedHits(string caseId, IReadOnlyList<LegalDocumentSearchHit> hits)
+    {
+        foreach (var hit in hits)
+        {
+            if (hit is null || hit.Document is null)
+            {
+                throw new InvalidOperationException("Retrieval treatment returned a null hit/document.");
+            }
+
+            if (!StringComparer.Ordinal.Equals(hit.Document.CaseId, caseId))
+            {
+                throw new InvalidOperationException(
+                    $"Retrieval treatment returned cross-case evidence for case '{caseId}'.");
+            }
+        }
+    }
+
     private static int? FindFirstRelevantRank(
         IReadOnlyList<LegalDocumentSearchHit> hits,
         IReadOnlyList<RetrievalExpectedEvidence> expected)
     {
         for (var index = 0; index < hits.Count; index++)
         {
-            var document = hits[index]?.Document;
-            if (document is null)
-            {
-                continue;
-            }
-
+            var document = hits[index].Document;
             if (expected.Any(item =>
                 StringComparer.Ordinal.Equals(item.DocumentId, document.DocumentId)
                 && StringComparer.Ordinal.Equals(item.ContentSha256, document.ContentSha256)))
