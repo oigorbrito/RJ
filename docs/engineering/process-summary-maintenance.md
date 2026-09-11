@@ -15,7 +15,7 @@ Wave E does not introduce a new freshness threshold or retention duration.
 
 ## Publication retention boundary
 
-`ProcessSummaryPersistenceCoordinator.GetValidatedSummaryAsync` now evaluates the persisted job against the current retention policy before returning validated output.
+`ProcessSummaryPersistenceCoordinator.GetValidatedSummaryAsync` evaluates the persisted job against the current retention policy before returning validated output.
 
 - a validated, non-expired job may be published;
 - an expired validated job remains addressable as job metadata so freshness/refresh decisions can still be inspected;
@@ -26,16 +26,23 @@ This is access/publication enforcement. It is not physical deletion, database va
 
 ## Maintenance scan
 
-`IProcessSummaryJobStore.ListForMaintenanceAsync(limit, ...)` provides a deterministic bounded scan of persisted jobs.
+`IProcessSummaryJobStore.ListForMaintenanceAsync(currentSummaryVersion, expiredBefore, limit, ...)` provides a deterministic bounded scan of actionable persisted jobs.
 
-The PostgreSQL implementation orders by persisted `updated_at`, then `job_id`. The in-memory implementation uses `ValidatedAt`, then `JobId`, preserving deterministic oldest-first behavior for tests and local execution.
+Candidate filtering occurs before batching. A job is eligible when either:
+
+- its persisted validation timestamp is before the summary-expiration cutoff; or
+- its stored summary version differs from the current `ProcessSummaryPrompt.PromptVersion`.
+
+Fresh jobs using the current summary version are excluded before `LIMIT`, so they cannot starve stale or expired jobs from a bounded maintenance batch.
+
+The PostgreSQL implementation orders actionable candidates by persisted `updated_at`, then `job_id`. The in-memory implementation orders actionable candidates by `ValidatedAt`, then `JobId`.
 
 `ProcessSummaryMaintenanceService.RunOnceAsync`:
 
 1. captures one clock value for the run;
-2. loads a bounded batch;
-3. evaluates each job against its stored snapshot, the current `ProcessSummaryPrompt.PromptVersion`, and the existing retention policy;
-4. ignores `Fresh` jobs;
+2. derives the expiration cutoff from the existing retention policy;
+3. loads a bounded batch of actionable candidates only;
+4. evaluates each candidate against its stored snapshot, the current prompt version and retention policy;
 5. creates `Refresh` work for version-stale jobs;
 6. creates `Rebuild` work for expired jobs;
 7. dispatches work through `IProcessSummaryRefreshDispatcher`;
