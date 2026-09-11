@@ -2,7 +2,7 @@ namespace RJ.Application.Operations;
 
 public static class ProcessSummaryObservabilityCatalog
 {
-    public const string CatalogVersion = "rjudi-process-summary-observability-v1";
+    public const string CatalogVersion = "rjudi-process-summary-observability-v2";
 
     public static ProcessSummaryObservabilityDefinition Current() =>
         new(
@@ -31,7 +31,17 @@ public static class ProcessSummaryObservabilityCatalog
                 new ProcessSummaryMetricDefinition(
                     "process_summary_refresh_plans_total",
                     "counter",
-                    "Counts deterministic refresh planner decisions before a scheduler implementation is selected.",
+                    "Counts deterministic refresh planner decisions.",
+                    ["decision"]),
+                new ProcessSummaryMetricDefinition(
+                    "process_summary_maintenance_dispatches_total",
+                    "counter",
+                    "Counts deterministic maintenance work items dispatched for stale or expired summaries.",
+                    ["action"]),
+                new ProcessSummaryMetricDefinition(
+                    "process_summary_retention_blocks_total",
+                    "counter",
+                    "Counts validated-summary publication attempts blocked by the active summary retention policy.",
                     ["decision"])
             ],
             [
@@ -74,7 +84,13 @@ public static class ProcessSummaryObservabilityCatalog
                     ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision"]),
                 new ProcessSummaryTraceDefinition(
                     "process_summary.refresh_plan",
-                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision", "action", "reason", "requires_scheduler"])
+                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision", "action", "reason", "requires_scheduler"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.maintenance_dispatch",
+                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "action", "freshness", "work_id"]),
+                new ProcessSummaryTraceDefinition(
+                    "process_summary.retention_blocked_publication",
+                    ["job_id", "case_id", "cnj", "snapshot_sha256", "summary_version", "decision", "publication", "policy_id"])
             ],
             [
                 new ProcessSummarySloDefinition(
