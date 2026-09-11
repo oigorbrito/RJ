@@ -12,7 +12,9 @@ public sealed record EmpiricalSelectionManifest(
     string GitCommit,
     string Runtime,
     string DependencyEvidenceReference,
+    string DependencyEvidenceSha256,
     string CommandEvidenceReference,
+    string CommandEvidenceSha256,
     DateTimeOffset CreatedAt,
     EmpiricalTreatmentDefinition Baseline,
     EmpiricalTreatmentDefinition Challenger,
@@ -46,7 +48,9 @@ public sealed record EmpiricalSelectionManifest(
         RequireGitCommit(GitCommit);
         EmpiricalTreatmentDefinition.Require(Runtime, nameof(Runtime));
         EmpiricalTreatmentDefinition.Require(DependencyEvidenceReference, nameof(DependencyEvidenceReference));
+        EmpiricalTreatmentDefinition.RequireSha256(DependencyEvidenceSha256, nameof(DependencyEvidenceSha256));
         EmpiricalTreatmentDefinition.Require(CommandEvidenceReference, nameof(CommandEvidenceReference));
+        EmpiricalTreatmentDefinition.RequireSha256(CommandEvidenceSha256, nameof(CommandEvidenceSha256));
         if (CreatedAt == default)
         {
             throw new InvalidOperationException("Manifest created-at timestamp must be recorded.");
