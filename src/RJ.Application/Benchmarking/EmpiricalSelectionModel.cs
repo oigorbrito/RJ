@@ -31,14 +31,14 @@ public enum EmpiricalSelectionDecision
 public sealed record EmpiricalTreatmentDefinition(
     string TreatmentId,
     EmpiricalTreatmentKind Kind,
-    string ConfigurationDigest,
+    string ConfigurationSha256,
     string Description)
 {
     public string TreatmentId { get; } = Require(TreatmentId, nameof(TreatmentId));
-    public string ConfigurationDigest { get; } = Require(ConfigurationDigest, nameof(ConfigurationDigest));
+    public string ConfigurationSha256 { get; } = RequireSha256(ConfigurationSha256, nameof(ConfigurationSha256));
     public string Description { get; } = Require(Description, nameof(Description));
 
-    private static string Require(string value, string parameterName)
+    internal static string Require(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -47,6 +47,17 @@ public sealed record EmpiricalTreatmentDefinition(
 
         return value.Trim();
     }
+
+    internal static string RequireSha256(string value, string parameterName)
+    {
+        var normalized = Require(value, parameterName).ToLowerInvariant();
+        if (normalized.Length != 64 || normalized.Any(character => !Uri.IsHexDigit(character)))
+        {
+            throw new ArgumentException("SHA-256 must contain exactly 64 hexadecimal characters.", parameterName);
+        }
+
+        return normalized;
+    }
 }
 
 public sealed record EmpiricalMetricDefinition(
@@ -54,9 +65,7 @@ public sealed record EmpiricalMetricDefinition(
     EmpiricalMetricDirection Direction,
     bool Required)
 {
-    public string MetricId { get; } = string.IsNullOrWhiteSpace(MetricId)
-        ? throw new ArgumentException("Metric id cannot be empty.", nameof(MetricId))
-        : MetricId.Trim();
+    public string MetricId { get; } = EmpiricalTreatmentDefinition.Require(MetricId, nameof(MetricId));
 }
 
 public sealed record EmpiricalCaseObservation(
@@ -65,15 +74,11 @@ public sealed record EmpiricalCaseObservation(
     EmpiricalExecutionStatus Status,
     IReadOnlyDictionary<string, double> Measurements,
     IReadOnlyList<string> FailedNonCompensableGates,
-    string ArtifactReference)
+    string ArtifactReference,
+    string ArtifactSha256)
 {
-    public string CaseId { get; } = string.IsNullOrWhiteSpace(CaseId)
-        ? throw new ArgumentException("Case id cannot be empty.", nameof(CaseId))
-        : CaseId.Trim();
-
-    public string TreatmentId { get; } = string.IsNullOrWhiteSpace(TreatmentId)
-        ? throw new ArgumentException("Treatment id cannot be empty.", nameof(TreatmentId))
-        : TreatmentId.Trim();
+    public string CaseId { get; } = EmpiricalTreatmentDefinition.Require(CaseId, nameof(CaseId));
+    public string TreatmentId { get; } = EmpiricalTreatmentDefinition.Require(TreatmentId, nameof(TreatmentId));
 
     public IReadOnlyDictionary<string, double> Measurements { get; } =
         Measurements ?? throw new ArgumentNullException(nameof(Measurements));
@@ -81,9 +86,8 @@ public sealed record EmpiricalCaseObservation(
     public IReadOnlyList<string> FailedNonCompensableGates { get; } =
         FailedNonCompensableGates ?? throw new ArgumentNullException(nameof(FailedNonCompensableGates));
 
-    public string ArtifactReference { get; } = string.IsNullOrWhiteSpace(ArtifactReference)
-        ? throw new ArgumentException("Artifact reference cannot be empty.", nameof(ArtifactReference))
-        : ArtifactReference.Trim();
+    public string ArtifactReference { get; } = EmpiricalTreatmentDefinition.Require(ArtifactReference, nameof(ArtifactReference));
+    public string ArtifactSha256 { get; } = EmpiricalTreatmentDefinition.RequireSha256(ArtifactSha256, nameof(ArtifactSha256));
 }
 
 public sealed record EmpiricalSelectionReport(
