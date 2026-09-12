@@ -126,15 +126,16 @@ try {
 
     Write-Host "[wave3] serializing request body"
     $body = $request | ConvertTo-Json -Depth 20 -Compress
-    Write-Host "[wave3] request body ready chars=$($body.Length)"
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    Write-Host "[wave3] request body ready chars=$($body.Length) utf8Bytes=$($bodyBytes.Length)"
 
     Write-Host "[wave3] submitting live OpenAI process summary (bounded request timeout: 90s)"
     try {
         $submission = Invoke-RestMethod `
             -Method Post `
             -Uri "$ApiUrl/api/process-summaries/jobs" `
-            -ContentType "application/json" `
-            -Body $body `
+            -ContentType "application/json; charset=utf-8" `
+            -Body $bodyBytes `
             -TimeoutSec 90
     }
     catch {
