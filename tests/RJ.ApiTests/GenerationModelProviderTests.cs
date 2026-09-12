@@ -4,6 +4,7 @@ using RJ.Infrastructure.Generation;
 
 namespace RJ.ApiTests;
 
+[Collection("Generation environment variables")]
 public sealed class GenerationModelProviderTests
 {
     [Fact]
@@ -89,3 +90,6 @@ public sealed class GenerationModelProviderTests
         }
     }
 }
+
+[CollectionDefinition("Generation environment variables", DisableParallelization = true)]
+public sealed class GenerationEnvironmentVariableCollection;
