@@ -92,4 +92,4 @@ public sealed class GenerationModelProviderTests
 }
 
 [CollectionDefinition("Generation environment variables", DisableParallelization = true)]
-public sealed class GenerationEnvironmentVariableCollection;
+public sealed class GenerationEnvironmentVariableGroup;
