@@ -373,14 +373,26 @@ public static class ProcessSummaryEndpoint
     private static IReadOnlyList<string> ToPublicValidationErrors(ProcessSummaryJob job) =>
         job.Validation.IsValid ? [] : ["process_summary_validation_failed"];
 
-    private static string ToPublicConflictError(InvalidOperationException exception) =>
-        exception.Message switch
+    private static string ToPublicConflictError(InvalidOperationException exception)
+    {
+        if (exception.Message.StartsWith("OpenAI request failed with status code ", StringComparison.Ordinal))
+        {
+            return exception.Message;
+        }
+
+        return exception.Message switch
         {
             "Idempotency key is already bound to a different process snapshot." => exception.Message,
             "Attachment content must belong to the canonical legal case." => exception.Message,
             "Attachment content must reference observed attachment metadata." => exception.Message,
+            "OpenAI response was not valid JSON." => exception.Message,
+            "OpenAI response was not a JSON object." => exception.Message,
+            "OpenAI response did not contain structured text output." => exception.Message,
+            "OpenAI structured output was not valid JSON." => exception.Message,
+            "OpenAI response cited evidence outside the supplied generation context." => exception.Message,
             _ => "Process summary request could not be completed."
         };
+    }
 }
 
 public sealed record ProcessSummaryHttpRequest(
