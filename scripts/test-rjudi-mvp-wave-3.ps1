@@ -139,7 +139,26 @@ try {
             -TimeoutSec 90
     }
     catch {
-        Write-Host "[wave3] submission failed or timed out. API stderr: $apiErr"
+        $httpBody = $null
+        if ($_.Exception.Response) {
+            try {
+                $responseStream = $_.Exception.Response.GetResponseStream()
+                if ($responseStream) {
+                    $reader = New-Object System.IO.StreamReader($responseStream)
+                    $httpBody = $reader.ReadToEnd()
+                    $reader.Dispose()
+                }
+            }
+            catch {
+                $httpBody = $null
+            }
+        }
+
+        Write-Host "[wave3] submission failed or timed out."
+        if (-not [string]::IsNullOrWhiteSpace($httpBody)) {
+            Write-Host "[wave3] HTTP response body: $httpBody"
+        }
+        Write-Host "[wave3] API stderr: $apiErr"
         if (Test-Path $apiErr) { Get-Content $apiErr -Tail 80 }
         Write-Host "[wave3] API stdout: $apiOut"
         if (Test-Path $apiOut) { Get-Content $apiOut -Tail 80 }
