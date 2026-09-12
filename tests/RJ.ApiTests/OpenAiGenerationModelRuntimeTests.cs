@@ -6,6 +6,7 @@ using RJ.Infrastructure.Generation;
 
 namespace RJ.ApiTests;
 
+[Collection("Generation environment variables")]
 public sealed class OpenAiGenerationModelRuntimeTests
 {
     [Fact]
