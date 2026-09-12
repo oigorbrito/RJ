@@ -1,0 +1,134 @@
+{
+  "schema_version": "rj-process-oracle-v1",
+  "dataset_version": "rj-juridical-response-60031603620268160021-2026-09-06",
+  "fixture": "tests/fixtures/rj/response_60031603620268160021_1.json",
+  "fixture_sha256": "b5decf20e6bb330a7a58974711b7ec8e72215d74568e014e8cf1ced14ee916aa",
+  "case_id": "response_60031603620268160021_1",
+  "cnj": "6003160-36.2026.8.16.0021",
+  "facts": [
+    {
+      "id": "fact-cnj",
+      "field": "cnj",
+      "value": "6003160-36.2026.8.16.0021",
+      "oracle_path": "page_data[0].response_data.code",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "fact-court",
+      "field": "court",
+      "value": "CASCAVEL - VARA DA FAZENDA PUBLICA",
+      "oracle_path": "page_data[0].response_data.county",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "fact-status",
+      "field": "status",
+      "value": "ATIVO",
+      "oracle_path": "page_data[0].response_data.status",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "fact-phase",
+      "field": "phase",
+      "value": "INICIAL",
+      "oracle_path": "page_data[0].response_data.phase",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "fact-amount",
+      "field": "amount",
+      "value": "30000",
+      "oracle_path": "page_data[0].response_data.amount",
+      "evidence_status": "OBSERVED"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "milestone-distribution",
+      "label": "Distribuicao por sorteio",
+      "value": "1 - DISTRIBUIDO POR SORTEIO (CAS17VJ01)",
+      "oracle_path": "page_data[0].response_data.steps[12].content",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "milestone-hearing",
+      "label": "Audiencia de conciliacao designada",
+      "value": "4 - AUDIENCIA DE CONCILIACAO DESIGNADA - LOCAL CONCILIACAO JUIZADO CIVEL - 03/03/2027 15:00",
+      "oracle_path": "page_data[0].response_data.steps[9].content",
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "milestone-last-step",
+      "label": "Ultima movimentacao",
+      "value": "13 - REMETIDOS OS AUTOS - CASDIST -> CAS17VJ",
+      "oracle_path": "page_data[0].response_data.last_step.content",
+      "evidence_status": "OBSERVED"
+    }
+  ],
+  "inconsistencies": [
+    {
+      "id": "inconsistency-area-subjects",
+      "kind": "area_subject_mismatch",
+      "description": "Area observada como direito do trabalho, mas assuntos observados indicam direito civil, responsabilidade civil e dano moral.",
+      "observed_paths": [
+        "page_data[0].response_data.area",
+        "page_data[0].response_data.subjects"
+      ],
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "inconsistency-labor-tag-subjects",
+      "kind": "labor_tag_subject_mismatch",
+      "description": "Tag labor=true observada sem assunto trabalhista correspondente.",
+      "observed_paths": [
+        "page_data[0].response_data.tags.labor",
+        "page_data[0].response_data.subjects"
+      ],
+      "evidence_status": "OBSERVED"
+    },
+    {
+      "id": "inconsistency-passive-party-without-lawyer",
+      "kind": "passive_party_without_lawyer",
+      "description": "Parte passiva observada sem advogado vinculado no fixture.",
+      "observed_paths": [
+        "page_data[0].response_data.parties[3]",
+        "page_data[0].response_data.parties[3].lawyers"
+      ],
+      "evidence_status": "OBSERVED"
+    }
+  ],
+  "abstentions": [
+    {
+      "id": "abstain-attachment-content",
+      "claim": "Conteudo dos anexos",
+      "reason": "O fixture contem metadados de anexos, mas nao contem conteudo binario ou texto extraido dos anexos.",
+      "evidence_status": "NOT_OBSERVED"
+    },
+    {
+      "id": "abstain-prognosis",
+      "claim": "Prognostico juridico",
+      "reason": "O fixture observado nao fornece base suficiente para prognostico.",
+      "evidence_status": "NOT_OBSERVED"
+    }
+  ],
+  "forbidden_claims": [
+    {
+      "id": "forbid-attachment-content",
+      "claim": "Afirmar conteudo de documentos anexos nao presente no fixture."
+    },
+    {
+      "id": "forbid-production-readiness",
+      "claim": "Usar este unico fixture como prova de prontidao de producao."
+    }
+  ],
+  "formatting_constraints": [
+    {
+      "id": "format-citations-required",
+      "rule": "Toda afirmacao factual deve apontar para oracle_path ou observed_paths."
+    },
+    {
+      "id": "format-no-unobserved-attachment-content",
+      "rule": "Anexos devem ser descritos como metadados pendentes quando nao houver conteudo extraido."
+    }
+  ]
+}

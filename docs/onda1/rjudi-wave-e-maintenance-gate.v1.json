@@ -1,0 +1,58 @@
+{
+  "gate_version": "rjudi-wave-e-maintenance-v1",
+  "base_commit": "59b1e50b6399d8fe043074fb52fc2def648aa8d1",
+  "scope": "process-summary maintenance scheduling, freshness and publication retention",
+  "status": "NOT_TESTED",
+  "canonical_script": "scripts/test-rjudi-wave-e.ps1",
+  "required_evidence": [
+    "maintenance_store_listing_bounded",
+    "maintenance_store_listing_deterministic",
+    "fresh_jobs_not_dispatched",
+    "stale_version_dispatches_refresh",
+    "expired_summary_dispatches_rebuild",
+    "maintenance_work_id_deterministic",
+    "validated_summary_publication_blocked_after_summary_ttl",
+    "scheduler_disabled_without_explicit_cadence",
+    "scheduler_requires_interval_and_batch_together",
+    "invalid_scheduler_configuration_fails_closed",
+    "scheduler_uses_explicit_interval_and_batch",
+    "postgres_maintenance_ordering",
+    "wave_d_regression_gate",
+    "git_diff_check"
+  ],
+  "evidence_tests": [
+    "ProcessSummaryMaintenanceTests",
+    "ProcessSummaryMaintenanceOptionsTests",
+    "PostgresProcessSummaryMaintenanceTests"
+  ],
+  "not_claimed": [
+    "PRODUCTION_READY",
+    "AUTOMATIC_SUMMARY_REGENERATION",
+    "DATAJUD_REFRESH_EXECUTION",
+    "ATTACHMENT_REACQUISITION",
+    "DISTRIBUTED_QUEUE_EXACTLY_ONCE",
+    "PHYSICAL_RETENTION_DELETION",
+    "EVIDENCE_TTL_ENFORCEMENT",
+    "PRODUCTION_SCHEDULER_CADENCE",
+    "SCHEDULER_SLO",
+    "REMOTE_CI_PASS",
+    "POSTGRES_RUNTIME_PASS"
+  ],
+  "blockers": [
+    {
+      "blocker_id": "RJ-BLK-002",
+      "status": "BLOCKED",
+      "reason": "GitHub Actions runner provisioning has repeatedly failed before exposing configured steps."
+    },
+    {
+      "blocker_id": "BLK-POSTGRES-001",
+      "status": "BLOCKED_LOCAL",
+      "reason": "Local PostgreSQL execution requires RJ_POSTGRES_CONNECTION."
+    },
+    {
+      "blocker_id": "SRC-003",
+      "status": "BLOCKED",
+      "reason": "Automatic refresh execution cannot fetch authoritative DataJud state without an authentic DataJud contract/fixture."
+    }
+  ]
+}

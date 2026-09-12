@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RJ.Infrastructure.Persistence;
 
@@ -234,7 +235,10 @@ public sealed class ApiContractTests
             var dataSource = NpgsqlDataSource.Create(connectionString);
             await PostgresSchema.MigrateAsync(dataSource);
 
-            var factory = new WebApplicationFactory<Program>();
+            var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                    builder.ConfigureServices(services =>
+                        services.AddSingleton<IStartupFilter, TestAuthenticatedPrincipalStartupFilter>()));
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions
             {
                 AllowAutoRedirect = false

@@ -13,9 +13,9 @@ public static class OabRulingBrAbRunner
     private static readonly string[] StopWords =
     [
         "a", "as", "o", "os", "e", "ou", "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas",
-        "para", "por", "com", "sem", "ao", "aos", "à", "às", "um", "uma", "uns", "umas", "que", "qual",
-        "quais", "quando", "onde", "como", "porque", "porquê", "se", "sobre", "entre", "noções", "oab",
-        "questão", "questoes", "questão", "responda", "fundamente", "caso", "hipótese", "hipotese"
+        "para", "por", "com", "sem", "ao", "aos", "ÃƒÂ ", "ÃƒÂ s", "um", "uma", "uns", "umas", "que", "qual",
+        "quais", "quando", "onde", "como", "porque", "porquÃƒÂª", "se", "sobre", "entre", "noÃƒÂ§ÃƒÂµes", "oab",
+        "questÃƒÂ£o", "questoes", "questÃƒÂ£o", "responda", "fundamente", "caso", "hipÃƒÂ³tese", "hipotese"
     ];
     public static async Task<int> RunAsync(
         IReadOnlyList<string> args,
@@ -54,7 +54,7 @@ public static class OabRulingBrAbRunner
                 c,
                 c.TotalCases > 0 ? (double)c.RetrievalCoverageCases / c.TotalCases : 0.0,
                 c.ZeroEvidenceCases,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UnixEpoch);
 
             await AtomicTextFileWriter.WriteAsync(options.ReportPath, JsonSerializer.Serialize(report, JsonOptions), cancellationToken);
             return 0;
@@ -295,6 +295,7 @@ public static class OabRulingBrAbRunner
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true
     };
 }

@@ -4,8 +4,12 @@ using RJ.Domain.Cases;
 
 namespace RJ.Infrastructure.Persistence;
 
-public sealed class PostgresLegalDocumentSearch(NpgsqlDataSource dataSource) : ILegalDocumentSearch
+public sealed class PostgresLegalDocumentSearch(NpgsqlDataSource dataSource) : IIdentifiedLegalDocumentSearch
 {
+    public const string BenchmarkImplementationId = "postgres-ts-rank-cd-v1";
+
+    public string ImplementationId => BenchmarkImplementationId;
+
     public async Task<IReadOnlyList<LegalDocumentSearchHit>> SearchAsync(
         LegalCaseId caseId,
         string query,

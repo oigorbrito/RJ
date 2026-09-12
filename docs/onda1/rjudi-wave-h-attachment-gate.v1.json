@@ -1,0 +1,50 @@
+{
+  "gate_id": "rjudi-wave-h-attachment-admission-v1",
+  "status": "NOT_TESTED",
+  "base_commit": "30033c517c39dcf6ceb5a7a82d85d65acafdee64",
+  "scope": "ATT-001 binary acquisition evidence, parser/OCR provenance, strict extraction verification, metadata/content separation and external admission verifier",
+  "method_classification": {
+    "binary_and_extracted_text_sha256": "REPRODUCIBILITY_SUPPORTED",
+    "explicit_extractor_ocr_provenance": "DERIVED_FROM_METHOD",
+    "metadata_content_separation": "SUPPORTED_BY_SPEC",
+    "provider_neutral_extractor_interface": "PROJECT_DECISION",
+    "filesystem_verifier_and_environment_names": "PROJECT_DECISION"
+  },
+  "non_compensable_gates": [
+    "canonical source hash matches",
+    "manifest hash matches",
+    "attachment metadata exists on canonical case",
+    "attachment extension matches observed metadata",
+    "binary byte length matches",
+    "binary sha256 matches",
+    "extraction input binary sha256 matches",
+    "extracted text is strict utf8",
+    "extracted text length matches",
+    "extracted text sha256 matches",
+    "ocr engine identity and version are recorded when ocr is used",
+    "existing ProcessAttachmentContentAdmission accepts produced content"
+  ],
+  "required_commands": [
+    "dotnet build RJ.slnx --no-restore",
+    "dotnet test tests/RJ.DomainTests/RJ.DomainTests.csproj --no-restore --filter FullyQualifiedName~AttachmentAdmissionServiceTests|FullyQualifiedName~ProcessAttachmentContentAdmissionTests|FullyQualifiedName~ProcessAttachmentChunkerTests",
+    "git diff --check",
+    ".\\scripts\\test-rjudi-wave-h.ps1"
+  ],
+  "external_evidence_environment": [
+    "RJ_ATT_MANIFEST_PATH",
+    "RJ_ATT_MANIFEST_SHA256",
+    "RJ_ATT_ARTIFACT_ROOT",
+    "RJ_ATT_CANONICAL_SOURCE_PATH"
+  ],
+  "blocked_exit_code_without_real_attachment": 2,
+  "verifier_success_exit_code": 0,
+  "verifier_failure_exit_code": 3,
+  "explicit_nonclaims": [
+    "no authorized real attachment binary is bundled by this gate",
+    "no parser or ocr provider has been selected",
+    "no real parser or ocr fidelity PASS",
+    "no upstream acquisition PASS",
+    "no symlink or reparse point sandbox guarantee",
+    "no exact-head PASS until executable evidence exists"
+  ]
+}

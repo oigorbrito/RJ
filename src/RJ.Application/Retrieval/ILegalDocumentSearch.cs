@@ -10,3 +10,8 @@ public interface ILegalDocumentSearch
         int limit,
         CancellationToken cancellationToken);
 }
+
+public interface IIdentifiedLegalDocumentSearch : ILegalDocumentSearch
+{
+    string ImplementationId { get; }
+}
