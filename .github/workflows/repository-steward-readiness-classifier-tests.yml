@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/scripts/repository-steward-readiness-classifier*.sh'
+      - '.github/scripts/repository-steward-readiness-run-association*.sh'
       - '.github/workflows/repository-steward-readiness-observer.yml'
       - '.github/workflows/repository-steward-readiness-classifier-tests.yml'
 
@@ -23,5 +24,9 @@ jobs:
           bash -n .github/scripts/repository-steward-readiness-classifier.sh
           bash -n .github/scripts/repository-steward-readiness-classifier-v2.sh
           bash -n .github/scripts/repository-steward-readiness-classifier-v2-tests.sh
+          bash -n .github/scripts/repository-steward-readiness-run-association.sh
+          bash -n .github/scripts/repository-steward-readiness-run-association-tests.sh
+      - name: Run native association guard matrix
+        run: bash .github/scripts/repository-steward-readiness-run-association-tests.sh
       - name: Run fail-closed decision matrix
         run: bash .github/scripts/repository-steward-readiness-classifier-v2-tests.sh
