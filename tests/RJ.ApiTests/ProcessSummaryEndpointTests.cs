@@ -190,7 +190,7 @@ public sealed class ProcessSummaryEndpointTests
 
         var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
 
-        Assert.IsType<ForbidHttpResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, ((IStatusCodeHttpResult)result).StatusCode);
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class ProcessSummaryEndpointTests
 
         var result = await ProcessSummaryEndpoint.SubmitAsync(request, service, CancellationToken.None);
 
-        Assert.IsType<ForbidHttpResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, ((IStatusCodeHttpResult)result).StatusCode);
     }
 
     [Fact]

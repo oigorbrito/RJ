@@ -10,6 +10,7 @@ namespace RJ.HttpContractTests;
 internal sealed class TestAuthenticatedPrincipalStartupFilter : IStartupFilter
 {
     public const string CaseHeader = "X-RJ-Test-Case-Id";
+    public const string EvidenceHeader = "X-RJ-Test-Evidence-Source";
 
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
     {
@@ -24,8 +25,15 @@ internal sealed class TestAuthenticatedPrincipalStartupFilter : IStartupFilter
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "b.txt"),
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "decisao.txt"),
                 new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "large.txt"),
-                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "Judit")
+                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "Judit"),
+                new(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, "JEproc - TJPR - PR - Lawsuit - Auth - 1 instance")
             };
+
+            if (context.Request.Headers.TryGetValue(EvidenceHeader, out var evidenceSource))
+            {
+                claims.RemoveAll(claim => claim.Type == ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim);
+                claims.Add(new Claim(ClaimsProcessSummaryCallerContextResolver.EvidenceSourceClaim, evidenceSource.ToString()));
+            }
 
             var caseId = context.Request.Headers.TryGetValue(CaseHeader, out var headerCaseId)
                 ? headerCaseId.FirstOrDefault()
@@ -59,7 +67,7 @@ internal sealed class TestAuthenticatedPrincipalStartupFilter : IStartupFilter
     {
         if (!HttpMethods.IsPost(request.Method)
             || !request.Path.Equals("/api/legal-documents", StringComparison.Ordinal)
-            || request.ContentLength is null or 0)
+            || request.ContentLength is 0)
         {
             return null;
         }

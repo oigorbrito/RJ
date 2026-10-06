@@ -1,6 +1,5 @@
 using System.Text.Json;
 using RJ.Application.Security;
-using RJ.Domain.Cases;
 using RJ.Infrastructure.Persistence;
 
 namespace RJ.Api;
@@ -55,7 +54,7 @@ public static class ProcessLookupEndpoint
 
     private static IResult AuthorizedResult(CallerContext caller, ProcessCatalogEntry? entry)
     {
-        if (entry is null || !caller.IsAuthorizedFor(new LegalCaseId(entry.CaseId)))
+        if (entry is null || !caller.AuthorizedCaseIds.Contains(entry.CaseId, StringComparer.Ordinal))
         {
             return Results.NotFound();
         }

@@ -207,7 +207,7 @@ public static class ProcessSummaryEndpoint
         }
         catch (UnauthorizedAccessException)
         {
-            return Results.Forbid();
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
     }
 

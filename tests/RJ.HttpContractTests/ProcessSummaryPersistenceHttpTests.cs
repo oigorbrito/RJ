@@ -14,6 +14,38 @@ public sealed class ProcessSummaryPersistenceHttpTests
     private const string CaseId = "response_60031603620268160021_1";
 
     [Fact]
+    public async Task Denied_evidence_returns_403_without_an_authentication_scheme()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("RJ_POSTGRES_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            Assert.Skip("RJ_POSTGRES_CONNECTION is required for HTTP persistence tests.");
+        }
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await PostgresSchema.MigrateAsync(dataSource);
+        var rawContent = await File.ReadAllTextAsync(Path.Combine(
+            FindRepoRoot(), "tests", "fixtures", "rj", "response_60031603620268160021_1.json"));
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var request = AuthorizedRequest(HttpMethod.Post, "/api/process-summaries/jobs", JsonContent.Create(new
+        {
+            idempotencyKey = $"denied-{Guid.NewGuid():N}",
+            sourceSystem = "Judit",
+            sourceName = "Judit",
+            sourceReference = "tests/fixtures/rj/response_60031603620268160021_1.json",
+            rawContent,
+            observedAt = "2026-09-02T18:51:04.800Z",
+            instruction = "Resuma o processo."
+        }));
+        request.Headers.Add(TestAuthenticatedPrincipalStartupFilter.EvidenceHeader, "unrelated-source");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Persisted_process_summary_survives_application_restart()
     {
         var connectionString = Environment.GetEnvironmentVariable("RJ_POSTGRES_CONNECTION");

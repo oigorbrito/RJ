@@ -23,3 +23,11 @@ Hosted exact integration-head CI must execute restore/build, PostgreSQL initiali
 Automatic observer association/decision must be inspected for the current integration head after CI completion. Hosted application PASS qualifies the integrated hermetic engineering scope, not historical exact heads #22-33 or Windows canonical scripts, real corpus, live provider, demo-to-production promotion, or project/release closure. Append exact head/run/job and counts after execution.
 
 Historical source includes local PASS claims with raw artifacts outside Git; these are preserved as history, not promoted to hosted/exact-head acceptance. DataJud, real attachment/oracle corpus and paired provider selection remain NOT_PROVEN without their external evidence.
+
+## Executed initial integration attempt
+
+Head 0477dad94d8fe7a2ab73a6c57027c99c4ae4b0dc, CI run 37506132069; runner-smoke job 112415141190 executed PASS; build-test job 112415170840 executed restore, build and migration twice, then test FAIL. 409 total: 399 succeeded, 7 failed, 3 real-corpus tests skipped. Six HTTP failures and one architecture failure; not an infrastructure blocker.
+
+Corrections: remove direct API-to-Domain reference using the existing authorized-case string contract; deny unauthorized summary evidence with explicit 403 without requiring an unconfigured authentication scheme; test-only identity now reads chunked JSON, admits the exact fixture crawler source and configures the size-contract factory. Adds a real HTTP regression for denied evidence returning 403 without a scheme. Production authorization is not loosened.
+
+Local SDK 10.0.401 and runtimes 10.0.12 installed and --info executed. Local solution restore currently fails before compilation with no diagnostic errors; local build/test PASS is not claimed. Hosted revalidation on corrected exact head is required.
