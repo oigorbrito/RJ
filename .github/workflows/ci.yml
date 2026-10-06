@@ -143,3 +143,93 @@ jobs:
           & "./scripts/${{ matrix.script }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "OBSERVATION gate=${{ matrix.script }} head=$(git rev-parse HEAD) decision=CANONICAL_GATE_EXECUTED_PASS"
+
+  controlled-process-demo:
+    needs: runner-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RJ_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=rj_demo;Username=postgres;Password=postgres
+      RJ_GENERATION_PROVIDER: deterministic
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: rj_demo
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rj_demo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Freeze execution identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "head=$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+      - name: Restore
+        run: dotnet restore RJ.slnx
+      - name: Occupied configured port fails closed
+        shell: pwsh
+        run: |
+          $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 5003)
+          $listener.Start()
+          try {
+            $output = & pwsh -NoProfile -File ./scripts/test-rjudi-mvp-wave-2.ps1 -ApiUrl http://127.0.0.1:5003 2>&1 | Out-String
+            $code = $LASTEXITCODE
+            if ($code -eq 0 -or $output -notmatch "Port 5003 is already in use") {
+              throw "Expected occupied configured port rejection; exit=$code output=$output"
+            }
+            Write-Host "OBSERVATION port=5003 occupied=true exit=$code decision=OCCUPIED_PORT_REJECTED_PASS"
+          }
+          finally { $listener.Stop() }
+          exit 0
+      - name: Five-case API process gate
+        shell: pwsh
+        run: |
+          & ./scripts/test-rjudi-mvp-wave-2.ps1 -ApiUrl http://127.0.0.1:5002
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $artifact = Get-ChildItem .artifacts/rjudi-mvp-wave-2/*.json | Sort-Object LastWriteTime | Select-Object -Last 1
+          $result = Get-Content -Raw $artifact.FullName | ConvertFrom-Json
+          $head = (git rev-parse HEAD).Trim()
+          if ($result.status -ne "PASS" -or $result.git.commit -ne $head -or $result.git.worktreeDirty -or $result.dataset.caseCount -ne 5) {
+            throw "Controlled demo result identity or fixture count mismatch."
+          }
+          if (@($result.steps | Where-Object { $_.status -ne "PASS" }).Count -ne 0) { throw "Demo contains unsuccessful steps." }
+          $expectedSteps = @("migration", "seed", "api-health", "multi-cnj-lookup", "documents-by-case", "unknown-cnj")
+          if ($result.steps.Count -ne $expectedSteps.Count) { throw "Missing or unexpected demo step count." }
+          foreach ($name in $expectedSteps) {
+            if (@($result.steps | Where-Object { $_.name -eq $name }).Count -ne 1) { throw "Missing or duplicate demo step: $name" }
+          }
+          $lookup = $result.steps | Where-Object { $_.name -eq "multi-cnj-lookup" }
+          $documents = $result.steps | Where-Object { $_.name -eq "documents-by-case" }
+          $negative = $result.steps | Where-Object { $_.name -eq "unknown-cnj" }
+          if ($lookup.observations.Count -ne 5 -or $documents.observations.Count -ne 5 -or $negative.httpStatus -ne 404) {
+            throw "Incomplete multi-case or negative-CNJ observations."
+          }
+          Copy-Item $artifact.FullName "$env:RUNNER_TEMP/controlled-demo-result.json"
+          Write-Host "RESULT_SHA256=$((Get-FileHash $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+          Write-Host ("OBSERVATION_RESULT=" + ($result | ConvertTo-Json -Depth 20 -Compress))
+
+          $live = @([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+            Where-Object { $_.Port -eq 5002 })
+          if ($live.Count -ne 0) { throw "Fixture API listener survived cleanup." }
+          Write-Host "OBSERVATION gate=RJUDI_MVP_WAVE_2_V1 head=$head case_count=5 port=5002 cleanup=PASS decision=CONTROLLED_DEMO_EXECUTED_PASS"
+      - name: Preserve controlled result artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: controlled-demo-${{ github.run_id }}
+          path: ${{ runner.temp }}/controlled-demo-result.json
+          if-no-files-found: error
+          retention-days: 30
