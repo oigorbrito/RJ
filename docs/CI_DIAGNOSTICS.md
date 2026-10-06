@@ -30,7 +30,7 @@ On workflow run `33889992199` for commit `b91d9fb03e0ec8edfe0cf017aaa11870ff1bf7
 
 At that point the failure was correctly classified as an external GitHub Actions runner/provisioning blocker rather than a repository-code failure.
 
-### Unblock evidence
+### Historical unblock evidence
 
 On workflow run `33934362365` for commit `42a5c22c9fb7b19b9e890a41ffc0799eba509bad` after the repository transfer to `oigorbrito/RJ`:
 
@@ -41,19 +41,29 @@ On workflow run `33934362365` for commit `42a5c22c9fb7b19b9e890a41ffc0799eba509b
 - the Release build reported 0 warnings and 0 errors;
 - the test step executed 126 tests and returned 112 passed, 14 failed, 0 skipped.
 
-This evidence satisfies the prior unblock condition. Subsequent failures in that run are repository/test failures with executed logs, not runner-provisioning failures.
+This evidence satisfied the prior unblock condition at that point in time. The 14 test failures were executable repository/test failures and were followed by corrective work in commit `eff7403d1d5c9fba040ee71f5d81f2fcf4f8869f`.
 
-## Classification
+### Recurrence on Wave C
 
-`RJ-BLK-002`: RESOLVED.
+On workflow run `34561587219` for Wave C commit `345a2f53863dd0b143bd318b562cca3d6669ef98`:
+
+- `runner-smoke` completed with conclusion `failure`;
+- `runner-smoke` returned `steps = null`;
+- dependent `build-test` completed as `skipped`;
+- no repository checkout, .NET setup, restore, build, PostgreSQL startup or test step executed.
+
+This is the same observable pre-step provisioning pattern as the historical blocker. The earlier successful run does not make a later unexecuted run PASS.
+
+## Current classification
+
+`RJ-BLK-002`: BLOCKED / RECURRENT.
 
 - type: GitHub Actions hosted-runner/execution environment;
-- prior blocked operation: CI step execution;
-- unblock evidence: run `33934362365` executed `runner-smoke`, service-container initialization, restore, build, and tests normally;
-- current impact: none as a runner blocker;
-- operational consequence: `build-test` is again the authoritative remote PostgreSQL 18.6 restore/build/test gate.
-
-The 14 test failures observed in run `33934362365` are tracked as executable engineering work, not as an external blocker. The follow-up corrections are contained in commit `eff7403d1d5c9fba040ee71f5d81f2fcf4f8869f`.
+- blocked operation: exact-head remote build/test execution;
+- current evidence: Wave C run `34561587219` failed before configured runner-smoke steps were exposed;
+- current impact: Wave C remote build/test remains NOT_TESTED;
+- work that can continue: source review, implementation, test definitions, documentation, local exact-head execution and CI metadata inspection;
+- objective unblock condition: a run on the exact Wave C head (or its successor) executes runner-smoke and exposes repository build/test steps or logs.
 
 ## Operational rule
 

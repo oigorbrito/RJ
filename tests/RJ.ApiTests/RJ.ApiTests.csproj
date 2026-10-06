@@ -5,12 +5,13 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.v3.mtp-v2" />
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\RJ.Api\RJ.Api.csproj" />
     <ProjectReference Include="..\..\src\RJ.Application\RJ.Application.csproj" />
     <ProjectReference Include="..\..\src\RJ.Domain\RJ.Domain.csproj" />
+    <ProjectReference Include="..\..\src\RJ.Infrastructure\RJ.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

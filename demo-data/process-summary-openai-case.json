@@ -1,0 +1,59 @@
+{
+  "page_data": [
+    {
+      "response_type": "lawsuit",
+      "response_data": {
+        "code": "6003160-36.2026.8.16.0021",
+        "name": "João da Silva x Empresa Exemplo Ltda.",
+        "courts": [{"name": "TJPR"}],
+        "county": "Curitiba",
+        "phase": "Conhecimento",
+        "status": "Concluso para decisão",
+        "secrecy_level": 0,
+        "amount": 15000.00,
+        "parties": [
+          {
+            "name": "João da Silva",
+            "side": "Active",
+            "person_type": "Person",
+            "main_document": "12345678901",
+            "documents": [],
+            "lawyers": []
+          },
+          {
+            "name": "Empresa Exemplo Ltda.",
+            "side": "Passive",
+            "person_type": "Company",
+            "main_document": "12345678000199",
+            "documents": [],
+            "lawyers": []
+          }
+        ],
+        "classifications": [{"code": "7", "name": "Procedimento Comum"}],
+        "subjects": [{"code": "9999", "name": "Responsabilidade Civil"}],
+        "steps": [
+          {
+            "step_id": "mov-001",
+            "step_date": "2026-08-10T10:00:00-03:00",
+            "content": "Ação distribuída.",
+            "source_name": "TJPR"
+          },
+          {
+            "step_id": "mov-002",
+            "step_date": "2026-08-25T14:30:00-03:00",
+            "content": "Contestação apresentada pela parte ré.",
+            "source_name": "TJPR"
+          },
+          {
+            "step_id": "mov-003",
+            "step_date": "2026-09-05T16:00:00-03:00",
+            "content": "Conclusos os autos para decisão.",
+            "source_name": "TJPR"
+          }
+        ],
+        "attachments": [],
+        "crawler": {"source_name": "demo-judit"}
+      }
+    }
+  ]
+}

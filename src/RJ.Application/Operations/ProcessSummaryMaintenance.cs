@@ -1,0 +1,127 @@
+using System.Security.Cryptography;
+using System.Text;
+using RJ.Application.Generation;
+using RJ.Application.Security;
+
+namespace RJ.Application.Operations;
+
+public interface IProcessSummaryRefreshDispatcher
+{
+    Task DispatchAsync(
+        ProcessSummaryMaintenanceWorkItem workItem,
+        CancellationToken cancellationToken);
+}
+
+public sealed record ProcessSummaryMaintenanceWorkItem(
+    string WorkId,
+    string JobId,
+    string CaseId,
+    string SnapshotSha256,
+    string SummaryVersion,
+    ProcessSummaryRefreshAction Action,
+    string Reason,
+    DateTimeOffset ObservedAt);
+
+public sealed class ProcessSummaryMaintenanceService(
+    IProcessSummaryJobStore store,
+    IProcessSummaryClock clock,
+    IProcessSummaryRefreshDispatcher dispatcher,
+    IProcessSummaryTelemetry telemetry)
+{
+    public async Task<ProcessSummaryMaintenanceRunResult> RunOnceAsync(
+        int batchSize,
+        CancellationToken cancellationToken)
+    {
+        if (batchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Maintenance batch size must be positive.");
+        }
+
+        var now = clock.UtcNow;
+        var retention = ProcessSecurityPolicy.DefaultRetentionPolicy();
+        var expiredBefore = now - retention.SummaryTtl;
+        var jobs = await store.ListForMaintenanceAsync(
+            ProcessSummaryPrompt.PromptVersion,
+            expiredBefore,
+            batchSize,
+            cancellationToken);
+        var dispatched = new List<ProcessSummaryMaintenanceWorkItem>();
+
+        foreach (var job in jobs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var freshness = ProcessSummaryFreshnessPolicy.Evaluate(
+                job,
+                job.SnapshotSha256,
+                ProcessSummaryPrompt.PromptVersion,
+                now,
+                retention);
+            var plan = ProcessSummaryRefreshPlanner.Plan(freshness);
+            if (!plan.RequiresScheduler)
+            {
+                continue;
+            }
+
+            var workItem = new ProcessSummaryMaintenanceWorkItem(
+                WorkId(job, plan.Action),
+                job.JobId,
+                job.CaseId,
+                job.SnapshotSha256,
+                job.SummaryVersion,
+                plan.Action,
+                plan.Reason,
+                now);
+            await dispatcher.DispatchAsync(workItem, cancellationToken);
+            dispatched.Add(workItem);
+
+            telemetry.Record(new ProcessSummaryTelemetryEvent(
+                "process_summary.maintenance_dispatch",
+                job.JobId,
+                job.CaseId,
+                job.Cnj,
+                job.SnapshotSha256,
+                job.SummaryVersion,
+                ProcessSummaryJobTelemetryStatus.RefreshPlan,
+                now,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["action"] = plan.Action.ToString(),
+                    ["freshness"] = freshness.Status.ToString(),
+                    ["work_id"] = workItem.WorkId
+                }));
+        }
+
+        return new ProcessSummaryMaintenanceRunResult(
+            jobs.Count,
+            dispatched.Count,
+            dispatched);
+    }
+
+    private static string WorkId(ProcessSummaryJob job, ProcessSummaryRefreshAction action)
+    {
+        var canonical = string.Join(
+            '\u001f',
+            job.JobId,
+            job.SnapshotSha256,
+            job.SummaryVersion,
+            action.ToString());
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    }
+}
+
+public sealed record ProcessSummaryMaintenanceRunResult(
+    int EvaluatedCount,
+    int DispatchedCount,
+    IReadOnlyList<ProcessSummaryMaintenanceWorkItem> WorkItems);
+
+public sealed class NoopProcessSummaryRefreshDispatcher : IProcessSummaryRefreshDispatcher
+{
+    public Task DispatchAsync(
+        ProcessSummaryMaintenanceWorkItem workItem,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(workItem);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+}

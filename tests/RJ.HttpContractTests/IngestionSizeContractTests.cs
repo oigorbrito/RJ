@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RJ.Api;
 using RJ.Infrastructure.Persistence;
@@ -21,15 +23,19 @@ public sealed class IngestionSizeContractTests
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await PostgresSchema.MigrateAsync(dataSource);
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+                services.AddSingleton<IStartupFilter, TestAuthenticatedPrincipalStartupFilter>()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false
         });
 
+        var caseId = $"case-{Guid.NewGuid():N}";
+        client.DefaultRequestHeaders.Add(TestAuthenticatedPrincipalStartupFilter.CaseHeader, caseId);
         var response = await client.PostAsJsonAsync("/api/legal-documents", new
         {
-            caseId = $"case-{Guid.NewGuid():N}",
+            caseId,
             documentId = "doc-large",
             sourceName = "large.txt",
             rawContent = new string('x', IngestionLimits.MaxRawContentBytes + 1)
