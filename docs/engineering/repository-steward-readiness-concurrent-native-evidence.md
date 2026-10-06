@@ -57,3 +57,20 @@ Conflict native DIRTY / CONFLICTING is accepted for NOT_READY_CONFLICT. Native U
 - 
 
 No ruleset absence is accepted as policy PASS. No rules writes or reviews were performed by the agent. No observer authority expansion. No corpus/provider/project/release qualification claimed.
+
+
+## Human-gate configuration inspection — 2026-10-06
+
+Ruleset 24586506 (readiness-test-behind) is active, but its include target is literally refs/heads/Include by pattern. Rules contain only deletion and non_fast_forward; no required_status_checks rule is present. Active configuration does not qualify BEHIND: the target must be refs/heads/readiness-fixture/rj-behind-base and require build-test with strict up-to-date enforcement.
+
+The #39 head remains 9c19741f315c0f2d1861aaada5692b5e8e8ad1a3. #40 remains 78bd6040236ffa27e68937740fc3b3a27c8a53ce. No additional ruleset exists for the blocked fixture, and #41 has no submitted review. All three native cases remain NOT_PROVEN / pending human gates. No rules or reviews were changed by the agent.
+
+Application CI prerequisites completed independently:
+
+| Fixture | Run | build-test job | Result |
+|---|---|---|---|
+| #39 | 37476142411 | 112311970797 | Executed test run PASS |
+| #40 | 37476291522 | 112312470491 | 168 total; 165 succeeded; 0 failed; 3 real-corpus tests skipped |
+| #41 | 37476188108 | 112312125529 | Executed test run PASS |
+
+CI PASS is not native BEHIND, BLOCKED or review-veto PASS. Real-corpus skips remain NOT_EXECUTED.
