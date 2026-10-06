@@ -25,3 +25,23 @@ Normalize detached branch output to an empty string while keeping the authoritat
 Integrate main ec51e96576e30c5d938f29f7eb7aeb859fde4d4b, retaining PR #51's canonical jobs and evidence in addition to this demo job; both PRs independently changed the CI file. This reconciliation preserves all jobs and does not alter steward authority.
 
 The attempted inline cast did not normalize PowerShell's empty native-command output in this runner: head e4ca4de13cf132e1d8c50483489315169b2e72da, run 37517044366, job 112452582006 failed at the same metadata line before migration. Replace it with explicit native output capture and a null branch guard before invoking Trim. Detached branch remains the truthful empty value. This failed attempt is retained, not reclassified as PASS.
+
+## Executed controlled demo — 2026-10-06
+
+Head 5d43de82a4a28d93c82e22e31bc979a8005aceef; run 37517219651; controlled-process job 112453299057.
+
+```text
+OBSERVATION port=5003 occupied=true exit=1 decision=OCCUPIED_PORT_REJECTED_PASS
+DEMO_SEED_COMPLETE count=5
+RJUDI_MVP_WAVE_2_V1 PASS
+OBSERVATION gate=RJUDI_MVP_WAVE_2_V1 head=5d43de82a4a28d93c82e22e31bc979a8005aceef case_count=5 port=5002 cleanup=PASS decision=CONTROLLED_DEMO_EXECUTED_PASS
+```
+
+All eight jobs in the run executed and succeeded. Full-suite job 112453298823 executed 410 tests: 407 succeeded, zero failed and three real-corpus skips. The existing M1, D/E, local-MVP and J/K gates were retained and passed.
+
+DOCUMENTED: frozen protocol, failed attempts, raw execution identities.
+IMPLEMENTED: portable configured-port guard, truthful detached metadata, owned process-tree cleanup and native CI.
+EXECUTED: both fixtures and the six canonical demo steps (migration, seed, API health, five CNJ lookups, five document observations, unknown CNJ 404).
+ACCEPTED: controlled five-case Linux-hosted demo mechanics only. No empirical sample-size, real source, production authentication, Windows or model-quality acceptance.
+
+Preserve the final successful JSON with native upload-artifact (30-day retention), print its SHA-256 and serialized observation in logs, and fail if it is missing. Assert exactly the six named steps, five lookup/document observations and 404, rather than accepting an empty set of successful steps. The final documentation/artifact-preservation commit requires its own checks before merge. Synthetic dataset content is the only case evidence; no keys or real legal corpus is uploaded.

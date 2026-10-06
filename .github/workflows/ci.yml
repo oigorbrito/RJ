@@ -207,7 +207,29 @@ jobs:
             throw "Controlled demo result identity or fixture count mismatch."
           }
           if (@($result.steps | Where-Object { $_.status -ne "PASS" }).Count -ne 0) { throw "Demo contains unsuccessful steps." }
+          $expectedSteps = @("migration", "seed", "api-health", "multi-cnj-lookup", "documents-by-case", "unknown-cnj")
+          if ($result.steps.Count -ne $expectedSteps.Count) { throw "Missing or unexpected demo step count." }
+          foreach ($name in $expectedSteps) {
+            if (@($result.steps | Where-Object { $_.name -eq $name }).Count -ne 1) { throw "Missing or duplicate demo step: $name" }
+          }
+          $lookup = $result.steps | Where-Object { $_.name -eq "multi-cnj-lookup" }
+          $documents = $result.steps | Where-Object { $_.name -eq "documents-by-case" }
+          $negative = $result.steps | Where-Object { $_.name -eq "unknown-cnj" }
+          if ($lookup.observations.Count -ne 5 -or $documents.observations.Count -ne 5 -or $negative.httpStatus -ne 404) {
+            throw "Incomplete multi-case or negative-CNJ observations."
+          }
+          Copy-Item $artifact.FullName "$env:RUNNER_TEMP/controlled-demo-result.json"
+          Write-Host "RESULT_SHA256=$((Get-FileHash $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+          Write-Host ("OBSERVATION_RESULT=" + ($result | ConvertTo-Json -Depth 20 -Compress))
+
           $live = @([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
             Where-Object { $_.Port -eq 5002 })
           if ($live.Count -ne 0) { throw "Fixture API listener survived cleanup." }
           Write-Host "OBSERVATION gate=RJUDI_MVP_WAVE_2_V1 head=$head case_count=5 port=5002 cleanup=PASS decision=CONTROLLED_DEMO_EXECUTED_PASS"
+      - name: Preserve controlled result artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: controlled-demo-${{ github.run_id }}
+          path: ${{ runner.temp }}/controlled-demo-result.json
+          if-no-files-found: error
+          retention-days: 30
