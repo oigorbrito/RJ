@@ -38,7 +38,7 @@ try {
         -or [string]::IsNullOrWhiteSpace($manifestSha) `
         -or [string]::IsNullOrWhiteSpace($artifactRoot) `
         -or [string]::IsNullOrWhiteSpace($canonicalSource)) {
-        Write-Error 'BLOCKED ATT-001: RJ_ATT_MANIFEST_PATH, RJ_ATT_MANIFEST_SHA256, RJ_ATT_ARTIFACT_ROOT and RJ_ATT_CANONICAL_SOURCE_PATH are required.'
+        Write-Error 'BLOCKED ATT-001: RJ_ATT_MANIFEST_PATH, RJ_ATT_MANIFEST_SHA256, RJ_ATT_ARTIFACT_ROOT and RJ_ATT_CANONICAL_SOURCE_PATH are required.' -ErrorAction Continue
         exit 2
     }
 

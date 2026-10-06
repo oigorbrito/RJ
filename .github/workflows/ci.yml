@@ -235,6 +235,7 @@ jobs:
           retention-days: 30
 
   external-admission-guards:
+    name: external-admission-guard (${{ matrix.gate }})
     needs: runner-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15

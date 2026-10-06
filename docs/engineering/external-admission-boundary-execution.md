@@ -11,3 +11,18 @@ IMPLEMENTED: native matrix, literal head, missing/partial temporary environment 
 EXECUTED/ACCEPTED: pending actual logs; no PASS yet.
 
 A successful guard job means missing evidence is rejected with a distinguishable blocked outcome. Real evidence remains NOT_EXECUTED and authentic-source/corpus/treatment acceptance remains NOT_PROVEN. No paid API, provider credentials, repository-rule writes, issue closure or branch deletion. Temporary environment values are removed in finally; hosted runners are disposable.
+
+## Initial executed classification failures — 2026-10-06
+
+Head 750182a5266135871002968acddd9118bdb47618; run 37518634706.
+
+| Gate | Job | Focused contracts | Missing-input result |
+| --- | --- | --- | --- |
+| F / DataJud | 112458002240 | 11 passed, zero failed/skipped | BLOCKED SRC-003 printed; exit 1 rather than 2; guard FAIL |
+| G / EVAL-010 | 112458002313 | 14 passed, zero failed/skipped | BLOCKED RJ-BLK-003 printed; exit 1 rather than 2; guard FAIL |
+| H / attachments | 112458002274 | 11 passed, zero failed/skipped | BLOCKED ATT-001 printed; exit 1 rather than 2; guard FAIL |
+| I / paired selection | 112458002135 | 20 passed, zero failed/skipped | BLOCKED RJ-BLK-003 printed; exit 1 rather than 2; guard FAIL |
+
+All four failed before their partial-input experiment; no real verifier executed. This is an executed blocked-outcome classification defect, not a failed authentic-source or corpus experiment.
+
+Correction: override ErrorAction to Continue only on each missing-evidence diagnostic, allowing the existing explicit exit 2 to execute. All contract/test/build failures, real-input verifiers and admission policy remain unchanged. Keep stderr diagnostics and finally cleanup. The native matrix now uses concise gate names; no semantic engine or fallback is added.
