@@ -148,6 +148,7 @@ jobs:
             Write-Host "OBSERVATION port=5003 occupied=true exit=$code decision=OCCUPIED_PORT_REJECTED_PASS"
           }
           finally { $listener.Stop() }
+          exit 0
       - name: Five-case API process gate
         shell: pwsh
         run: |
