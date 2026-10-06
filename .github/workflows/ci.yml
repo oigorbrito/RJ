@@ -69,4 +69,31 @@ jobs:
           dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
           dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
       - name: Test
-        run: dotnet test RJ.slnx --configuration Release --no-build
+        run: dotnet test RJ.slnx --configuration Release --no-build --max-parallel-test-modules 1
+
+  materialization-selftests:
+    needs: runner-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [j, k]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Freeze execution identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "head=$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+      - name: Restore
+        run: dotnet restore RJ.slnx
+      - name: Canonical synthetic materialization gate
+        shell: pwsh
+        run: ./scripts/test-rjudi-wave-${{ matrix.gate }}.ps1
