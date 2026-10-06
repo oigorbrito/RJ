@@ -37,7 +37,7 @@ try {
     )
     $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
     if ($missing.Count -gt 0) {
-        Write-Error ("BLOCKED SRC-003: authentic DataJud fixture verification requires: " + ($missing -join ', '))
+        Write-Error ("BLOCKED SRC-003: authentic DataJud fixture verification requires: " + ($missing -join ', ')) -ErrorAction Continue
         exit 2
     }
 

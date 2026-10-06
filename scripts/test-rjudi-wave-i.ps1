@@ -42,7 +42,7 @@ try {
     if ([string]::IsNullOrWhiteSpace($manifest) `
         -or [string]::IsNullOrWhiteSpace($manifestSha) `
         -or [string]::IsNullOrWhiteSpace($artifactRoot)) {
-        Write-Error 'BLOCKED RJ-BLK-003: admitted EVAL-010 paired selection evidence is required through RJ_EMPIRICAL_SELECTION_MANIFEST_PATH, RJ_EMPIRICAL_SELECTION_MANIFEST_SHA256 and RJ_EMPIRICAL_SELECTION_ARTIFACT_ROOT.'
+        Write-Error 'BLOCKED RJ-BLK-003: admitted EVAL-010 paired selection evidence is required through RJ_EMPIRICAL_SELECTION_MANIFEST_PATH, RJ_EMPIRICAL_SELECTION_MANIFEST_SHA256 and RJ_EMPIRICAL_SELECTION_ARTIFACT_ROOT.' -ErrorAction Continue
         exit 2
     }
 

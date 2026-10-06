@@ -37,7 +37,7 @@ try {
     if ([string]::IsNullOrWhiteSpace($manifest) `
         -or [string]::IsNullOrWhiteSpace($manifestSha256) `
         -or [string]::IsNullOrWhiteSpace($artifactRoot)) {
-        Write-Error 'BLOCKED RJ-BLK-003: RJ_EVAL010_MANIFEST_PATH, RJ_EVAL010_MANIFEST_SHA256 and RJ_EVAL010_ARTIFACT_ROOT are required for real-corpus admission.'
+        Write-Error 'BLOCKED RJ-BLK-003: RJ_EVAL010_MANIFEST_PATH, RJ_EVAL010_MANIFEST_SHA256 and RJ_EVAL010_ARTIFACT_ROOT are required for real-corpus admission.' -ErrorAction Continue
         exit 2
     }
 
