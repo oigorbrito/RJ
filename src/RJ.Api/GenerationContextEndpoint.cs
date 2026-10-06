@@ -6,6 +6,48 @@ public static class GenerationContextEndpoint
 {
     private const string InvalidEvidenceMessage = "Generation context could not be constructed from the retrieved evidence.";
 
+    public static async Task<IResult> HandleAuthorizedAsync(
+        HttpContext httpContext,
+        string caseId,
+        string? q,
+        int? limit,
+        int? budget,
+        IProcessSummaryCallerContextResolver callerResolver,
+        GenerationContextService service,
+        CancellationToken cancellationToken)
+    {
+        if (!callerResolver.TryResolve(httpContext.User, out var caller) || caller is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var authorizedSources = caller.AuthorizedEvidenceSourceNames ?? [];
+            if (authorizedSources.Count == 0)
+            {
+                return Results.NotFound();
+            }
+
+            var context = await service.BuildAuthorizedAsync(
+                caseId,
+                q ?? string.Empty,
+                limit ?? 20,
+                budget ?? 12000,
+                authorizedSources,
+                cancellationToken);
+            return Results.Ok(ToResponse(context));
+        }
+        catch (ArgumentException exception)
+        {
+            return Results.BadRequest(new GenerationContextError(exception.Message));
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.UnprocessableEntity(new GenerationContextError(InvalidEvidenceMessage));
+        }
+    }
+
     public static async Task<IResult> HandleAsync(
         string caseId,
         string? q,

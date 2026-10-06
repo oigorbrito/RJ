@@ -1,0 +1,127 @@
+[
+  {
+    "caseId": "demo-case-001",
+    "cnj": "6003160-36.2026.8.16.0021",
+    "sourceName": "demo-judit",
+    "process": {
+      "name": "João da Silva x Empresa Exemplo Ltda.",
+      "court": "TJPR",
+      "county": "Curitiba",
+      "phase": "Conhecimento",
+      "status": "Concluso para decisão",
+      "secrecyLevel": 0,
+      "amount": 15000.00,
+      "class": "Procedimento Comum",
+      "subject": "Responsabilidade Civil",
+      "parties": ["João da Silva", "Empresa Exemplo Ltda."],
+      "timeline": [
+        {"date":"2026-08-10T10:00:00-03:00","text":"Ação distribuída."},
+        {"date":"2026-08-25T14:30:00-03:00","text":"Contestação apresentada pela parte ré."},
+        {"date":"2026-09-05T16:00:00-03:00","text":"Conclusos os autos para decisão."}
+      ]
+    },
+    "documents": [
+      {"documentId":"movimentacoes","content":"Ação distribuída em 10/08/2026. Contestação apresentada pela parte ré em 25/08/2026. Autos conclusos para decisão em 05/09/2026."}
+    ]
+  },
+  {
+    "caseId": "demo-case-002",
+    "cnj": "6003161-21.2026.8.16.0021",
+    "sourceName": "demo-judit",
+    "process": {
+      "name": "Maria Oliveira x Seguradora Exemplo S.A.",
+      "court": "TJPR",
+      "county": "Curitiba",
+      "phase": "Conhecimento",
+      "status": "Aguardando manifestação",
+      "secrecyLevel": 0,
+      "amount": 8200.00,
+      "class": "Procedimento do Juizado Especial Cível",
+      "subject": "Relação de Consumo",
+      "parties": ["Maria Oliveira", "Seguradora Exemplo S.A."],
+      "timeline": [
+        {"date":"2026-07-14T09:10:00-03:00","text":"Petição inicial recebida."},
+        {"date":"2026-08-02T11:20:00-03:00","text":"Parte ré citada."},
+        {"date":"2026-09-01T15:45:00-03:00","text":"Intimada a parte autora para manifestação."}
+      ]
+    },
+    "documents": [
+      {"documentId":"andamento","content":"Petição inicial recebida. Parte ré citada. Parte autora intimada para manifestação em 01/09/2026."}
+    ]
+  },
+  {
+    "caseId": "demo-case-003",
+    "cnj": "6003162-06.2026.8.16.0021",
+    "sourceName": "demo-judit",
+    "process": {
+      "name": "Comercial Alfa Ltda. x Carlos Pereira",
+      "court": "TJPR",
+      "county": "Curitiba",
+      "phase": "Conhecimento",
+      "status": "Contestação apresentada",
+      "secrecyLevel": 0,
+      "amount": 27500.00,
+      "class": "Ação de Cobrança",
+      "subject": "Cobrança",
+      "parties": ["Comercial Alfa Ltda.", "Carlos Pereira"],
+      "timeline": [
+        {"date":"2026-06-18T13:00:00-03:00","text":"Ação de cobrança distribuída."},
+        {"date":"2026-07-07T10:05:00-03:00","text":"Citação cumprida."},
+        {"date":"2026-08-29T17:15:00-03:00","text":"Contestação protocolada."}
+      ]
+    },
+    "documents": [
+      {"documentId":"contestacao","content":"A parte ré apresentou contestação em 29/08/2026, após citação regularmente cumprida."}
+    ]
+  },
+  {
+    "caseId": "demo-case-004",
+    "cnj": "6003163-88.2026.8.16.0021",
+    "sourceName": "demo-judit",
+    "process": {
+      "name": "Ana Costa x Município Exemplo",
+      "court": "TJPR",
+      "county": "Curitiba",
+      "phase": "Sentença",
+      "status": "Sentença publicada",
+      "secrecyLevel": 0,
+      "amount": 12000.00,
+      "class": "Obrigação de Fazer",
+      "subject": "Direito Administrativo",
+      "parties": ["Ana Costa", "Município Exemplo"],
+      "timeline": [
+        {"date":"2026-05-21T08:30:00-03:00","text":"Ação distribuída."},
+        {"date":"2026-07-30T14:00:00-03:00","text":"Audiência realizada."},
+        {"date":"2026-09-08T12:10:00-03:00","text":"Sentença publicada."}
+      ]
+    },
+    "documents": [
+      {"documentId":"sentenca","content":"Sentença publicada em 08/09/2026 no processo de obrigação de fazer."}
+    ]
+  },
+  {
+    "caseId": "demo-case-005",
+    "cnj": "6003164-73.2026.8.16.0021",
+    "sourceName": "demo-judit",
+    "process": {
+      "name": "Paulo Souza x Transportadora Modelo Ltda.",
+      "court": "TJPR",
+      "county": "Curitiba",
+      "phase": "Recursal",
+      "status": "Recurso interposto",
+      "secrecyLevel": 0,
+      "amount": 19800.00,
+      "class": "Indenização por Danos Materiais",
+      "subject": "Responsabilidade Civil",
+      "parties": ["Paulo Souza", "Transportadora Modelo Ltda."],
+      "timeline": [
+        {"date":"2026-04-12T09:00:00-03:00","text":"Ação distribuída."},
+        {"date":"2026-08-20T16:40:00-03:00","text":"Sentença proferida."},
+        {"date":"2026-09-10T10:20:00-03:00","text":"Recurso interposto pela parte ré."}
+      ]
+    },
+    "documents": [
+      {"documentId":"recurso","content":"Após a sentença, a parte ré interpôs recurso em 10/09/2026."}
+    ]
+  }
+]

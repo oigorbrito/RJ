@@ -1,0 +1,57 @@
+{
+  "gate_version": "rjudi-wave-d-postgres-v1",
+  "base_commit": "63e316b4eef7c0338390362b960386ea99030b65",
+  "scope": "durable process-summary persistence and restart recovery",
+  "status": "NOT_TESTED",
+  "canonical_script": "scripts/test-rjudi-wave-d.ps1",
+  "required_environment": [
+    "RJ_POSTGRES_CONNECTION"
+  ],
+  "schema_version": "4",
+  "required_evidence": [
+    "schema_migration_idempotent",
+    "schema_startup_verification_fail_closed",
+    "process_summary_jobs_table_present",
+    "process_summary_scoped_idempotency_unique",
+    "tenant_subject_snapshot_hash_constraints",
+    "job_json_round_trip",
+    "job_recovery_across_store_instances",
+    "tenant_subject_case_access_persisted",
+    "idempotency_replay_after_restart",
+    "idempotency_conflict_after_restart",
+    "validated_summary_recovery_after_restart",
+    "refresh_plan_recovery_after_restart",
+    "http_restart_recovery",
+    "http_authenticated_boundary_preserved",
+    "m1_deterministic_gate_preserved"
+  ],
+  "evidence_tests": [
+    "ProcessSummaryPersistenceCoordinatorTests",
+    "PostgresSchemaTests",
+    "PostgresProcessSummaryPersistenceTests",
+    "ProcessSummaryPersistenceHttpTests",
+    "ApiContractTests"
+  ],
+  "not_claimed": [
+    "PRODUCTION_READY",
+    "scheduler_runtime",
+    "distributed_queue",
+    "multi_region_consistency",
+    "production_backup_restore",
+    "production_retention_enforcement",
+    "concrete_http_authentication_provider",
+    "remote_ci_pass"
+  ],
+  "blockers": [
+    {
+      "blocker_id": "RJ-BLK-002",
+      "status": "BLOCKED_IF_RUNNER_PRESTEP_FAILURE_RECURS",
+      "reason": "A GitHub Actions hosted runner failure before configured steps produces no product execution evidence."
+    },
+    {
+      "blocker_id": "BLK-POSTGRES-001",
+      "status": "BLOCKED_LOCAL_IF_CONNECTION_UNAVAILABLE",
+      "reason": "Local PostgreSQL execution requires RJ_POSTGRES_CONNECTION; CI provides PostgreSQL independently when the runner starts."
+    }
+  ]
+}

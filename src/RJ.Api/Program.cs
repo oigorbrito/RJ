@@ -5,6 +5,8 @@ using RJ.Application.Generation;
 using RJ.Application.Ingestion;
 using RJ.Application.Operations;
 using RJ.Application.Retrieval;
+using RJ.Application.Security;
+using RJ.Application.Sources;
 using RJ.Infrastructure.Operations;
 using RJ.Infrastructure.Persistence;
 
@@ -21,20 +23,40 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 
 var dataSource = NpgsqlDataSource.Create(connectionString);
 await PostgresSchema.EnsureCurrentAsync(dataSource);
+var generationModel = GenerationModelProvider.Create();
 
 builder.Services.AddSingleton(dataSource);
 builder.Services.AddSingleton<ILegalDocumentWriter, PostgresLegalDocumentWriter>();
 builder.Services.AddSingleton<ILegalDocumentReader, PostgresLegalDocumentReader>();
 builder.Services.AddSingleton<ILegalDocumentSearch, PostgresLegalDocumentSearch>();
+builder.Services.AddSingleton<PostgresProcessCatalog>();
 builder.Services.AddSingleton<IReadinessProbe, PostgresReadinessProbe>();
+builder.Services.AddSingleton<IProcessSummaryClock, SystemProcessSummaryClock>();
+builder.Services.AddSingleton<IProcessSummaryTelemetry, LoggingProcessSummaryTelemetry>();
+builder.Services.AddSingleton<IProcessSummaryAuditSink, LoggingProcessSummaryAuditSink>();
+builder.Services.AddSingleton<IProcessSummaryCallerContextResolver, ClaimsProcessSummaryCallerContextResolver>();
+builder.Services.AddSingleton<IProcessSummaryJobStore, PostgresProcessSummaryJobStore>();
+builder.Services.AddSingleton<IProcessSummaryJobAccessStore, PostgresProcessSummaryJobAccessStore>();
+builder.Services.AddSingleton<ProcessSummaryPersistenceCoordinator>();
+builder.Services.AddSingleton<IProcessSummaryRefreshDispatcher, LoggingProcessSummaryRefreshDispatcher>();
+builder.Services.AddSingleton<ProcessSummaryMaintenanceService>();
+builder.Services.AddHostedService<ProcessSummaryMaintenanceHostedService>();
+builder.Services.AddSingleton<IProcessAttachmentContentStore, EmptyProcessAttachmentContentStore>();
 builder.Services.AddSingleton<IngestLegalDocumentHandler>();
 builder.Services.AddSingleton<LegalDocumentQueryService>();
 builder.Services.AddSingleton<GenerationContextBuilder>();
 builder.Services.AddSingleton<GenerationContextService>();
+builder.Services.AddSingleton<IProcessSourceAdapter, JuditProcessSourceAdapter>();
+builder.Services.AddSingleton<ProcessSourceCanonicalizationService>();
+builder.Services.AddSingleton<ProcessGenerationContextComposer>();
+builder.Services.AddSingleton<IGenerationModel>(generationModel);
+builder.Services.AddSingleton<GenerationService>();
+builder.Services.AddSingleton<ProcessSummaryJobService>();
 
 var app = builder.Build();
 
 app.UseMiddleware<JsonInputExceptionMiddleware>();
+app.UseMiddleware<DemoAuthenticationMiddleware>();
 app.Use(async (context, next) =>
 {
     if (HttpMethods.IsPost(context.Request.Method)
@@ -55,13 +77,27 @@ app.MapGet("/health", HealthEndpoint.Live);
 app.MapGet("/health/live", HealthEndpoint.Live);
 app.MapGet("/health/ready", HealthEndpoint.ReadyAsync);
 
-app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync);
+app.MapGet("/api/processes/by-cnj/{cnj}", ProcessLookupEndpoint.GetByCnjAsync);
+app.MapGet("/api/processes/{caseId}", ProcessLookupEndpoint.GetByCaseIdAsync);
 
-app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAsync);
-app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAsync);
-app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAsync);
-app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAsync);
-app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAsync);
+app.MapPost("/api/legal-documents", IngestionEndpoint.HandleAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+
+app.MapGet("/api/cases/{caseId}/documents", ReadEndpoint.ListDocumentsAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/documents/{documentId}", ReadEndpoint.GetDocumentAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/search", ReadEndpoint.SearchAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/evidence", ReadEndpoint.RetrieveEvidenceAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+app.MapGet("/api/cases/{caseId}/generation-context", GenerationContextEndpoint.HandleAuthorizedAsync)
+    .AddEndpointFilter<ApiAuthorizationEndpointFilter>();
+
+app.MapPost("/api/process-summaries/jobs", PersistentProcessSummaryEndpoint.SubmitAsync);
+app.MapGet("/api/process-summaries/jobs/{jobId}", PersistentProcessSummaryEndpoint.GetJobAsync);
+app.MapGet("/api/process-summaries/jobs/{jobId}/validated-summary", PersistentProcessSummaryEndpoint.GetValidatedSummaryAsync);
+app.MapPost("/api/process-summaries/jobs/{jobId}/refresh-plan", PersistentProcessSummaryEndpoint.GetRefreshPlanAsync);
 
 app.Run();
 

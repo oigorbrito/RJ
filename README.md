@@ -137,3 +137,9 @@ Its value is clarity:
 - RAG work contained behind normal application boundaries.
 
 It is a compact proof that the broader AI-systems work in this portfolio sits on top of conventional software-engineering fundamentals rather than replacing them.
+
+## Integrated RJudi MVP
+
+The RJudi MVP adds process lookup, persistent summary jobs and deterministic evaluation tooling. Integration evidence and remaining real-data/provider boundaries are recorded in `docs/engineering/rjudi-mvp-main-integration.md`.
+
+`RJUDI_DEMO_MODE=true` enables fixed demo identities and cases for local demonstration only. It does not establish production authentication. The local gates under `scripts/` are distinct from hosted CI and require their own execution evidence.

@@ -18,7 +18,7 @@ public sealed class RulingBrDemoCatalogAdapterTests
         Assert.Equal(root, info.CorpusRoot);
         Assert.Equal(64, info.CatalogSha256.Length);
         Assert.Equal(64, info.CorpusArtifactSha256.Length);
-        Assert.Contains(Path.Combine(root, "rulingbr-v1.2.jsonl"), info.UsedArtifactPaths);
+        Assert.Contains(Path.Combine(root, "rulingbr-v1.2.tar.xz"), info.UsedArtifactPaths);
     }
 
     [RealLegalCorpusFact]
@@ -67,3 +67,4 @@ public sealed class RulingBrDemoCatalogAdapterTests
         Assert.NotEqual(sample[0].SourceText, sample[1].SourceText);
     }
 }
+

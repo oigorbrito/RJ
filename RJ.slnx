@@ -14,6 +14,14 @@
     <Project Path="tests/RJ.IntegrationTests/RJ.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/RJ.AttachmentAdmissionVerifier/RJ.AttachmentAdmissionVerifier.csproj" />
     <Project Path="tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj" />
+    <Project Path="tools/RJ.DataJudFixtureVerifier/RJ.DataJudFixtureVerifier.csproj" />
+    <Project Path="tools/RJ.DemoSeeder/RJ.DemoSeeder.csproj" />
+    <Project Path="tools/RJ.EmpiricalSelectionVerifier/RJ.EmpiricalSelectionVerifier.csproj" />
+    <Project Path="tools/RJ.Eval010CorpusVerifier/RJ.Eval010CorpusVerifier.csproj" />
+    <Project Path="tools/RJ.GenerationObservationMaterializer/RJ.GenerationObservationMaterializer.csproj" />
+    <Project Path="tools/RJ.RetrievalBenchmarkRunner/RJ.RetrievalBenchmarkRunner.csproj" />
+    <Project Path="tools/RJ.RetrievalObservationMaterializer/RJ.RetrievalObservationMaterializer.csproj" />
   </Folder>
 </Solution>

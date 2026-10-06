@@ -205,7 +205,7 @@ public sealed class OpenAiGenerationModel : IGenerationModel
 
     private static GenerationModelOutput ParseResponse(string responseText, GenerationContext context)
     {
-        using var document = JsonDocument.Parse(responseText);
+        using var document = ParseJson(responseText, "OpenAI response was not valid JSON.");
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -221,7 +221,7 @@ public sealed class OpenAiGenerationModel : IGenerationModel
             throw new InvalidOperationException("OpenAI response did not contain structured text output.");
         }
 
-        using var modelJson = JsonDocument.Parse(output);
+        using var modelJson = ParseJson(output, "OpenAI structured output was not valid JSON.");
         var modelRoot = modelJson.RootElement;
         var abstained = modelRoot.GetProperty("abstained").GetBoolean();
         var abstentionReason = modelRoot.TryGetProperty("abstention_reason", out var abstentionReasonElement) && abstentionReasonElement.ValueKind != JsonValueKind.Null
@@ -259,6 +259,18 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         return new GenerationModelOutput(abstained, abstentionReason, claims);
     }
 
+    private static JsonDocument ParseJson(string json, string message)
+    {
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(message, exception);
+        }
+    }
+
     private static HttpClient CreateDefaultClient(string apiKey)
     {
         var client = new HttpClient();
@@ -273,3 +285,4 @@ public sealed class OpenAiGenerationModel : IGenerationModel
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 }
+

@@ -197,6 +197,17 @@ public sealed class OpenAiGenerationModelTests
         return new GenerationContext("case-1", "Qual foi a decisão?", 1000, excerpt.Length, [item]);
     }
 
+    private static string ExtractUserContent(string requestBody)
+    {
+        using var document = JsonDocument.Parse(requestBody);
+        return document.RootElement
+            .GetProperty("input")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("role").GetString() == "user")
+            .GetProperty("content")
+            .GetString() ?? string.Empty;
+    }
+
     private sealed class RecordingHandler(HttpResponseMessage response) : HttpMessageHandler
     {
         public string RequestBody { get; private set; } = string.Empty;

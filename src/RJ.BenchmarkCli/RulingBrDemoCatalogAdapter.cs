@@ -34,6 +34,7 @@ public static class RulingBrDemoCatalogAdapter
 
         var normalizedCorpusRoot = Path.GetFullPath(corpusRoot);
         var corpusPath = await ResolveCorpusPathAsync(normalizedCorpusRoot, cancellationToken);
+        var corpusArtifactPath = ResolveCorpusArtifactPath(normalizedCorpusRoot, corpusPath);
         var cases = await ReadCasesAsync(corpusPath, cancellationToken);
 
         if (cases.Length == 0)
@@ -106,8 +107,8 @@ public static class RulingBrDemoCatalogAdapter
         {
             corpusRoot = normalizedCorpusRoot,
             repositoryCommit,
-            sampleFileSha256 = ComputeSha256(await File.ReadAllBytesAsync(corpusPath, cancellationToken)),
-            usedArtifacts = new[] { corpusPath }
+            sampleFileSha256 = ComputeSha256(await File.ReadAllBytesAsync(corpusArtifactPath, cancellationToken)),
+            usedArtifacts = new[] { corpusArtifactPath }
         };
         await File.WriteAllTextAsync(provenancePath, JsonSerializer.Serialize(provenance, JsonOptions), Utf8WithoutBom, cancellationToken);
 
@@ -118,6 +119,17 @@ public static class RulingBrDemoCatalogAdapter
             provenance.sampleFileSha256,
             repositoryCommit,
             provenance.usedArtifacts);
+    }
+
+    private static string ResolveCorpusArtifactPath(string normalizedCorpusRoot, string resolvedCorpusPath)
+    {
+        var archivePath = Path.Combine(normalizedCorpusRoot, CorpusArchiveFileName);
+        if (File.Exists(archivePath))
+        {
+            return archivePath;
+        }
+
+        return resolvedCorpusPath;
     }
 
     public static async Task<string> ResolveCorpusPathAsync(string corpusRoot, CancellationToken cancellationToken)
