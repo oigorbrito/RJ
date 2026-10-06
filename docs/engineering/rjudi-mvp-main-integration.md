@@ -31,3 +31,20 @@ Head 0477dad94d8fe7a2ab73a6c57027c99c4ae4b0dc, CI run 37506132069; runner-smoke 
 Corrections: remove direct API-to-Domain reference using the existing authorized-case string contract; deny unauthorized summary evidence with explicit 403 without requiring an unconfigured authentication scheme; test-only identity now reads chunked JSON, admits the exact fixture crawler source and configures the size-contract factory. Adds a real HTTP regression for denied evidence returning 403 without a scheme. Production authorization is not loosened.
 
 Local SDK 10.0.401 and runtimes 10.0.12 installed and --info executed. Local solution restore currently fails before compilation with no diagnostic errors; local build/test PASS is not claimed. Hosted revalidation on corrected exact head is required.
+
+## Accepted engineering integration and current execution
+
+Corrected head: 5458b4b558facdf77992674aec51d1bc0a905211. CI 37507470302; runner-smoke 112419673838 and build-test 112419714224. Restore, full Release build, PostgreSQL container, migrations twice and all solution tests executed PASS: 410 total, 407 succeeded, zero failed, three real-corpus tests skipped. Merge #48: 07f390b879d528717e7b4619211069a15fc60364. #33 was marked merged by GitHub. #22-32 were closed as superseded without separate merges; branches retained. Old exact heads/canonical gates remain historical and unqualified by this integrated run.
+
+Local environment: SDK 10.0.401, .NET/ASP.NET runtimes 10.0.12. Parallel restore initially failed; -m:1 --disable-parallel solution restore succeeded. Full Release build with --no-restore -m:1 passed with zero warnings/errors. Local code was verified byte-for-byte against corrected commit before aligning the local checkout to that SHA. Standalone in-process runner: 96 API tests PASS and six architecture tests PASS, zero skips/failures. dotnet test CLI failed before tests due to named-pipe SocketException(13); no CLI PASS is claimed. Local PostgreSQL is absent; hosted HTTP/integration tests are the executed database evidence.
+
+Automatic observer run 37507711769 / job 112420505427 measured the exact corrected head while the PR was still draft:
+
+```text
+2026-10-06T17:58:48.2690811Z ASSOCIATION source_run=37507470302 source_head=5458b4b558facdf77992674aec51d1bc0a905211 pr=48
+2026-10-06T17:58:48.9287535Z OBSERVATION state=OPEN draft=true mergeStateStatus=CLEAN mergeable=MERGEABLE reviewDecision=NONE checks=SUCCESS base=main head=integration/rjudi-mvp-qualified-main head_sha=5458b4b558facdf77992674aec51d1bc0a905211 decision=NOT_READY_DRAFT protocol=v2
+```
+
+The observer correctly refused draft despite CLEAN/checks SUCCESS. The authorized operator subsequently marked the PR ready and merged the tested exact head. No manual observation comment, check rerun or review was used; this is not automatic merge authority and the historical observer report is not rewritten to candidate PASS.
+
+ACCEPTED_PASS scope: integrated hermetic engineering build/test, SQL migration/HTTP/persistence suite in this CI environment. Real corpus (three skips), live provider, canonical Windows/MVP end-to-end scripts, authentic DataJud, real attachment fidelity and production/project/release acceptance remain NOT_EXECUTED / NOT_PROVEN as applicable. No release or deployment was performed.
