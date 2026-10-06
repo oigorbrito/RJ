@@ -289,8 +289,9 @@ public sealed class BenchmarkCliTests
     [Fact]
     public async Task RunAsync_selects_oab_bench_demo_target_when_explicitly_requested()
     {
+        using var fixture = new LegalCorpusTestFixture();
         var directory = CreateTemporaryDirectory();
-        var corpusRoot = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
+        var corpusRoot = fixture.OabRoot;
         var previous = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
         try
         {
@@ -322,8 +323,9 @@ public sealed class BenchmarkCliTests
     [Fact]
     public async Task RunAsync_selects_rulingbr_generation_challenger_when_explicitly_requested()
     {
+        using var fixture = new LegalCorpusTestFixture();
         var directory = CreateTemporaryDirectory();
-        var corpusRoot = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
+        var corpusRoot = fixture.OabRoot;
         var previous = Environment.GetEnvironmentVariable(OabBenchDemoCatalogAdapter.EnvironmentVariable);
         try
         {

@@ -34,10 +34,11 @@ public sealed class OabBenchDemoCatalogAdapterTests
         Assert.Equal("QUESTÃO", output.Claims[0].Text);
     }
 
-    [Fact]
+    [RealLegalCorpusFact]
     public async Task BuildAsync_can_map_real_oab_bench_corpus_into_rj_catalog()
     {
-        var root = Path.Combine("C:\\Projetos\\RJ", "oab-bench");
+        var root = Environment.GetEnvironmentVariable("RJ_REAL_OAB_CORPUS")
+            ?? throw new InvalidOperationException("RJ_REAL_OAB_CORPUS is required for real-corpus tests.");
         var info = await OabBenchDemoCatalogAdapter.BuildAsync(root, "abc123", CancellationToken.None);
         var external = RJ.Application.Benchmarking.ExternalGenerationBenchmarkCatalog.Parse(await File.ReadAllBytesAsync(info.CatalogPath));
         var catalog = external.ToBenchmarkCatalog();
