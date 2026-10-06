@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using RJ.Application.Generation;
 using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
@@ -81,7 +82,14 @@ public sealed class OabRulingBrAbRunnerTests
                 "--report", report2
             ], CancellationToken.None);
 
-            Assert.Equal(await File.ReadAllTextAsync(report1), await File.ReadAllTextAsync(report2));
+            var first = JsonNode.Parse(await File.ReadAllTextAsync(report1))!.AsObject();
+            var second = JsonNode.Parse(await File.ReadAllTextAsync(report2))!.AsObject();
+            // Wall-clock provenance is deliberately variable; benchmark results must be stable.
+            Assert.True(DateTimeOffset.TryParse(first["runtime"]!.GetValue<string>(), out _));
+            Assert.True(DateTimeOffset.TryParse(second["runtime"]!.GetValue<string>(), out _));
+            Assert.True(first.Remove("runtime"));
+            Assert.True(second.Remove("runtime"));
+            Assert.Equal(first.ToJsonString(), second.ToJsonString());
         }
         finally
         {
