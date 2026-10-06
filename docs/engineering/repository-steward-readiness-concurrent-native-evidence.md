@@ -54,5 +54,6 @@ Conflict native DIRTY / CONFLICTING is accepted for NOT_READY_CONFLICT. Native U
 - #39: active ruleset only refs/heads/readiness-fixture/rj-behind-base, require build-test with strict up-to-date policy. Base advanced to a6f1ba4c4d1ce58e70f8dd535b2ee5db65e10515; head unchanged. Native BEHIND still NOT_PROVEN.
 - #40: active ruleset only refs/heads/readiness-fixture/rj-blocked-base, require one approving review. Do not approve fixture. Native BLOCKED / REVIEW_REQUIRED still NOT_PROVEN.
 - #41: different human account submits Request changes. Wait for actual check SUCCESS before accepting isolated review-veto behavior. Native review veto still NOT_PROVEN.
+- 
 
 No ruleset absence is accepted as policy PASS. No rules writes or reviews were performed by the agent. No observer authority expansion. No corpus/provider/project/release qualification claimed.
