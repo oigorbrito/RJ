@@ -40,7 +40,13 @@ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $artifactPath = Join-Path $artifactRoot "$timestamp.json"
 
 $head = (git rev-parse HEAD).Trim()
-$branch = ([string](git branch --show-current)).Trim()
+$branch = git branch --show-current
+if ($null -eq $branch) {
+    $branch = ""
+}
+else {
+    $branch = $branch.Trim()
+}
 $worktree = @(git status --porcelain)
 $dotnetInfo = (& dotnet --info | Out-String)
 $datasetHash = (Get-FileHash -Algorithm SHA256 $datasetFullPath).Hash.ToLowerInvariant()

@@ -23,3 +23,5 @@ The occupied-port step passed after its asserted-status normalization. The posit
 Normalize detached branch output to an empty string while keeping the authoritative exact commit. Do not fabricate a branch name or weaken literal-head checkout. Use the owned Process.Kill(entireProcessTree: true) native cleanup so the spawned dotnet run child cannot survive its parent.
 
 Integrate main ec51e96576e30c5d938f29f7eb7aeb859fde4d4b, retaining PR #51's canonical jobs and evidence in addition to this demo job; both PRs independently changed the CI file. This reconciliation preserves all jobs and does not alter steward authority.
+
+The attempted inline cast did not normalize PowerShell's empty native-command output in this runner: head e4ca4de13cf132e1d8c50483489315169b2e72da, run 37517044366, job 112452582006 failed at the same metadata line before migration. Replace it with explicit native output capture and a null branch guard before invoking Trim. Detached branch remains the truthful empty value. This failed attempt is retained, not reclassified as PASS.
