@@ -69,7 +69,7 @@ jobs:
           dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
           dotnet run --project tools/RJ.DatabaseMigrator/RJ.DatabaseMigrator.csproj --configuration Release --no-build
       - name: Test
-        run: dotnet test RJ.slnx --configuration Release --no-build
+        run: dotnet test RJ.slnx --configuration Release --no-build --max-parallel-test-modules 1
 
   materialization-selftests:
     needs: runner-smoke
