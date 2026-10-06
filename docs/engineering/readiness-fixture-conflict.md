@@ -1,5 +1,5 @@
 # Controlled native conflict fixture
 
-variant=seed
+variant=base
 
 Report only. Never merge this fixture.
