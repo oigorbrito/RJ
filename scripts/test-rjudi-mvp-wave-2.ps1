@@ -23,7 +23,18 @@ if (-not (Test-Path $datasetFullPath)) {
     Fail "Dataset not found: $datasetFullPath"
 }
 
-$artifactRoot = Join-Path $repoRoot ".artifacts\rjudi-mvp-wave-2"
+$uri = [Uri]$ApiUrl
+if ($uri.Scheme -ne "http" -or -not $uri.IsLoopback) {
+    Fail "The controlled demo gate requires a loopback HTTP API URL."
+}
+$port = $uri.Port
+$existing = @([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+    Where-Object { $_.Port -eq $port })
+if ($existing.Count -gt 0) {
+    Fail "Port $port is already in use. Stop the existing listener before running the gate."
+}
+
+$artifactRoot = Join-Path $repoRoot ".artifacts/rjudi-mvp-wave-2"
 New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $artifactPath = Join-Path $artifactRoot "$timestamp.json"
@@ -42,6 +53,8 @@ if (-not $cases -or $cases.Count -eq 0) {
 $startedAt = Get-Date
 $steps = New-Object System.Collections.Generic.List[object]
 $apiProcess = $null
+$previousUrls = $env:ASPNETCORE_URLS
+$previousDemoMode = $env:RJUDI_DEMO_MODE
 
 try {
     & dotnet run --project .\tools\RJ.DatabaseMigrator\RJ.DatabaseMigrator.csproj
@@ -51,11 +64,6 @@ try {
     & dotnet run --project .\tools\RJ.DemoSeeder\RJ.DemoSeeder.csproj -- $datasetFullPath
     if ($LASTEXITCODE -ne 0) { Fail "Demo seed failed." }
     $steps.Add([pscustomobject]@{ name = "seed"; status = "PASS"; exitCode = 0 })
-
-    $existing = Get-NetTCPConnection -LocalPort 5001 -State Listen -ErrorAction SilentlyContinue
-    if ($existing) {
-        Fail "Port 5001 is already in use. Stop the existing listener before running the gate."
-    }
 
     $env:RJUDI_DEMO_MODE = "true"
     $env:ASPNETCORE_URLS = $ApiUrl
@@ -170,5 +178,8 @@ try {
 finally {
     if ($apiProcess -and -not $apiProcess.HasExited) {
         Stop-Process -Id $apiProcess.Id -Force -ErrorAction SilentlyContinue
+        $apiProcess.WaitForExit(10000) | Out-Null
     }
+    $env:ASPNETCORE_URLS = $previousUrls
+    $env:RJUDI_DEMO_MODE = $previousDemoMode
 }
