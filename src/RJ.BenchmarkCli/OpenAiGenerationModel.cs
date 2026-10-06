@@ -81,7 +81,14 @@ public sealed class OpenAiGenerationModel : IGenerationModel
             throw new InvalidOperationException($"OpenAI request failed with status code {(int)response.StatusCode}.");
         }
 
-        return ParseResponse(responseText, context);
+        try
+        {
+            return ParseResponse(responseText, context);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException("OpenAI response did not contain valid structured JSON.", exception);
+        }
     }
 
     private static string GetApiKey() =>

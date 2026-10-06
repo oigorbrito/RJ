@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using RJ.Application.Generation;
 using RJ.Application.Retrieval;
 using RJ.BenchmarkCli;
@@ -62,7 +63,7 @@ public sealed class OpenAiGenerationModelTests
         {
             Content = new StringContent("""
             {
-              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":32}]}]}"
+              "output_text": "{\"abstained\":false,\"abstention_reason\":null,\"claims\":[{\"text\":\"A tutela foi deferida.\",\"citations\":[{\"documentId\":\"doc-1\",\"contentSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"startOffset\":0,\"length\":22}]}]}"
             }
             """, Encoding.UTF8, "application/json")
         });
@@ -137,6 +138,37 @@ public sealed class OpenAiGenerationModelTests
             Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => model.GenerateAsync(context, CancellationToken.None));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, previousKey);
+        }
+    }
+
+    [Theory]
+    [InlineData(23)]
+    [InlineData(-1)]
+    public async Task GenerateAsync_rejects_citation_length_outside_supplied_context(int length)
+    {
+        var output = JsonSerializer.Serialize(new
+        {
+            abstained = false,
+            abstention_reason = (string?)null,
+            claims = new[] { new { text = "A tutela foi deferida.", citations = new[]
+            {
+                new { documentId = "doc-1", contentSha256 = new string('a', 64), startOffset = 0, length }
+            } } }
+        });
+        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { output_text = output }), Encoding.UTF8, "application/json")
+        });
+        var model = new OpenAiGenerationModel(new HttpClient(handler), OpenAiGenerationModel.ModelId);
+        var previousKey = Environment.GetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(OpenAiGenerationModel.ApiKeyEnvironmentVariable, "secret-key");
+            await Assert.ThrowsAsync<InvalidOperationException>(() => model.GenerateAsync(CreateContext(), CancellationToken.None));
         }
         finally
         {
