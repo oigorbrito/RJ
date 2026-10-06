@@ -40,7 +40,7 @@ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $artifactPath = Join-Path $artifactRoot "$timestamp.json"
 
 $head = (git rev-parse HEAD).Trim()
-$branch = (git branch --show-current).Trim()
+$branch = ([string](git branch --show-current)).Trim()
 $worktree = @(git status --porcelain)
 $dotnetInfo = (& dotnet --info | Out-String)
 $datasetHash = (Get-FileHash -Algorithm SHA256 $datasetFullPath).Hash.ToLowerInvariant()
@@ -177,7 +177,7 @@ try {
 }
 finally {
     if ($apiProcess -and -not $apiProcess.HasExited) {
-        Stop-Process -Id $apiProcess.Id -Force -ErrorAction SilentlyContinue
+        $apiProcess.Kill($true)
         $apiProcess.WaitForExit(10000) | Out-Null
     }
     $env:ASPNETCORE_URLS = $previousUrls
