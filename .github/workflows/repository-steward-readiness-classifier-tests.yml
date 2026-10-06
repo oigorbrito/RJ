@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Check out pull request head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Check shell syntax
         run: |
           bash -n .github/scripts/repository-steward-readiness-classifier.sh
